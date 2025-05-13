@@ -164,7 +164,7 @@ async function handleRegister(): Promise<void> {
 
     if (signUpData.user || (signUpData.session === null && !signUpError)) {
       toast.success('Cadastro realizado! Por favor, verifique seu email para confirmar sua conta.');
-      router.push('/user/login?message=registration_successful_check_email');
+      router.push('/user/login');
     } else {
       toast.warning('Ocorreu uma situação inesperada com o cadastro. Verifique seu email ou tente fazer login.');
     }
