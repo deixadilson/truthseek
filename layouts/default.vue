@@ -8,7 +8,7 @@
       <nav class="main-nav">
         <NuxtLink to="/">Início</NuxtLink>
         <NuxtLink to="/user/login">Login</NuxtLink>
-        <NuxtLink to="/user/register">Cadastre-se</NuxtLink>
+        <NuxtLink to="/user/register">Cadastro</NuxtLink>
       </nav>
     </header>
     <main class="main-content">
@@ -35,21 +35,21 @@
   background-color: var(--header-bg);
   color: var(--header-text);
   padding: 0.8rem 1.5rem;
-  border-bottom: 1px solid rgba(0,0,0,0.1); /* Borda sutil mesmo com fundo escuro */
+  border-bottom: 1px solid rgba(0,0,0,0.1);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  position: sticky; /* Header fixo no topo */
+  position: sticky;
   top: 0;
-  z-index: 1000; /* Para ficar acima de outros conteúdos */
+  z-index: 1000;
 }
 
 .logo-link {
   display: flex;
   align-items: center;
   text-decoration: none;
-  color: inherit; /* Herdar a cor do header */
-  gap: 0.5rem; /* Espaço entre logo e texto */
+  color: inherit;
+  gap: 0.5rem;
 }
 
 .logo-img {
