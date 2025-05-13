@@ -7,8 +7,14 @@
       </NuxtLink>
       <nav class="main-nav">
         <NuxtLink to="/">Início</NuxtLink>
-        <NuxtLink to="/user/login">Login</NuxtLink>
-        <NuxtLink to="/user/register">Cadastro</NuxtLink>
+        <template v-if="user">
+          <span class="user-greeting">Olá, {{ user.email }}</span>
+          <button @click="handleLogout" class="button-logout">Sair</button>
+        </template>
+        <template v-else>
+          <NuxtLink to="/user/login">Entrar</NuxtLink>
+          <NuxtLink to="/user/register">Cadastrar</NuxtLink>
+        </template>
       </nav>
     </header>
     <main class="main-content">
@@ -21,7 +27,23 @@
 </template>
 
 <script setup lang="ts">
-// Lógica do layout, se necessário no futuro
+import { useToast } from 'vue-toastification';
+
+const user = useSupabaseUser();
+const supabase = useSupabaseClient();
+const router = useRouter();
+const toast = useToast();
+
+async function handleLogout(): Promise<void> {
+  const { error } = await supabase.auth.signOut();
+  if (error) {
+    console.error('Erro ao fazer logout:', error);
+    toast.error(error.message || 'Falha ao sair.');
+  } else {
+    toast.success('Você saiu com sucesso!');
+    router.push('/');
+  }
+}
 </script>
 
 <style scoped>
@@ -64,18 +86,42 @@
   color: var(--header-text);
 }
 
-.main-nav a {
-  margin-left: 1.2rem;
+.main-nav {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+}
+
+.main-nav a, .main-nav .button-logout, .main-nav .user-greeting {
   text-decoration: none;
   color: var(--header-text);
   font-weight: 500;
   transition: color 0.2s;
+  white-space: nowrap;
 }
 
 .main-nav a:hover,
 .main-nav a.router-link-exact-active {
   color: var(--header-link-hover);
   text-decoration: none;
+}
+
+.user-greeting {
+  font-size: 0.9em;
+}
+
+.button-logout {
+  background-color: transparent;
+  border: 1px solid var(--header-link-hover);
+  padding: 0.4em 0.8em;
+  border-radius: 4px;
+  font-size: 0.9em;
+  cursor: pointer;
+}
+
+.button-logout:hover {
+  background-color: var(--header-link-hover);
+  color: var(--primary-color);
 }
 
 .main-content {
