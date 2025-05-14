@@ -36,7 +36,7 @@
         <div class="site-links">
           <NuxtLink to="/how-it-works">Como Funciona</NuxtLink> |
           <NuxtLink to="/faq">FAQ</NuxtLink> |
-          <NuxtLink to="/termos-de-servico">Termos de Serviço</NuxtLink>
+          <NuxtLink to="/terms-of-service">Termos de Serviço</NuxtLink>
         </div>
       </section>
     </div>

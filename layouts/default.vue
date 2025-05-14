@@ -28,7 +28,7 @@
         <br />
         <NuxtLink to="/how-it-works" class="footer-link">Como Funciona</NuxtLink> |
         <NuxtLink to="/faq" class="footer-link">FAQ</NuxtLink> |
-        <NuxtLink to="/termos-de-servico" class="footer-link">Termos de Serviço</NuxtLink>
+        <NuxtLink to="/terms-of-service" class="footer-link">Termos de Serviço</NuxtLink>
       </p>
     </footer>
   </div>
