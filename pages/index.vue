@@ -34,7 +34,7 @@
           <li>Participar de uma comunidade focada na evolução de ideias.</li>
         </ul>
         <div class="site-links">
-          <NuxtLink to="/como-funciona">Como Funciona</NuxtLink> |
+          <NuxtLink to="/how-it-works">Como Funciona</NuxtLink> |
           <NuxtLink to="/faq">FAQ</NuxtLink> |
           <NuxtLink to="/termos-de-servico">Termos de Serviço</NuxtLink>
         </div>

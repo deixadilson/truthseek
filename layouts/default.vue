@@ -23,7 +23,13 @@
       <slot />
     </main>
     <footer class="app-footer">
-      <p>© {{ new Date().getFullYear() }} TruthSeek Network. Todos os direitos reservados.</p>
+      <p>
+        © {{ new Date().getFullYear() }} TruthSeek Network. Todos os direitos reservados.
+        <br />
+        <NuxtLink to="/how-it-works" class="footer-link">Como Funciona</NuxtLink> |
+        <NuxtLink to="/faq" class="footer-link">FAQ</NuxtLink> |
+        <NuxtLink to="/termos-de-servico" class="footer-link">Termos de Serviço</NuxtLink>
+      </p>
     </footer>
   </div>
 </template>
@@ -137,5 +143,14 @@ async function handleLogout(): Promise<void> {
   text-align: center;
   padding: 1.5rem 1rem;
   font-size: 0.9rem;
+}
+
+.footer-link {
+  color: var(--primary-color-light);
+  text-decoration: underline;
+  margin: 0 0.5rem;
+}
+.footer-link:hover {
+  color: #fff;
 }
 </style>
