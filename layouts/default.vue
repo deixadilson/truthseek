@@ -8,7 +8,9 @@
       <nav class="main-nav">
         <NuxtLink to="/">Início</NuxtLink>
         <template v-if="user">
-          <span class="user-greeting">Olá, {{ user.email }}</span>
+          <NuxtLink to="/user/profile" class="user-greeting">
+            Olá, {{ user.email }}
+          </NuxtLink>
           <button @click="handleLogout" class="button-logout">Sair</button>
         </template>
         <template v-else>
