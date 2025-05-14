@@ -18,17 +18,7 @@
     <div class="container page-content-wrapper">
       <aside class="login-section-top">
         <h3>Já é membro? Faça seu login</h3>
-        <form @submit.prevent="handleLogin" class="login-form">
-          <div class="form-group">
-            <label for="email">Email:</label>
-            <input type="email" id="email" v-model="email" required placeholder="seu@email.com" />
-          </div>
-          <div class="form-group">
-            <label for="password">Senha:</label>
-            <input type="password" id="password" v-model="password" required placeholder="Sua senha" />
-          </div>
-          <button type="submit" class="button-primary">Entrar</button>
-        </form>
+        <LoginForm />
         <div class="user-actions">
           <NuxtLink to="/user/register">Criar conta</NuxtLink> |
           <NuxtLink to="/user/password-recovery">Esqueceu a senha?</NuxtLink>
@@ -52,18 +42,6 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref } from 'vue'
-
-const email = ref('')
-const password = ref('')
-
-function handleLogin() {
-  console.log('Tentativa de login com:', email.value, password.value)
-  alert('Funcionalidade de login ainda não implementada.')
-}
-</script>
 
 <style scoped>
 .hero-section {
@@ -130,36 +108,6 @@ function handleLogin() {
   margin-bottom: 1.5rem;
   font-size: 1.5rem;
   color: var(--text-color);
-}
-
-.login-form .form-group {
-  margin-bottom: 1rem;
-}
-
-.login-form label {
-  display: block;
-  margin-bottom: 0.4rem;
-  font-weight: 500;
-  font-size: 0.9rem;
-}
-
-.login-form input {
-  width: 100%;
-  padding: 0.7rem;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  font-size: 1rem;
-}
-.login-form input:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color) 20%, transparent);
-}
-
-.login-form button {
-  width: 100%;
-  font-size: 1.1rem;
-  margin-top: 0.5rem;
 }
 
 .user-actions {
