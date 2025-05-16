@@ -135,7 +135,6 @@ async function handleLogout(): Promise<void> {
 
 .main-content {
   flex-grow: 1;
-  padding-top: 60px;
 }
 
 .app-footer {
