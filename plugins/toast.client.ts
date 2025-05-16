@@ -6,7 +6,7 @@ export default defineNuxtPlugin(nuxtApp => {
   const options: PluginOptions = {
     position: POSITION.TOP_RIGHT,
     timeout: 5000,
-    closeOnClick: true,
+    closeOnClick: false,
     pauseOnFocusLoss: true,
     pauseOnHover: true,
     draggable: true,

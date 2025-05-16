@@ -8,6 +8,7 @@
       <nav class="main-nav">
         <NuxtLink to="/">Início</NuxtLink>
         <template v-if="user">
+          <NuxtLink to="/categories">Categorias</NuxtLink>
           <NuxtLink to="/user/profile" class="user-greeting">
             Olá, {{ user.email }}
           </NuxtLink>
