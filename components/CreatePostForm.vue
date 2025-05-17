@@ -259,9 +259,9 @@ async function submitPost() {
         owner_type: props.ownerType,
         text_content: textContent.value.trim() || null,
         image_path: imagePathToSave,
-        video_url: videoUrlToSave.value, // Salva a URL original, não a de embed
+        video_url: videoUrlToSave.value,
         is_anonymous: isAnonymous.value,
-        is_moderated_content: isModeratedContent.value,
+        is_moderated: isModeratedContent.value,
       })
       .select()
       .single();
@@ -284,7 +284,7 @@ async function submitPost() {
 
 <style scoped>
 .create-post-component { margin-bottom: 1rem; }
-.create-post-form h3 { margin-top: 0; margin-bottom: 1rem; color: var(--primary-color); }
+.create-post-form h3 { margin-top: 0; margin-bottom: 1rem; border-bottom: 0; color: var(--primary-color); }
 .form-group { margin-bottom: 1rem; }
 textarea {
   width: 100%; min-height: 100px; padding: 0.75rem;

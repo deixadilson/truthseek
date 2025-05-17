@@ -48,9 +48,9 @@
             @post-created="handleNewPost"
             class="create-post-component"
           />
-          <section class="posts-list-section card-style">
-            <h3>Postagens Recentes</h3>
-            <p>Nenhuma postagem ainda. (Conteúdo de posts em breve)</p>
+          <section class="posts-list-section">
+            <!-- <h3>Postagens Recentes</h3> -->
+            <PostList :posts="posts" :is-loading="isLoadingPosts" empty-message="Nenhuma postagem neste grupo ainda. Seja o primeiro!" />
           </section>
         </div>
         <aside class="sidebar-column">
@@ -111,13 +111,49 @@ interface SubgroupData {
   country_code: string;
 }
 
+interface PostFromQuery { // Tipo para os dados brutos do post da query
+  id: string;
+  author_id: string;
+  // author: { username: string | null; avatar_url: string | null; } | null; // Se fizer o join com profiles
+  profiles: { username: string | null; avatar_url: string | null; } | null; // Se o join for com profiles(username, avatar_url)
+  text_content: string | null;
+  image_path: string | null;
+  video_url: string | null;
+  is_edited: boolean;
+  is_anonymous: boolean;
+  created_at: string;
+  likes_count?: number; // Se você tiver essas colunas
+  dislikes_count?: number;
+  comments_count?: number;
+}
+
+// Tipo para o Post formatado para o componente PostItem
+interface DisplayPost {
+  id: string;
+  author_id: string;
+  text_content: string | null;
+  image_path: string | null;
+  video_url: string | null;
+  is_edited: boolean;
+  is_anonymous: boolean;
+  created_at: string;
+  author_username: string | null;
+  author_avatar_path: string | null;
+  likes_count?: number;
+  dislikes_count?: number;
+  comments_count?: number;
+}
+
 const route = useRoute();
 const supabase = useSupabaseClient<Database>();
 const toast = useToast();
+const user = useSupabaseUser();
 
 const groupData = ref<GroupData | null>(null);
 const subgroups = ref<SubgroupData[]>([]);
+const posts = ref<DisplayPost[]>([]);
 const isLoading = ref(true);
+const isLoadingPosts = ref(false);
 
 const groupSlug = computed(() => route.params.slug as string);
 const countryCodeParam = computed(() => route.params.country_code as string);
@@ -137,6 +173,30 @@ const headerBackgroundStyle = computed(() => {
   }
   return { backgroundColor: 'var(--primary-color-light)' };
 });
+
+async function fetchPostsForGroup(groupId: string) {
+  isLoadingPosts.value = true;
+  try {
+    const { data, error } = await supabase
+      .from('posts_with_author_info') // <<< USANDO A VIEW
+      .select(`*`) // Seleciona todas as colunas da view
+      .eq('owner_id', groupId)
+      .eq('owner_type', 'group')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    if (data) {
+      // O data já deve vir no formato de DisplayPost (ou muito próximo)
+      posts.value = data as DisplayPost[];
+    }
+  } catch (e: any) {
+    console.error('Erro ao buscar posts:', e);
+    toast.error(e.message || 'Falha ao carregar posts.');
+  } finally {
+    isLoadingPosts.value = false;
+  }
+}
 
 async function fetchGroupData(country: string, slug: string): Promise<void> {
   isLoading.value = true;
@@ -184,6 +244,8 @@ async function fetchGroupData(country: string, slug: string): Promise<void> {
 
         if(subError) throw subError;
         if(subData) subgroups.value = subData as SubgroupData[];
+
+        await fetchPostsForGroup(groupData.value.id);
       }
     } else {
       // Este caso não deve ser alcançado se .single() e PGRST116 são tratados
@@ -199,12 +261,25 @@ async function fetchGroupData(country: string, slug: string): Promise<void> {
   }
 }
 
-function handleNewPost(newPost: any) { // O tipo 'any' deve ser substituído pelo tipo Post
-  console.log('Novo post criado na página do grupo:', newPost);
-  toast.info('Seu post foi adicionado!');
-  // Aqui você adicionaria o newPost ao topo da sua lista de posts reativa
-  // ou re-buscaria a lista de posts.
-  // Ex: posts.value.unshift(newPost);
+function handleNewPost(newPostData: PostFromQuery) { // O tipo aqui deve ser o que o evento emite
+  console.log('Novo post recebido na página do grupo:', newPostData);
+  // Formatar o newPostData para a estrutura DisplayPost se necessário
+  // e adicionar ao topo da lista de posts
+  const authorProfile = Array.isArray(newPostData.profiles) ? newPostData.profiles[0] : newPostData.profiles;
+  const displayPost: DisplayPost = {
+    id: newPostData.id,
+    author_id: newPostData.author_id,
+    author_username: authorProfile?.username || null,
+    author_avatar_path: authorProfile?.avatar_url || null,
+    text_content: newPostData.text_content,
+    image_path: newPostData.image_path,
+    video_url: newPostData.video_url,
+    is_edited: newPostData.is_edited,
+    is_anonymous: newPostData.is_anonymous,
+    created_at: newPostData.created_at,
+  };
+  posts.value.unshift(displayPost); // Adiciona no início da lista
+  toast.info('Seu post foi adicionado à lista!');
 }
 
 watch(
@@ -330,20 +405,6 @@ watch(
 
 .sidebar-column .card-style { /* Estilo comum para cards na sidebar */
   margin-bottom: 1.5rem;
-}
-
-.card-style { /* Estilo base para seções de conteúdo */
-  background-color: var(--card-bg);
-  padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 1px 5px rgba(0,0,0,0.05);
-}
-.card-style h3, .card-style h4 {
-  color: var(--primary-color);
-  margin-top: 0;
-  margin-bottom: 1rem;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 0.5rem;
 }
 
 .group-description {
