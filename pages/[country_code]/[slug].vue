@@ -3,16 +3,14 @@
     <div v-if="isLoading" class="loading-spinner container">
       Carregando dados do grupo...
     </div>
-    <div v-else-if="errorLoading" class="error-message container">
-      {{ errorLoading }}
-      <p><NuxtLink to="/categories" class="button-secondary">Voltar para Categorias</NuxtLink></p>
+    <div v-else-if="!groupData && !isLoading" class="group-not-found container">
+      <h2>Grupo não encontrado</h2>
+      <p>O grupo que você está procurando não existe ou o link está incorreto.</p>
+      <NuxtLink to="/categories" class="button-primary">Explorar Categorias</NuxtLink>
     </div>
     <div v-else-if="groupData" class="group-content">
-      <!-- Cabeçalho do Grupo (Item 10.1) -->
       <header class="group-header">
-        <div class="header-background-image" :style="headerBackgroundStyle">
-          <!-- Imagem de capa do grupo (se houver) -->
-        </div>
+        <div class="header-background-image" :style="headerBackgroundStyle"></div>
         <div class="header-content container">
           <div class="group-flag-container">
             <img
@@ -28,14 +26,12 @@
           <div class="group-title-info">
             <h1>{{ groupData.name }}</h1>
             <p class="group-meta">
-              <!-- Ex: País, tipo de grupo (Categoria/Viés), etc. -->
               País: {{ groupData.country_code.toUpperCase() }}
               <span v-if="groupData.taxon">| Categoria: {{ groupData.taxon.name }}</span>
               <span v-if="groupData.is_open">| Grupo Aberto</span>
             </p>
           </div>
           <div class="group-actions">
-            <!-- Botões: Seguir, Entrar no Grupo, Configurações (se admin), etc. -->
             <button class="button-primary">Participar / Seguir (Em breve)</button>
           </div>
         </div>
@@ -46,97 +42,73 @@
           <p v-if="groupData.description" class="group-description">
             {{ groupData.description }}
           </p>
-
-          <!-- Formulário para Criar Post (Item 10.2) - Placeholder -->
-          <section class="create-post-section card-style">
-            <h3>Criar Nova Postagem (Em breve)</h3>
-            <textarea placeholder="O que você tem em mente?"></textarea>
-            <button class="button-primary">Postar</button>
-          </section>
-
-          <!-- Listagem de Posts (Item 10.3) - Placeholder -->
+          <CreatePostForm v-if="groupData" 
+            :owner-id="groupData.id"
+            owner-type="group"
+            @post-created="handleNewPost"
+            class="create-post-component"
+          />
           <section class="posts-list-section card-style">
             <h3>Postagens Recentes</h3>
             <p>Nenhuma postagem ainda. (Conteúdo de posts em breve)</p>
-            <!-- Loop v-for para posts aqui -->
           </section>
         </div>
-
         <aside class="sidebar-column">
-          <!-- Bloco de links para grupos do usuário (Item 10.6) - Placeholder -->
           <section class="user-groups-sidebar card-style">
             <h4>Seus Grupos</h4>
             <p>(Lista de grupos do usuário em breve)</p>
           </section>
-
-          <!-- Lista de Subgrupos (Item 10.7) - Placeholder -->
           <section class="subgroups-sidebar card-style" v-if="subgroups.length > 0">
             <h4>Subgrupos</h4>
             <ul>
               <li v-for="subgroup in subgroups" :key="subgroup.id">
-                <NuxtLink :to="`/g/${subgroup.slug}`">{{ subgroup.name }}</NuxtLink>
+                <NuxtLink :to="`/${subgroup.country_code}/${subgroup.slug}`">{{ subgroup.name }}</NuxtLink>
               </li>
             </ul>
           </section>
-
-          <!-- Lista de Membros (Item 10.9) - Placeholder -->
           <section class="members-sidebar card-style">
             <h4>Membros ({{ groupData.members_count || 0 }})</h4>
             <p>(Lista de membros em breve)</p>
           </section>
-
-          <!-- Eventos do Grupo (Item 10.10) - Placeholder -->
           <section class="events-sidebar card-style">
             <h4>Eventos</h4>
             <p>(Eventos do grupo em breve)</p>
           </section>
-
-          <!-- Debates do Grupo (Item 10.11) - Placeholder -->
           <section class="debates-sidebar card-style">
             <h4>Debates</h4>
             <p>(Debates do grupo em breve)</p>
           </section>
-
-          <!-- Link para Detalhes do Grupo (Item 10.12) - Placeholder -->
-          <NuxtLink :to="`/g/${groupData.slug}/details`" class="details-link">
+          <NuxtLink :to="`/${groupData.country_code}/${groupData.slug}/details`" class="details-link">
             Ver Detalhes do Grupo
           </NuxtLink>
         </aside>
       </div>
     </div>
-    <div v-else class="group-not-found container">
-      <h2>Grupo não encontrado</h2>
-      <p>O grupo que você está procurando não existe ou foi movido.</p>
-      <NuxtLink to="/categories" class="button-primary">Explorar Categorias</NuxtLink>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import type { Database } from '~/types/supabase'; // Importar tipos
+import type { Database } from '~/types/supabase';
 import { useToast } from 'vue-toastification';
 
-// Interface para os dados do grupo que esperamos
-// Idealmente, isso seria gerado ou mais granular com base nos selects
 interface GroupData {
-  id: string;
-  name: string;
+  id: string; name: string;
   slug: string;
   description: string | null;
   flag_path: string | null;
   country_code: string;
   is_open: boolean;
-  category_group_id: string | null; // Se é um grupo raiz de categoria
-  taxon: { name: string } | null; // Para mostrar o nome do taxon associado
+  category_group_id: string | null;
+  taxon: { name: string } | null;
   parent_group_id: string | null;
-  // Adicionar mais campos conforme necessário, como uma contagem de membros
-  members_count?: number; // Exemplo
-  cover_image_path?: string | null; // Para a imagem de capa do header
+  members_count?: number;
+  cover_image_path?: string | null;
 }
 interface SubgroupData {
   id: string;
   name: string;
   slug: string;
+  country_code: string;
 }
 
 const route = useRoute();
@@ -146,138 +118,121 @@ const toast = useToast();
 const groupData = ref<GroupData | null>(null);
 const subgroups = ref<SubgroupData[]>([]);
 const isLoading = ref(true);
-const errorLoading = ref<string | null>(null);
+
 const groupSlug = computed(() => route.params.slug as string);
+const countryCodeParam = computed(() => route.params.country_code as string);
+
 
 const groupFlagUrl = computed(() => {
   if (groupData.value?.flag_path) {
-    // Construa a URL completa do Supabase Storage aqui
-    // Ex: `https://<seu-id-projeto>.supabase.co/storage/v1/object/public/flags/${groupData.value.flag_path}`
-    // Certifique-se que o bucket 'flags' é público ou você tem a lógica para URLs assinadas.
     return `https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/flags/${groupData.value.flag_path}`;
   }
-  return ''; // Ou uma URL de placeholder de flag
+  return '';
 });
 
 const headerBackgroundStyle = computed(() => {
-    if (groupData.value?.cover_image_path) {
-        const coverUrl = `https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/covers/${groupData.value.cover_image_path}`;
-        return { backgroundImage: `url('${coverUrl}')` };
-    }
-    return { backgroundColor: 'var(--primary-color-light)' }; // Cor de fundo padrão
+  if (groupData.value?.cover_image_path) {
+    const coverUrl = `https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/covers/${groupData.value.cover_image_path}`;
+    return { backgroundImage: `url('${coverUrl}')` };
+  }
+  return { backgroundColor: 'var(--primary-color-light)' };
 });
 
-
-async function fetchGroupData(slug: string): Promise<void> {
+async function fetchGroupData(country: string, slug: string): Promise<void> {
   isLoading.value = true;
-  errorLoading.value = null;
-  groupData.value = null; // Limpar dados anteriores
+  groupData.value = null;
   subgroups.value = [];
 
-  if (!slug) {
-    errorLoading.value = 'Slug do grupo não fornecido.';
+  if (!slug || !country) {
+    toast.error('Informações do grupo incompletas para carregar a página.');
     isLoading.value = false;
     return;
   }
 
   try {
-    // Buscar o grupo principal
     const { data, error } = await supabase
       .from('groups')
       .select(`
-        id,
-        name,
-        slug,
-        description,
-        flag_path,
-        country_code,
-        is_open,
-        category_group_id,
-        parent_group_id,
-        cover_image_path,
+        id, name, slug, description, flag_path, country_code, is_open,
+        category_group_id, parent_group_id, cover_image_path,
         taxon:taxons ( name )
       `)
       .eq('slug', slug)
-      .single(); // Esperamos apenas um grupo com este slug
+      .eq('country_code', country)
+      .single();
 
     if (error) {
-      if (error.code === 'PGRST116') { // "single" não encontrou nenhuma linha
-        throw new Error(`Grupo com slug "${slug}" não encontrado.`);
+      if (error.code === 'PGRST116') {
+        throw new Error(`Grupo "${slug}" no país "${country.toUpperCase()}" não encontrado.`);
       }
       throw error;
     }
 
     if (data) {
-      // O Supabase retorna o taxon como um objeto se a relação for um-para-um
-      // ou um array se for um-para-muitos (mesmo que só haja um).
-      // Ajuste conforme a estrutura real do seu retorno.
       const taxonData = Array.isArray(data.taxon) && data.taxon.length > 0
                         ? data.taxon[0]
                         : (data.taxon && typeof data.taxon === 'object' ? data.taxon : null);
-
       groupData.value = { ...data, taxon: taxonData } as GroupData;
 
-      // Buscar subgrupos (grupos que têm este grupo como parent_group_id)
       if(groupData.value){
         const { data: subData, error: subError } = await supabase
-            .from('groups')
-            .select('id, name, slug')
-            .eq('parent_group_id', groupData.value.id)
-            .order('name', {ascending: true});
+          .from('groups')
+          .select('id, name, slug, country_code')
+          .eq('parent_group_id', groupData.value.id)
+          .eq('country_code', country)
+          .order('name', {ascending: true});
 
         if(subError) throw subError;
-        if(subData) subgroups.value = subData;
+        if(subData) subgroups.value = subData as SubgroupData[];
       }
-
     } else {
-      // Este caso não deveria ser alcançado se .single() e o erro PGRST116 forem tratados
-       errorLoading.value = `Grupo "${slug}" não encontrado.`;
+      // Este caso não deve ser alcançado se .single() e PGRST116 são tratados
+      toast.error(`Grupo "${slug}" no país "${country.toUpperCase()}" não foi encontrado.`);
     }
 
   } catch (e: any) {
     console.error('Erro ao buscar dados do grupo:', e);
-    errorLoading.value = e.message || 'Falha ao carregar dados do grupo.';
-    toast.error(errorLoading.value);
+    toast.error(e.message || 'Falha ao carregar dados do grupo.');
+    groupData.value = null;
   } finally {
     isLoading.value = false;
   }
 }
 
-// Definir título da página dinamicamente
-watch(groupData, (newData) => {
+function handleNewPost(newPost: any) { // O tipo 'any' deve ser substituído pelo tipo Post
+  console.log('Novo post criado na página do grupo:', newPost);
+  toast.info('Seu post foi adicionado!');
+  // Aqui você adicionaria o newPost ao topo da sua lista de posts reativa
+  // ou re-buscaria a lista de posts.
+  // Ex: posts.value.unshift(newPost);
+}
+
+watch(
+  () => [route.params.country_code, route.params.slug],
+  ([newCountry, newSlug]) => {
+    if (newCountry && newSlug && typeof newCountry === 'string' && typeof newSlug === 'string') {
+      fetchGroupData(newCountry, newSlug);
+    }
+  },
+  { immediate: true, deep: true } // deep: true pode não ser necessário aqui, mas não prejudica
+);
+
+// Atualizar título da página
+ watch(groupData, (newData) => {
   if (newData?.name) {
     useHead({
       title: `${newData.name} - TruthSeek Network`,
-      meta: [
-        { name: 'description', content: newData.description || `Página do grupo ${newData.name} na TruthSeek Network.` }
-      ]
+      meta: [{ name: 'description', content: newData.description || `Página do grupo ${newData.name}` }]
     });
-  } else if (errorLoading.value) {
+  } else if (!isLoading.value && !newData) { // Se não está carregando e não encontrou dados
     useHead({
-      title: `Erro - TruthSeek Network`,
+      title: `Grupo Não Encontrado - TruthSeek Network`,
     });
   }
 }, { immediate: true });
-
-
-// Buscar dados quando o slug mudar (ex: navegação entre grupos)
-// ou na montagem inicial.
-watch(
-  () => route.params.slug, // Observar o parâmetro da rota
-  (newSlug) => {
-    if (newSlug && typeof newSlug === 'string') {
-      fetchGroupData(newSlug);
-    }
-  },
-  { immediate: true } // Executar imediatamente na montagem
-);
 </script>
 
 <style scoped>
-.group-page {
-  /* Sem padding-top aqui, o header do grupo cuidará disso */
-}
-
 .group-header {
   color: var(--header-text); /* Assumindo texto claro no header do grupo */
   position: relative;
@@ -296,12 +251,11 @@ watch(
   z-index: 1;
 }
 .header-background-image::after { /* Overlay sutil para melhor contraste do texto */
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background-color: rgba(0,0,0,0.3); /* Ajuste a opacidade */
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0,0,0,0.3); /* Ajuste a opacidade */
 }
-
 
 .header-content {
   position: relative;
@@ -374,12 +328,6 @@ watch(
   }
 }
 
-.main-column {
-  /* Estilos para a coluna principal (posts, etc.) */
-}
-.sidebar-column {
-  /* Estilos para a sidebar */
-}
 .sidebar-column .card-style { /* Estilo comum para cards na sidebar */
   margin-bottom: 1.5rem;
 }
@@ -402,7 +350,7 @@ watch(
   background-color: var(--card-bg);
   padding: 1.5rem;
   border-radius: 8px;
-  margin-bottom: 1.5rem;
+  margin: 0 0 1.5rem;
   line-height: 1.6;
   font-size: 1rem;
 }
