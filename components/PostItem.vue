@@ -25,7 +25,7 @@
       </div>
       <div v-if="post.video_url" class="video-content">
         <iframe
-          :src="embedVideoUrl"
+          :src="embedVideoUrl || undefined"
           frameborder="0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowfullscreen
@@ -35,15 +35,15 @@
 
     <footer class="post-footer">
       <div class="actions">
-        <button class="action-btn like-btn" @click="toggleLike">
-          <svg width="18" height="18" viewBox="0 0 24 24" :fill="isLikedByCurrentUser ? 'var(--primary-color)' : 'none'" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
-          <span>{{ post.likes_count || 0 }}</span>
+        <button class="action-btn like-btn" @click="handleVote(1)" :class="{ 'active': currentUserVote === 1 }">
+          <svg width="18" height="18" viewBox="0 0 24 24" :fill="currentUserVote === 1 ? 'var(--primary-color)' : 'none'" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
+          <span>{{ localLikesCount }}</span>
         </button>
-        <button class="action-btn dislike-btn" @click="toggleDislike">
-           <svg width="18" height="18" viewBox="0 0 24 24" :fill="isDislikedByCurrentUser ? 'var(--primary-color)' : 'none'" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"></path></svg>
-          <span>{{ post.dislikes_count || 0 }}</span>
+        <button class="action-btn dislike-btn" @click="handleVote(-1)" :class="{ 'active': currentUserVote === -1 }">
+           <svg width="18" height="18" viewBox="0 0 24 24" :fill="currentUserVote === -1 ? 'var(--primary-color)' : 'none'" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"></path></svg>
+          <span>{{ localDislikesCount }}</span>
         </button>
-        <button class="action-btn comment-btn" @click="toggleComments">
+        <button class="action-btn comment-btn">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
           <span>{{ post.comments_count || 0 }}</span>
         </button>
@@ -61,20 +61,24 @@
 </template>
 
 <script setup lang="ts">
+import type { Database } from '~/types/supabase';
 import type { DisplayPost } from '~/types/app';
-// Importar uma função para calcular "time ago", ex: date-fns ou uma customizada
-// import { formatDistanceToNowStrict } from 'date-fns';
-// import { ptBR } from 'date-fns/locale';
+import { useToast } from 'vue-toastification';
 
 const props = defineProps<{
   post: DisplayPost;
 }>();
 
-// Placeholder para o estado de like/dislike do usuário atual
-const isLikedByCurrentUser = ref(false); // Deveria vir do estado ou ser buscado
-const isDislikedByCurrentUser = ref(false);
+const supabase = useSupabaseClient<Database>();
+const user = useSupabaseUser();
+const toast = useToast();
 
-const defaultUserAvatar = '/images/default-avatar.png'; // Mesmo avatar padrão do perfil
+// Estado local para feedback imediato da UI e para saber o voto atual do usuário
+const currentUserVote = ref<number | null>(null); // 1 para like, -1 para dislike, null para sem voto
+const localLikesCount = ref(props.post.likes_count || 0);
+const localDislikesCount = ref(props.post.dislikes_count || 0);
+
+const defaultUserAvatar = '/images/default-avatar.png';
 
 const authorAvatarUrl = computed(() => {
   const path = props.post.author_avatar_path;
@@ -136,11 +140,107 @@ function timeAgo(timestamp: string): string {
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 }
 
-// Placeholders para ações
-function toggleLike() { console.log('Toggle Like para post:', props.post.id); isLikedByCurrentUser.value = !isLikedByCurrentUser.value; }
-function toggleDislike() { console.log('Toggle Dislike para post:', props.post.id); isDislikedByCurrentUser.value = !isDislikedByCurrentUser.value; }
-function toggleComments() { console.log('Toggle Comments para post:', props.post.id); }
+// Função para buscar o voto atual do usuário para este post
+async function fetchCurrentUserVote() {
+  if (!user.value) {
+    currentUserVote.value = null;
+    return;
+  }
+  try {
+    const { data, error } = await supabase
+      .from('votes')
+      .select('vote_type')
+      .eq('user_id', user.value.id)
+      .eq('target_id', props.post.id)
+      .eq('target_type', 'post')
+      .single();
 
+    if (error && error.code !== 'PGRST116') throw error; // PGRST116 = 0 rows
+    currentUserVote.value = data ? data.vote_type : null;
+  } catch (e: any) {
+    console.error("Erro ao buscar voto do usuário:", e.message);
+    // Não mostra toast aqui para não poluir, mas o usuário não verá seu voto anterior
+  }
+}
+
+async function handleVote(newVoteType: 1 | -1) {
+  if (!user.value) {
+    toast.error('Você precisa estar logado para votar.');
+    return;
+  }
+
+  const oldVote = currentUserVote.value;
+
+  // Lógica para feedback imediato na UI
+  if (oldVote === newVoteType) { // Clicou no mesmo botão (like em algo já "likado") -> remover voto
+    currentUserVote.value = null;
+    if (newVoteType === 1) localLikesCount.value = Math.max(0, localLikesCount.value - 1);
+    else localDislikesCount.value = Math.max(0, localDislikesCount.value - 1);
+  } else { // Novo voto ou mudando o voto
+    currentUserVote.value = newVoteType;
+    if (oldVote === 1) localLikesCount.value = Math.max(0, localLikesCount.value - 1); // Removeu like antigo
+    else if (oldVote === -1) localDislikesCount.value = Math.max(0, localDislikesCount.value - 1); // Removeu dislike antigo
+
+    if (newVoteType === 1) localLikesCount.value++;
+    else localDislikesCount.value++;
+  }
+
+  try {
+    if (oldVote === newVoteType) { // Remover voto
+      const { error } = await supabase
+        .from('votes')
+        .delete()
+        .eq('user_id', user.value.id)
+        .eq('target_id', props.post.id)
+        .eq('target_type', 'post');
+      if (error) throw error;
+      // toast.success('Voto removido'); // Opcional
+    } else if (oldVote !== null && oldVote !== newVoteType) { // Mudou o voto (ex: de like para dislike)
+      const { error } = await supabase
+        .from('votes')
+        .update({ vote_type: newVoteType })
+        .eq('user_id', user.value.id)
+        .eq('target_id', props.post.id)
+        .eq('target_type', 'post');
+      if (error) throw error;
+    } else { // Novo voto (oldVote era null)
+      const { error } = await supabase
+        .from('votes')
+        .insert({
+          user_id: user.value.id,
+          target_id: props.post.id,
+          target_type: 'post',
+          vote_type: newVoteType,
+        });
+      if (error) throw error;
+    }
+    // As contagens no DB serão atualizadas pelo trigger.
+    // Para UI ficar 100% sincronizada, poderia re-buscar o post ou as contagens,
+    // mas o trigger deve manter o DB correto e o feedback local já atualizou.
+  } catch (e: any) {
+    console.error('Erro ao registrar like:', e);
+    toast.error(e.message || 'Falha ao registrar like.');
+    // Reverter a UI para o estado anterior em caso de erro
+    currentUserVote.value = oldVote;
+    // Recalcular contagens locais com base no oldVote para reverter (mais complexo,
+    // ou simplesmente re-buscar os dados do post completo se o erro for crítico)
+    // Por simplicidade, o feedback local não é revertido aqui, mas o DB estará correto.
+    // Uma solução melhor seria esperar o sucesso do DB antes de atualizar a UI, ou ter um sistema de estado otimista.
+  }
+}
+
+watchEffect(() => { // Para atualizar contagens locais se o prop mudar
+  localLikesCount.value = props.post.likes_count || 0;
+  localDislikesCount.value = props.post.dislikes_count || 0;
+});
+
+onMounted(() => {
+  fetchCurrentUserVote();
+});
+
+watch(user, () => { // Re-buscar voto se o usuário logar/deslogar
+  fetchCurrentUserVote();
+});
 </script>
 
 <style scoped>

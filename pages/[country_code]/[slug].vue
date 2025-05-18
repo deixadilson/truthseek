@@ -126,8 +126,8 @@ async function fetchPostsForGroup(groupId: string) {
   isLoadingPosts.value = true;
   try {
     const { data, error } = await supabase
-      .from('posts_with_author_info') // <<< USANDO A VIEW
-      .select(`*`) // Seleciona todas as colunas da view
+      .from('posts_with_author_info')
+      .select(`*`)
       .eq('owner_id', groupId)
       .eq('owner_type', 'group')
       .order('created_at', { ascending: false });
@@ -221,6 +221,9 @@ function handleNewPost(newPostData: PostFromQuery) {
     video_url: newPostData.video_url,
     is_edited: newPostData.is_edited,
     is_anonymous: newPostData.is_anonymous,
+    likes_count: 0,
+    dislikes_count: 0,
+    comments_count: 0,
     created_at: newPostData.created_at,
   };
   posts.value.unshift(displayPost); // Adiciona no início da lista

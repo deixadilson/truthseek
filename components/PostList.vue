@@ -25,15 +25,12 @@ defineProps<{
 </script>
 
 <style scoped>
-.post-list {
-  /* Estilos para o container da lista, se necessário */
-}
 .no-posts-message {
   text-align: center;
   padding: 2rem;
   color: #777;
   font-style: italic;
-  background-color: var(--card-bg); /* Para consistência com os posts */
+  background-color: var(--card-bg);
   border-radius: 8px;
 }
 .loading-more-posts {

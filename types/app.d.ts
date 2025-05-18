@@ -42,9 +42,9 @@ interface PostFromQuery {
   is_edited: boolean;
   is_anonymous: boolean;
   created_at: string;
-  likes_count?: number; // Se você tiver essas colunas
-  dislikes_count?: number;
-  comments_count?: number;
+  likes_count: number;
+  dislikes_count: number;
+  comments_count: number;
 }
 
 // Interface para um Post formatado para exibição (usado em PostItem e PostList)
@@ -59,7 +59,7 @@ interface DisplayPost {
   created_at: string;
   author_username: string | null;
   author_avatar_path: string | null;
-  likes_count?: number;
-  dislikes_count?: number;
-  comments_count?: number;
+  likes_count: number;
+  dislikes_count: number;
+  comments_count: number;
 }
