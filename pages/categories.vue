@@ -48,16 +48,8 @@
 </template>
 
 <script setup lang="ts">
+import type { CategoryGroupDisplay } from '~/types/app';
 import { useToast } from 'vue-toastification';
-
-interface CategoryGroupDisplay {
-  id: string;
-  name: string;
-  description: string | null;
-  slug: string;
-  flag_path: string | null;
-  country_code: string;
-}
 
 const supabase = useSupabaseClient();
 const toast = useToast();

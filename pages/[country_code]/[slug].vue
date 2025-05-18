@@ -89,60 +89,8 @@
 
 <script setup lang="ts">
 import type { Database } from '~/types/supabase';
+import type { GroupData, SubgroupData, DisplayPost, PostFromQuery } from '~/types/app';
 import { useToast } from 'vue-toastification';
-
-interface GroupData {
-  id: string; name: string;
-  slug: string;
-  description: string | null;
-  flag_path: string | null;
-  country_code: string;
-  is_open: boolean;
-  category_group_id: string | null;
-  taxon: { name: string } | null;
-  parent_group_id: string | null;
-  members_count?: number;
-  cover_image_path?: string | null;
-}
-interface SubgroupData {
-  id: string;
-  name: string;
-  slug: string;
-  country_code: string;
-}
-
-interface PostFromQuery { // Tipo para os dados brutos do post da query
-  id: string;
-  author_id: string;
-  // author: { username: string | null; avatar_url: string | null; } | null; // Se fizer o join com profiles
-  profiles: { username: string | null; avatar_url: string | null; } | null; // Se o join for com profiles(username, avatar_url)
-  text_content: string | null;
-  image_path: string | null;
-  video_url: string | null;
-  is_edited: boolean;
-  is_anonymous: boolean;
-  created_at: string;
-  likes_count?: number; // Se você tiver essas colunas
-  dislikes_count?: number;
-  comments_count?: number;
-}
-
-// Tipo para o Post formatado para o componente PostItem
-interface DisplayPost {
-  id: string;
-  author_id: string;
-  text_content: string | null;
-  image_path: string | null;
-  video_url: string | null;
-  is_edited: boolean;
-  is_anonymous: boolean;
-  created_at: string;
-  author_username: string | null;
-  author_avatar_path: string | null;
-  likes_count?: number;
-  dislikes_count?: number;
-  comments_count?: number;
-}
 
 const route = useRoute();
 const supabase = useSupabaseClient<Database>();
@@ -186,10 +134,7 @@ async function fetchPostsForGroup(groupId: string) {
 
     if (error) throw error;
 
-    if (data) {
-      // O data já deve vir no formato de DisplayPost (ou muito próximo)
-      posts.value = data as DisplayPost[];
-    }
+    if (data) posts.value = data as DisplayPost[];
   } catch (e: any) {
     console.error('Erro ao buscar posts:', e);
     toast.error(e.message || 'Falha ao carregar posts.');
@@ -261,7 +206,7 @@ async function fetchGroupData(country: string, slug: string): Promise<void> {
   }
 }
 
-function handleNewPost(newPostData: PostFromQuery) { // O tipo aqui deve ser o que o evento emite
+function handleNewPost(newPostData: PostFromQuery) {
   console.log('Novo post recebido na página do grupo:', newPostData);
   // Formatar o newPostData para a estrutura DisplayPost se necessário
   // e adicionar ao topo da lista de posts

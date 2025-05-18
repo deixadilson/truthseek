@@ -137,20 +137,6 @@ async function handleLogout(): Promise<void> {
   flex-grow: 1;
 }
 
-.card-style {
-  background-color: var(--card-bg);
-  padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 1px 5px rgba(0,0,0,0.05);
-}
-.card-style h3, .card-style h4 {
-  color: var(--primary-color);
-  margin-top: 0;
-  margin-bottom: 1rem;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 0.5rem;
-}
-
 .app-footer {
   background-color: var(--footer-bg);
   color: var(--footer-text);

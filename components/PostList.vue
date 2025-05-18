@@ -1,4 +1,3 @@
-<!-- components/PostList.vue -->
 <template>
   <div class="post-list">
     <div v-if="posts.length === 0 && !isLoading" class="no-posts-message">
@@ -16,16 +15,11 @@
 </template>
 
 <script setup lang="ts">
-// import PostItem from './PostItem.vue'; // Auto-importado pelo Nuxt
-// import type { Post } from './PostItem.vue'; // Importar o tipo Post se definido em PostItem ou em um arquivo de tipos separado
-
-// Definir o tipo Post novamente aqui ou importá-lo
-// (Idealmente, ter um arquivo central de tipos)
-interface PostListItem extends Post {} // Reutilizar ou redefinir o tipo Post
+import type { DisplayPost } from '~/types/app';
 
 defineProps<{
-  posts: PostListItem[];
-  isLoading?: boolean; // Para mostrar loading ao carregar mais
+  posts: DisplayPost[];
+  isLoading?: boolean;
   emptyMessage?: string;
 }>();
 </script>

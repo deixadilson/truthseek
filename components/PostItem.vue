@@ -1,4 +1,3 @@
-<!-- components/PostItem.vue -->
 <template>
   <article class="post-item card-style">
     <header class="post-header">
@@ -15,7 +14,7 @@
       </div>
       <div class="post-options-dropdown">
         <!-- Placeholder para menu de opções (editar, deletar, denunciar) -->
-        <button title="Opções do post" class="options-btn">⋮</button> <!-- Três pontos verticais -->
+        <button title="Opções do post" class="options-btn">⋮</button>
       </div>
     </header>
 
@@ -62,46 +61,14 @@
 </template>
 
 <script setup lang="ts">
-import type { Database } from '~/types/supabase'; // Ajuste o caminho se necessário
+import type { DisplayPost } from '~/types/app';
 // Importar uma função para calcular "time ago", ex: date-fns ou uma customizada
 // import { formatDistanceToNowStrict } from 'date-fns';
 // import { ptBR } from 'date-fns/locale';
 
-// Tipo para o objeto Post que este componente espera
-// Idealmente, viria dos tipos gerados pelo Supabase para a tabela 'posts'
-// e incluiria dados do autor (username, avatar_url) através de um JOIN.
-interface PostAuthor {
-  id: string;
-  username: string | null; // Pode vir da tabela profiles
-  avatar_url: string | null; // Pode vir da tabela profiles
-}
-interface Post {
-  id: string;
-  author_id: string;
-  author: PostAuthor | null; // Dados do autor (obtidos via JOIN na query principal)
-  author_username?: string; // Alternativa se não aninhar o autor
-  author_avatar_path?: string; // Alternativa
-  text_content: string | null;
-  image_path: string | null;
-  video_url: string | null;
-  is_edited: boolean;
-  is_anonymous: boolean;
-  created_at: string; // ISO string date
-  // Contagens (virão da query ou serão atualizadas dinamicamente)
-  likes_count?: number;
-  dislikes_count?: number;
-  comments_count?: number;
-  // Estado da interação do usuário atual (isso viria de outra query ou estado)
-  // is_liked_by_current_user?: boolean;
-  // is_disliked_by_current_user?: boolean;
-}
-
 const props = defineProps<{
-  post: Post;
+  post: DisplayPost;
 }>();
-
-const supabase = useSupabaseClient<Database>(); // Tipado
-const user = useSupabaseUser();
 
 // Placeholder para o estado de like/dislike do usuário atual
 const isLikedByCurrentUser = ref(false); // Deveria vir do estado ou ser buscado
@@ -110,7 +77,7 @@ const isDislikedByCurrentUser = ref(false);
 const defaultUserAvatar = '/images/default-avatar.png'; // Mesmo avatar padrão do perfil
 
 const authorAvatarUrl = computed(() => {
-  const path = props.post.author?.avatar_url || props.post.author_avatar_path;
+  const path = props.post.author_avatar_path;
   if (path) {
     return `https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/avatars/${path}`;
   }
@@ -272,7 +239,7 @@ function toggleComments() { console.log('Toggle Comments para post:', props.post
   color: var(--primary-color-dark);
 }
 .action-btn svg {
-  /* stroke: currentColor; */ /* Herda a cor do texto */
+  stroke: currentColor; /* Herda a cor do texto */
 }
 .action-btn.like-btn[fill*="var(--primary-color)"] svg, /* Quando like está ativo */
 .action-btn.dislike-btn[fill*="var(--primary-color)"] svg { /* Quando dislike está ativo */
