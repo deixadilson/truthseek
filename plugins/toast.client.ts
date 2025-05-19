@@ -1,10 +1,10 @@
-import Toast, { type PluginOptions, POSITION } from 'vue-toastification';
+import ToastPlugin, { type PluginOptions, POSITION } from 'vue-toastification';
 import 'vue-toastification/dist/index.css';
 import { defineNuxtPlugin } from '#app';
 
 export default defineNuxtPlugin(nuxtApp => {
   const options: PluginOptions = {
-    position: POSITION.TOP_RIGHT,
+    position: POSITION.BOTTOM_RIGHT,
     timeout: 5000,
     closeOnClick: false,
     pauseOnFocusLoss: true,
@@ -21,5 +21,5 @@ export default defineNuxtPlugin(nuxtApp => {
     newestOnTop: true
   };
 
-  nuxtApp.vueApp.use(Toast, options);
+  nuxtApp.vueApp.use(ToastPlugin, options);
 });

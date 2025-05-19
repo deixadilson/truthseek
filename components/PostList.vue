@@ -5,7 +5,7 @@
     </div>
     <PostItem
       v-for="post in posts"
-      :key="post.id"
+      :key="`${post.id}`"
       :post="post"
     />
     <div v-if="isLoading" class="loading-more-posts">
@@ -15,10 +15,10 @@
 </template>
 
 <script setup lang="ts">
-import type { DisplayPost } from '~/types/app';
+import type { PostWithAuthor } from '~/types/app';
 
 defineProps<{
-  posts: DisplayPost[];
+  posts: PostWithAuthor[];
   isLoading?: boolean;
   emptyMessage?: string;
 }>();

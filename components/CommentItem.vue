@@ -23,7 +23,6 @@
         </div>
 
         <div v-if="comment.text_content" class="comment-text" v-html="formatTextToHtml(comment.text_content)"></div>
-        <!-- TODO: Exibir imagem/vídeo do comentário aqui -->
         <div v-if="comment.image_path" class="comment-media">
           <img :src="commentImageUrl" alt="Imagem do comentário" />
         </div>
@@ -220,7 +219,7 @@ function emitScrollToReply(commentId: string) {
 
 .comment-text {
   font-size: 0.95rem; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word;
-  margin-bottom: 0.75rem; /* Mais espaço antes do footer */
+  margin-bottom: 0.75rem;
 }
 .comment-text :deep(a) { color: var(--primary-color); text-decoration: underline; }
 
@@ -232,10 +231,10 @@ function emitScrollToReply(commentId: string) {
 .comment-footer {
   display: flex;
   align-items: center;
-  gap: 0.75rem; /* Espaço entre botões */
-  font-size: 0.85rem; /* Tamanho base para ícones/texto no footer */
+  gap: 0.75rem;
+  font-size: 0.85rem;
 }
-.action-btn { /* Estilo base para botões de ação de comentário */
+.action-btn {
   background: none; border: none; cursor: pointer; color: #555;
   display: flex; align-items: center; gap: 0.3rem;
   padding: 0.25rem 0.4rem; border-radius: 4px;
@@ -244,5 +243,4 @@ function emitScrollToReply(commentId: string) {
 .action-btn:hover { background-color: var(--primary-color-light); color: var(--primary-color-dark); }
 .action-btn.active { color: var(--primary-color-dark); font-weight: bold; }
 .action-btn.active svg { fill: var(--primary-color) !important; }.action-btn span { font-size: 0.8rem; }
-
 </style>

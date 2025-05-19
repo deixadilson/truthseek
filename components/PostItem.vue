@@ -153,7 +153,6 @@ async function handleVote(newVoteType: 1 | -1) {
         .eq('target_id', props.post.id)
         .eq('target_type', 'post');
       if (error) throw error;
-      // toast.success('Voto removido'); // Opcional
     } else if (oldVote !== null && oldVote !== newVoteType) { // Mudou o voto (ex: de like para dislike)
       const { error } = await supabase
         .from('votes')
@@ -298,7 +297,7 @@ watch(user, () => { // Re-buscar voto se o usuário logar/deslogar
   color: var(--primary-color-dark);
 }
 .action-btn svg {
-  stroke: currentColor; /* Herda a cor do texto */
+  stroke: currentColor;
 }
 .action-btn.like-btn[fill*="var(--primary-color)"] svg, /* Quando like está ativo */
 .action-btn.dislike-btn[fill*="var(--primary-color)"] svg { /* Quando dislike está ativo */

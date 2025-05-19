@@ -2,6 +2,9 @@
 export default defineNuxtConfig({
   compatibilityDate: '2024-11-01',
   devtools: { enabled: true },
+  build: {
+    transpile: ['vue-toastification'],
+  },
   modules: [
     '@nuxtjs/supabase'
   ],

@@ -17,7 +17,6 @@
       </div>
 
       <div v-if="imagePreviewUrl || embedVideoUrl" class="media-preview-container form-group">
-        <!-- ... (preview de mídia como antes) ... -->
         <div v-if="imagePreviewUrl" class="image-preview">
           <img :src="imagePreviewUrl" alt="Pré-visualização da imagem" />
           <button type="button" @click="removeImage" class="remove-media-btn">×</button>
@@ -33,7 +32,6 @@
         </div>
       </div>
 
-      <!-- Container para ações do formulário (upload, opções, botão de postar) -->
       <div class="form-actions-toolbar">
         <div class="media-and-options">
           <label for="hidden-file-input" class="button-like-label button-secondary add-image-btn" title="Adicionar Imagem">
@@ -41,7 +39,7 @@
               <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
               <path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z"/>
             </svg>
-            <span class="btn-text">Imagem</span> <!-- Texto opcional para telas maiores -->
+            <span class="btn-text">Imagem</span>
           </label>
           <input
             type="file" id="hidden-file-input" @change="handleImageFileSelected"
@@ -73,6 +71,7 @@ import type { Database } from '~/types/supabase';
 import { useUserProfileState } from '~/composables/useUserProfile';
 import { useToast } from 'vue-toastification';
 import type { PostWithAuthor } from '~/types/app';
+import { isValidImageUrl } from '~/utils/formatters';
 
 const props = defineProps<{
   ownerId: string;
@@ -103,48 +102,21 @@ const canSubmit = computed(() => {
   return textContent.value.trim() !== '' || imageFile.value !== null || videoUrlToSave.value !== null;
 });
 
-// --- Funções de Mídia ---
-function isValidImageUrl(url: string): boolean {
-  return /\.(jpeg|jpg|gif|png|webp)$/i.test(url);
-}
-function isValidVideoUrl(url: string): string | null {
-  let videoId;
-  // YouTube: youtube.com/watch?v=VIDEO_ID ou youtu.be/VIDEO_ID
-  const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([\w-]+)/;
-  // Vimeo: vimeo.com/VIDEO_ID
-  const vimeoRegex = /(?:https?:\/\/)?(?:www\.)?vimeo\.com\/(?:channels\/.+\/|groups\/.+\/videos\/|album\/.+\/video\/|video\/)?(\d+)/;
-
-  let match = url.match(youtubeRegex);
-  if (match && match[1]) {
-    videoId = match[1];
-    return `https://www.youtube.com/embed/${videoId}`;
-  }
-  match = url.match(vimeoRegex);
-  if (match && match[1]) {
-    videoId = match[1];
-    return `https://player.vimeo.com/video/${videoId}`;
-  }
-  return null;
-}
-
 function processPastedOrDroppedData(data: string | File) {
-  if (typeof data === 'string') { // Colou texto
-    const potentialVideoEmbedUrl = isValidVideoUrl(data);
+  if (typeof data === 'string') {
+    const potentialVideoEmbedUrl = getEmbedVideoUrl(data);
     if (potentialVideoEmbedUrl) {
       if (imageFile.value) {
         toast.warning('Remova a imagem antes de adicionar um vídeo.');
         return;
       }
       embedVideoUrl.value = potentialVideoEmbedUrl;
-      videoUrlToSave.value = data; // Salva a URL original
-      textContent.value = textContent.value.replace(data, '').trim(); // Remove o link do textarea
+      videoUrlToSave.value = data;
+      textContent.value = textContent.value.replace(data, '').trim();
     } else if (isValidImageUrl(data)) {
-      // Tentar carregar imagem de URL colada (requer CORS e pode não funcionar sempre)
-      // Por simplicidade, podemos apenas pedir para usar o botão de upload ou drag-n-drop para URLs de imagem
-      // Ou implementar fetch + blob para tentar baixar a imagem
       toast.info('Para adicionar uma imagem de um link, use o botão "Adicionar Imagem" ou arraste e solte o arquivo.');
     }
-  } else { // Arrastou/selecionou arquivo de imagem
+  } else {
     if (videoUrlToSave.value) {
       toast.warning('Remova o vídeo antes de adicionar uma imagem.');
       return;
@@ -157,13 +129,10 @@ function processPastedOrDroppedData(data: string | File) {
 function handlePaste(event: ClipboardEvent) {
   const pastedData = event.clipboardData?.getData('text');
   if (pastedData) {
-    // Dá um pequeno tempo para o Vue atualizar o v-model do textarea
-    // antes de processarmos, caso o link do vídeo seja parte do texto colado.
     setTimeout(() => {
       processPastedOrDroppedData(pastedData);
     }, 0);
   }
-  // Lógica para colar arquivos de imagem (mais complexa, pode precisar de acesso a `event.clipboardData.files`)
   const items = event.clipboardData?.items;
   if (items) {
     for (let i = 0; i < items.length; i++) {
@@ -176,7 +145,7 @@ function handlePaste(event: ClipboardEvent) {
           }
           imageFile.value = blob;
           imagePreviewUrl.value = URL.createObjectURL(blob);
-          event.preventDefault(); // Impedir que a imagem seja colada como base64 no textarea
+          event.preventDefault();
           break;
         }
       }
@@ -223,18 +192,10 @@ function resetForm() {
 }
 
 async function submitPost() {
-  if (!user.value) {
-    toast.error('Você precisa estar logado para postar.');
-    return;
-  }
-  if (!canSubmit.value) {
-    toast.warning('O post precisa de conteúdo (texto, imagem ou vídeo).');
-    return;
-  }
-  if (imageFile.value && videoUrlToSave.value) { // Dupla checagem
-    toast.error('Você não pode enviar uma imagem e um vídeo ao mesmo tempo.');
-    return;
-  }
+  if (!canSubmit.value) return;
+  if (!user.value) return;
+  if (!textContent.value.trim()) return;
+  if (imageFile.value && videoUrlToSave.value) return;
 
   isLoading.value = true;
   let imagePathToSave: string | null = null;

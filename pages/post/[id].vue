@@ -187,8 +187,7 @@ function handleCommentVoteUpdated(payload: { commentId: string, likes: number, d
 }
 
 useHead({
-  // Título será atualizado pelo watch no post.value
-  title: 'Carregando Post - TruthSeek Network'
+  title: 'Post - TruthSeek Network'
 });
 
 onMounted(() => {

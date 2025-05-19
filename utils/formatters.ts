@@ -37,3 +37,7 @@ export function getEmbedVideoUrl(videoUrl: string | null): string | undefined {
   if (match && match[1]) return `https://player.vimeo.com/video/${match[1]}`;
   return undefined;
 }
+
+export function isValidImageUrl(url: string): boolean {
+  return /\.(jpeg|jpg|gif|png|webp)$/i.test(url);
+}
