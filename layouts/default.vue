@@ -37,11 +37,39 @@
 
 <script setup lang="ts">
 import { useToast } from 'vue-toastification';
+import { useUserProfileState } from '~/composables/useUserProfile';
 
 const user = useSupabaseUser();
 const supabase = useSupabaseClient();
+const userProfile = useUserProfileState();
 const router = useRouter();
 const toast = useToast();
+
+async function fetchAndSetUserProfile(userId: string) {
+  if (userProfile.value && userProfile.value.id === userId) {
+    return;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, username, avatar_path, country_code, gender, birth_date, created_at')
+      .eq('id', userId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+
+    if (data) {
+      userProfile.value = data;
+    } else { // Perfil não encontrado
+      userProfile.value = null;
+      console.warn(`Perfil não encontrado para o usuário ${userId}`);
+    }
+  } catch (e: any) {
+    console.error('Erro ao buscar perfil do usuário para o estado:', e);
+    userProfile.value = null; // Limpar em caso de erro
+  }
+}
 
 async function handleLogout(): Promise<void> {
   const { error } = await supabase.auth.signOut();
@@ -53,6 +81,14 @@ async function handleLogout(): Promise<void> {
     router.push('/');
   }
 }
+
+watch(user, (currentUser) => {
+  if (currentUser) {
+    fetchAndSetUserProfile(currentUser.id);
+  } else {
+    userProfile.value = null; // Limpar perfil no logout
+  }
+}, { immediate: true }); // immediate: true para rodar na montagem e pegar o usuário inicial
 </script>
 
 <style scoped>

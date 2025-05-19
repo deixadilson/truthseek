@@ -9,7 +9,12 @@
         />
         <div>
           <span class="author-name">{{ post.author_username || (post.is_anonymous ? 'Anônimo' : 'Usuário Desconhecido') }}</span>
-          <span class="post-timestamp">{{ timeAgo(post.created_at) }} <span v-if="post.is_edited">(editado)</span></span>
+          <span v-if="post.created_at" class="post-timestamp">
+            {{ timeAgo(post.created_at) }} <span v-if="post.is_edited">(editado)</span>
+          </span>
+          <span v-else class="post-timestamp">
+            Data indisponível
+          </span>
         </div>
       </div>
       <div class="post-options-dropdown">
@@ -43,30 +48,29 @@
            <svg width="18" height="18" viewBox="0 0 24 24" :fill="currentUserVote === -1 ? 'var(--primary-color)' : 'none'" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"></path></svg>
           <span>{{ localDislikesCount }}</span>
         </button>
-        <button class="action-btn comment-btn">
+        <NuxtLink :to="`/post/${post.id}`" class="action-btn comment-btn">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
           <span>{{ post.comments_count || 0 }}</span>
-        </button>
+        </NuxtLink>
       </div>
       <div class="share-action">
         <!-- Placeholder para compartilhar -->
         <button class="action-btn share-btn" title="Compartilhar">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
         </button>
       </div>
     </footer>
-    <!-- Seção de comentários (a ser implementada) -->
-    <!-- <div v-if="showCommentsSection" class="comments-section"> ... </div> -->
   </article>
 </template>
 
 <script setup lang="ts">
 import type { Database } from '~/types/supabase';
-import type { DisplayPost } from '~/types/app';
+import type { PostWithAuthor } from '~/types/app';
 import { useToast } from 'vue-toastification';
+import { timeAgo, formatTextToHtml, getEmbedVideoUrl } from '~/utils/formatters';
 
 const props = defineProps<{
-  post: DisplayPost;
+  post: PostWithAuthor;
 }>();
 
 const supabase = useSupabaseClient<Database>();
@@ -95,54 +99,12 @@ const postImageUrl = computed(() => {
   return '';
 });
 
-// Lógica para transformar URL de vídeo em URL de embed
-const embedVideoUrl = computed(() => {
-  if (!props.post.video_url) return null;
-  // (Reutilizar a função isValidVideoUrl do CreatePostForm.vue, idealmente movendo-a para utils)
-  const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([\w-]+)/;
-  const vimeoRegex = /(?:https?:\/\/)?(?:www\.)?vimeo\.com\/(?:channels\/.+\/|groups\/.+\/videos\/|album\/.+\/video\/|video\/)?(\d+)/;
-  let match = props.post.video_url.match(youtubeRegex);
-  if (match && match[1]) return `https://www.youtube.com/embed/${match[1]}`;
-  match = props.post.video_url.match(vimeoRegex);
-  if (match && match[1]) return `https://player.vimeo.com/video/${match[1]}`;
-  return null; // Ou retornar a URL original se não for embeddable conhecido
-});
-
-// Formatar texto para exibir quebras de linha e detectar links (simplificado)
-const formattedTextContent = computed(() => {
-  if (!props.post.text_content) return '';
-  // Simplesmente substitui \n por <br> e envolve links com <a>
-  // Uma solução mais robusta usaria uma biblioteca de markdown ou um parser de HTML seguro.
-  return props.post.text_content
-    .replace(/&/g, "&")
-    .replace(/</g, "<")
-    .replace(/>/g, ">")
-    .replace(/\n/g, '<br />')
-    .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
-});
-
-
-// Função para calcular "time ago" (placeholder)
-function timeAgo(timestamp: string): string {
-  // Implementar lógica de "time ago" (ex: "há 5 minutos", "ontem", "2 sem atrás")
-  // Usar bibliotecas como date-fns (formatDistanceToNowStrict) é recomendado
-  const date = new Date(timestamp);
-  const now = new Date();
-  const seconds = Math.round((now.getTime() - date.getTime()) / 1000);
-  const minutes = Math.round(seconds / 60);
-  const hours = Math.round(minutes / 60);
-  const days = Math.round(hours / 24);
-
-  if (seconds < 60) return `há ${seconds} seg`;
-  if (minutes < 60) return `há ${minutes} min`;
-  if (hours < 24) return `há ${hours} h`;
-  if (days < 7) return `há ${days} d`;
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-}
+const embedVideoUrl = computed(() => getEmbedVideoUrl(props.post.video_url));
+const formattedTextContent = computed(() => formatTextToHtml(props.post.text_content));
 
 // Função para buscar o voto atual do usuário para este post
 async function fetchCurrentUserVote() {
-  if (!user.value) {
+  if (!user.value || !props.post.id) {
     currentUserVote.value = null;
     return;
   }
@@ -153,9 +115,9 @@ async function fetchCurrentUserVote() {
       .eq('user_id', user.value.id)
       .eq('target_id', props.post.id)
       .eq('target_type', 'post')
-      .single();
+      .maybeSingle();
 
-    if (error && error.code !== 'PGRST116') throw error; // PGRST116 = 0 rows
+    if (error) throw error;
     currentUserVote.value = data ? data.vote_type : null;
   } catch (e: any) {
     console.error("Erro ao buscar voto do usuário:", e.message);
@@ -164,10 +126,7 @@ async function fetchCurrentUserVote() {
 }
 
 async function handleVote(newVoteType: 1 | -1) {
-  if (!user.value) {
-    toast.error('Você precisa estar logado para votar.');
-    return;
-  }
+  if (!user.value || !props.post.id) return;
 
   const oldVote = currentUserVote.value;
 

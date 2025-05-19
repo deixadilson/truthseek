@@ -70,7 +70,9 @@
 
 <script setup lang="ts">
 import type { Database } from '~/types/supabase';
+import { useUserProfileState } from '~/composables/useUserProfile';
 import { useToast } from 'vue-toastification';
+import type { PostWithAuthor } from '~/types/app';
 
 const props = defineProps<{
   ownerId: string;
@@ -81,6 +83,7 @@ const emit = defineEmits(['post-created']);
 
 const supabase = useSupabaseClient<Database>();
 const user = useSupabaseUser();
+const userProfile = useUserProfileState();
 const toast = useToast();
 
 const textContent = ref('');
@@ -263,14 +266,23 @@ async function submitPost() {
         is_anonymous: isAnonymous.value,
         is_moderated: isModeratedContent.value,
       })
-      .select()
+      .select('*')
       .single();
 
     if (postError) throw postError;
 
     if (postData) {
-      toast.success('Post criado com sucesso!');
-      emit('post-created', postData);
+      const emittedPost: PostWithAuthor = {
+        ...postData,
+        author_username: postData.is_anonymous ? null : (userProfile.value?.username || user.value?.email?.split('@')[0] || 'Usuário'),
+        author_avatar_path: postData.is_anonymous ? null : (userProfile.value?.avatar_path || null),
+        likes_count: 0,
+        dislikes_count: 0,
+        comments_count: 0,
+        owner_id: props.ownerId,
+        owner_type: props.ownerType,
+      };
+      emit('post-created', emittedPost);
       resetForm();
     }
   } catch (e: any) {

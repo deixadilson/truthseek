@@ -27,7 +27,7 @@
             <h1>{{ groupData.name }}</h1>
             <p class="group-meta">
               País: {{ groupData.country_code.toUpperCase() }}
-              <span v-if="groupData.taxon">| Categoria: {{ groupData.taxon.name }}</span>
+              <span v-if="false">| Categoria: {{ groupData?.category_group_id }}</span>
               <span v-if="groupData.is_open">| Grupo Aberto</span>
             </p>
           </div>
@@ -67,7 +67,7 @@
             </ul>
           </section>
           <section class="members-sidebar card-style">
-            <h4>Membros ({{ groupData.members_count || 0 }})</h4>
+            <h4>Membros: 0</h4>
             <p>(Lista de membros em breve)</p>
           </section>
           <section class="events-sidebar card-style">
@@ -88,18 +88,18 @@
 </template>
 
 <script setup lang="ts">
-import type { Database } from '~/types/supabase';
-import type { GroupData, SubgroupData, DisplayPost, PostFromQuery } from '~/types/app';
+import type { Group, PostWithAuthor } from '~/types/app';
+import { useUserProfileState } from '~/composables/useUserProfile';
 import { useToast } from 'vue-toastification';
 
 const route = useRoute();
-const supabase = useSupabaseClient<Database>();
+const supabase = useSupabaseClient();
+const userProfile = useUserProfileState();
 const toast = useToast();
-const user = useSupabaseUser();
 
-const groupData = ref<GroupData | null>(null);
-const subgroups = ref<SubgroupData[]>([]);
-const posts = ref<DisplayPost[]>([]);
+const groupData = ref<Group | null>(null);
+const subgroups = ref<Group[]>([]);
+const posts = ref<PostWithAuthor[]>([]);
 const isLoading = ref(true);
 const isLoadingPosts = ref(false);
 
@@ -134,7 +134,7 @@ async function fetchPostsForGroup(groupId: string) {
 
     if (error) throw error;
 
-    if (data) posts.value = data as DisplayPost[];
+    if (data) posts.value = data as PostWithAuthor[];
   } catch (e: any) {
     console.error('Erro ao buscar posts:', e);
     toast.error(e.message || 'Falha ao carregar posts.');
@@ -159,8 +159,7 @@ async function fetchGroupData(country: string, slug: string): Promise<void> {
       .from('groups')
       .select(`
         id, name, slug, description, flag_path, country_code, is_open,
-        category_group_id, parent_group_id, cover_image_path,
-        taxon:taxons ( name )
+        category_group_id, parent_group_id, cover_image_path
       `)
       .eq('slug', slug)
       .eq('country_code', country)
@@ -174,10 +173,7 @@ async function fetchGroupData(country: string, slug: string): Promise<void> {
     }
 
     if (data) {
-      const taxonData = Array.isArray(data.taxon) && data.taxon.length > 0
-                        ? data.taxon[0]
-                        : (data.taxon && typeof data.taxon === 'object' ? data.taxon : null);
-      groupData.value = { ...data, taxon: taxonData } as GroupData;
+      groupData.value = data as Group;
 
       if(groupData.value){
         const { data: subData, error: subError } = await supabase
@@ -188,7 +184,7 @@ async function fetchGroupData(country: string, slug: string): Promise<void> {
           .order('name', {ascending: true});
 
         if(subError) throw subError;
-        if(subData) subgroups.value = subData as SubgroupData[];
+        if(subData) subgroups.value = subData as Group[];
 
         await fetchPostsForGroup(groupData.value.id);
       }
@@ -206,28 +202,8 @@ async function fetchGroupData(country: string, slug: string): Promise<void> {
   }
 }
 
-function handleNewPost(newPostData: PostFromQuery) {
-  console.log('Novo post recebido na página do grupo:', newPostData);
-  // Formatar o newPostData para a estrutura DisplayPost se necessário
-  // e adicionar ao topo da lista de posts
-  const authorProfile = Array.isArray(newPostData.profiles) ? newPostData.profiles[0] : newPostData.profiles;
-  const displayPost: DisplayPost = {
-    id: newPostData.id,
-    author_id: newPostData.author_id,
-    author_username: authorProfile?.username || null,
-    author_avatar_path: authorProfile?.avatar_url || null,
-    text_content: newPostData.text_content,
-    image_path: newPostData.image_path,
-    video_url: newPostData.video_url,
-    is_edited: newPostData.is_edited,
-    is_anonymous: newPostData.is_anonymous,
-    likes_count: 0,
-    dislikes_count: 0,
-    comments_count: 0,
-    created_at: newPostData.created_at,
-  };
-  posts.value.unshift(displayPost); // Adiciona no início da lista
-  toast.info('Seu post foi adicionado à lista!');
+function handleNewPost(newPost: PostWithAuthor) {
+  posts.value.unshift(newPost);
 }
 
 watch(

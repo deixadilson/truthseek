@@ -1,4 +1,3 @@
-<!-- pages/categories.vue -->
 <template>
   <div class="categories-page container">
     <h1>Explorar Categorias e Grupos</h1>
@@ -48,13 +47,13 @@
 </template>
 
 <script setup lang="ts">
-import type { CategoryGroupDisplay } from '~/types/app';
+import type { Group } from '~/types/app';
 import { useToast } from 'vue-toastification';
 
 const supabase = useSupabaseClient();
 const toast = useToast();
 
-const categoryGroups = ref<CategoryGroupDisplay[]>([]);
+const categoryGroups = ref<Group[]>([]);
 const isLoading = ref(true);
 
 async function fetchRootCategoryGroups(countryCode: string = 'br'): Promise<void> {
@@ -78,8 +77,7 @@ async function fetchRootCategoryGroups(countryCode: string = 'br'): Promise<void
     if (error) throw error;
 
     if (data) {
-      console.log(data);
-      categoryGroups.value = data as CategoryGroupDisplay[];
+      categoryGroups.value = data as Group[];
     }
   } catch (e: any) {
     console.error('Erro ao buscar categorias e grupos:', e);
