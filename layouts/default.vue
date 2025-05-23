@@ -10,7 +10,7 @@
         <template v-if="user">
           <NuxtLink to="/categories">Categorias</NuxtLink>
           <NuxtLink to="/user/profile" class="user-greeting">
-            Olá, {{ user.email }}
+            Olá, {{ userProfile?.username || user.email }}
           </NuxtLink>
           <button @click="handleLogout" class="button-logout">Sair</button>
         </template>
@@ -37,11 +37,11 @@
 
 <script setup lang="ts">
 import { useToast } from 'vue-toastification';
-import { useUserProfileState } from '~/composables/useUserProfile';
+import { useProfile } from '~/composables/useUserProfile';
 
 const user = useSupabaseUser();
 const supabase = useSupabaseClient();
-const userProfile = useUserProfileState();
+const userProfile = useProfile();
 const router = useRouter();
 const toast = useToast();
 
@@ -67,7 +67,7 @@ async function fetchAndSetUserProfile(userId: string) {
     }
   } catch (e: any) {
     console.error('Erro ao buscar perfil do usuário para o estado:', e);
-    userProfile.value = null; // Limpar em caso de erro
+    userProfile.value = null;
   }
 }
 

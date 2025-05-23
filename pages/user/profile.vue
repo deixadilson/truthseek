@@ -1,16 +1,12 @@
-<!-- pages/user/profile.vue -->
 <template>
   <div class="profile-page container">
-    <div v-if="isLoading" class="loading-spinner">Carregando perfil...</div>
-    <div v-else-if="profileError" class="error-message">
-      {{ profileError || 'Não foi possível carregar o perfil.' }}
-    </div>
-    <div v-else-if="user && profileData" class="profile-card">
+    <div v-if="!userProfile" class="loading-spinner">Carregando perfil...</div>
+    <div v-else class="profile-card">
       <h2>Seu Perfil</h2>
 
       <div class="avatar-section">
         <img
-          :src="profileData.avatar_path || defaultAvatarUrl"
+          :src="userProfile?.avatar_path || defaultAvatarUrl"
           alt="Avatar do usuário"
           class="profile-avatar"
         />
@@ -23,76 +19,82 @@
       <div class="profile-info">
         <div class="info-item">
           <strong>ID do Usuário:</strong>
-          <span>{{ user.id }}</span>
+          <span>{{ user?.id }}</span>
         </div>
         <div class="info-item">
           <strong>Email:</strong>
-          <span>{{ user.email }}</span>
+          <span>{{ user?.email }}</span>
         </div>
         <div class="info-item">
           <strong>Nome de Usuário:</strong>
-          <span>{{ profileData.username }}</span>
+          <span>{{ userProfile?.username }}</span>
         </div>
-        <div class="info-item" v-if="profileData.country_code">
+        <div class="info-item" v-if="userProfile?.country_code">
           <strong>País:</strong>
-          <span>{{ profileData.country_code }}</span> <!-- Exibir código, idealmente nome do país -->
+          <span>{{ userProfile?.country_code }}</span> <!-- Exibir código, idealmente nome do país -->
         </div>
-        <div class="info-item" v-if="profileData.gender">
+        <div class="info-item" v-if="userProfile?.gender">
           <strong>Sexo:</strong>
-          <span>{{ formatGender(profileData.gender) }}</span>
+          <span>{{ formatGender(userProfile?.gender) }}</span>
         </div>
-        <div class="info-item" v-if="profileData.birth_date">
+        <div class="info-item" v-if="userProfile?.birth_date">
           <strong>Data de Nascimento:</strong>
-          <span>{{ formatDate(profileData.birth_date) }}</span>
+          <span>{{ formatDate(userProfile?.birth_date) }}</span>
         </div>
          <div class="info-item">
           <strong>Membro desde:</strong>
-          <span>{{ formatDate(profileData.created_at, true) }}</span>
+          <span>{{ formatDate(userProfile?.created_at, true) }}</span>
         </div>
       </div>
-      <!-- Outras seções do perfil virão aqui (vieses, debates, etc.) -->
-    </div>
-    <div v-else>
-      <p>Você precisa estar logado para ver seu perfil.</p>
-      <NuxtLink to="/user/login" class="button-primary">Fazer Login</NuxtLink>
+      <section class="user-biases-section card-style" v-if="user">
+        <h2>Meus Vieses Declarados</h2>
+        <div v-if="isLoadingBiases">Carregando vieses...</div>
+        <ul v-else-if="userBiases.length > 0" class="biases-list">
+          <li v-for="bias in userBiases" :key="bias.id">
+            <NuxtLink :to="`/g/${bias.group?.country_code}/${bias.group?.slug}`"> <!-- Assumindo que group tem country_code e slug -->
+                {{ bias.group?.name || 'Grupo Desconhecido' }}
+            </NuxtLink>
+            (Influência: {{ bias.influence_points }})
+            <button @click="removeBias(bias.id)" class="button-danger-text">× Remover</button>
+          </li>
+        </ul>
+        <p v-else>Você ainda não declarou nenhum viés.</p>
+
+        <div class="declare-bias-form">
+          <h3>Declarar Novo Viés</h3>
+          <div class="form-group">
+            <label for="bias-group-select">Selecione um Grupo de Viés:</label>
+            <select v-model="selectedGroupIdToDeclare" id="bias-group-select">
+              <option disabled value="">-- Escolha um grupo --</option>
+              <option v-for="group in availableBiasGroups" :key="group.id" :value="group.id">
+                {{ group.name }} ({{ group.country_code.toUpperCase() }})
+              </option>
+            </select>
+          </div>
+          <button @click="declareBias" :disabled="!selectedGroupIdToDeclare || isDeclaringBias" class="button-primary">
+            {{ isDeclaringBias ? 'Declarando...' : 'Declarar Viés' }}
+          </button>
+        </div>
+      </section>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { useToast } from 'vue-toastification';
+import type { Bias, Group } from '~/types/app';
 
-const user = useSupabaseUser();
 const supabase = useSupabaseClient();
+const user = useSupabaseUser();
+const userProfile = useProfile();
 const toast = useToast();
-const router = useRouter();
-
-const profileData = ref<Profile | null>(null);
-const isLoading = ref(true);
-const profileError = ref<string | null>(null);
-
 const defaultAvatarUrl = '/images/default-avatar.png';
 
-async function fetchProfile(): Promise<void> {
-  isLoading.value = true;
-  profileError.value = null;
-
-  try {
-    const { data, error, status } = await supabase
-      .from('profiles')
-      .select(`id, username, avatar_path, country_code, gender, birth_date, created_at`)
-      .eq('id', user.value.id)
-      .single();
-    if (error) throw error;
-    profileData.value = data;
-  } catch (e: any) {
-    console.error('Erro ao buscar perfil:', e);
-    profileError.value = e.message || 'Falha ao carregar dados do perfil.';
-    toast.error(profileError.value);
-  } finally {
-    isLoading.value = false;
-  }
-}
+const userBiases = ref<Array<Bias & { group?: Partial<Group> }>>([]); // Para incluir nome do grupo
+const availableBiasGroups = ref<Group[]>([]);
+const selectedGroupIdToDeclare = ref<string>('');
+const isLoadingBiases = ref(false);
+const isDeclaringBias = ref(false);
 
 // Funções de formatação
 function formatGender(genderCode: string | null | undefined): string {
@@ -126,9 +128,96 @@ function handleUploadPlaceholder(): void {
   toast.info('Funcionalidade de upload de avatar em desenvolvimento!');
 }
 
-// Buscar perfil quando o componente é montado e o usuário está disponível
-onMounted(() => {
-  fetchProfile();
+async function fetchUserBiases() {
+  if (!user.value) return;
+  isLoadingBiases.value = true;
+  try {
+    const { data, error } = await supabase
+      .from('biases')
+      .select(`
+        id,
+        influence_points,
+        created_at,
+        group:groups (id, name, slug, country_code)
+      `)
+      .eq('user_id', user.value.id);
+    if (error) throw error;
+    userBiases.value = data || [];
+  } catch (e: any) { toast.error("Erro ao buscar seus vieses: " + e.message); }
+  finally { isLoadingBiases.value = false; }
+}
+
+async function fetchAvailableBiasGroups() {
+  try {
+    const { data, error } = await supabase
+      .from('groups')
+      .select('id, name, country_code, slug')
+      .eq('is_open', false)
+      .order('name');
+    if (error) throw error;
+    // Filtrar grupos que o usuário já declarou
+    const declaredGroupIds = userBiases.value.map(b => b.group?.id);
+    availableBiasGroups.value = (data || []).filter((g: Group) => !declaredGroupIds.includes(g.id));
+  } catch (e: any) { toast.error("Erro ao buscar grupos disponíveis: " + e.message); }
+}
+
+async function declareBias() {
+  if (!user.value || !selectedGroupIdToDeclare.value) return;
+  isDeclaringBias.value = true;
+  try {
+    const { data, error } = await supabase
+      .from('biases')
+      .insert({
+        user_id: user.value.id,
+        group_id: selectedGroupIdToDeclare.value
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    if (data) {
+      toast.success('Viés declarado com sucesso!');
+      fetchUserBiases(); // Re-busca para atualizar a lista
+      fetchAvailableBiasGroups(); // Re-busca para atualizar o select
+      selectedGroupIdToDeclare.value = '';
+    }
+  } catch (e: any) {
+    if (e.message?.includes('unique constraint')) {
+        toast.error('Você já declarou este viés.');
+    } else {
+        toast.error("Erro ao declarar viés: " + e.message);
+    }
+  } finally {
+    isDeclaringBias.value = false;
+  }
+}
+
+async function removeBias(biasId: string) {
+  if (!confirm("Tem certeza que deseja remover este viés? Você perderá sua influência acumulada.")) return;
+  try {
+    const { error } = await supabase.from('biases').delete().eq('id', biasId);
+    if (error) throw error;
+    toast.success("Viés removido.");
+    fetchUserBiases();
+    fetchAvailableBiasGroups();
+  } catch (e:any) {
+    toast.error("Erro ao remover viés: " + e.message);
+  }
+}
+
+onMounted(async () => {
+  if (user.value) {
+    await fetchUserBiases();
+    await fetchAvailableBiasGroups();
+  }
+});
+watch(user, async (currentUser) => {
+  if(currentUser) {
+    await fetchUserBiases();
+    await fetchAvailableBiasGroups();
+  } else {
+    userBiases.value = [];
+    availableBiasGroups.value = [];
+  }
 });
 </script>
 
@@ -201,15 +290,35 @@ onMounted(() => {
   text-align: right;
 }
 
-.loading-spinner, .error-message {
+.loading-spinner {
   text-align: center;
   padding: 2rem;
   font-size: 1.1rem;
 }
-.error-message {
-  color: #dc3545; /* Cor de erro */
-  background-color: color-mix(in srgb, #dc3545 15%, transparent);
-  border: 1px solid color-mix(in srgb, #dc3545 30%, transparent);
-  border-radius: 4px;
+
+.user-biases-section { margin-top: 2rem; }
+.user-biases-section h2 { margin-bottom: 1rem; }
+.biases-list { list-style: none; padding-left: 0; }
+.biases-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.biases-list li:last-child { border-bottom: none; }
+.button-danger-text {
+    background: none; border: none; color: #dc3545; cursor: pointer; padding: 0.3rem;
+    font-size: 0.85rem;
+}
+.button-danger-text:hover { text-decoration: underline; }
+
+.declare-bias-form { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px dashed var(--border-color); }
+.declare-bias-form h3 { margin-bottom: 1rem; font-size: 1.2rem; }
+.declare-bias-form .form-group { margin-bottom: 1rem; }
+.declare-bias-form select {
+  width: 100%; max-width: 400px; padding: 0.7rem;
+  border: 1px solid var(--border-color); border-radius: 4px;
+  font-size: 1rem; background-color: #fff;
 }
 </style>

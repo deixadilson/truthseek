@@ -35,10 +35,9 @@
           <select id="country" v-model="country" required>
             <option disabled value="">Selecione seu país</option>
             <!-- Lista de países - Placeholder -->
-            <option value="BR">Brasil</option>
-            <option value="PT">Portugal</option>
-            <option value="US">Estados Unidos</option>
-            <option value="Outro">Outro</option>
+            <option value="br">Brasil</option>
+            <option value="pt">Portugal</option>
+            <option value="us">Estados Unidos</option>
             <!-- Idealmente, popular isso dinamicamente ou com uma lista completa -->
           </select>
         </div>
@@ -85,7 +84,7 @@
         <div class="form-group terms">
           <input type="checkbox" id="terms" v-model="acceptedTerms" required>
           <label for="terms">
-            Li e concordo com os <NuxtLink to="/termos-de-servico" target="_blank">Termos de Serviço</NuxtLink>.
+            Li e concordo com os <NuxtLink to="/terms-of-service" target="_blank">Termos de Serviço</NuxtLink>.
           </label>
         </div>
 
@@ -102,7 +101,6 @@
 </template>
 
 <script setup lang="ts">
-import { AuthError } from '@supabase/supabase-js';
 import { useToast } from 'vue-toastification';
 
 const supabase = useSupabaseClient();

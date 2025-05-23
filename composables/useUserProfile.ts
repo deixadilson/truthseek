@@ -1,5 +1,5 @@
 import type { Profile } from '~/types/app'; 
 
-export const useUserProfileState = () => {
+export const useProfile = () => {
   return useState<Profile | null>('userProfile', () => null);
 };
