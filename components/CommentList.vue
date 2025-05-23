@@ -6,7 +6,7 @@
     </div>
     <CommentItem
       v-for="comment in comments"
-      :key="comment.id"
+      :key="`${comment.id}`"
       :comment="comment"
       :post-id="postId"
       @reply-posted-to-list="handleReplyInList"
@@ -19,10 +19,10 @@
 </template>
 
 <script setup lang="ts">
-import type { DisplayComment } from '~/types/app';
+import type { CommentWithAuthor } from '~/types/app';
 
 const props = defineProps<{
-  comments: DisplayComment[];
+  comments: CommentWithAuthor[];
   postId: string; // Para passar ao CreateCommentForm dentro de CommentItem
   isLoading?: boolean;
   emptyMessage?: string;
@@ -32,7 +32,7 @@ const props = defineProps<{
 
 const emit = defineEmits(['new-reply-added']); // Para propagar o evento de nova resposta
 
-function handleReplyInList(newReply: DisplayComment) {
+function handleReplyInList(newReply: CommentWithAuthor) {
   // Este componente (CommentList) não deve modificar diretamente o array 'comments' que vem do pai.
   // Ele propaga o evento para o componente pai (ex: PostItem ou a página do grupo)
   // que é responsável por gerenciar o estado da lista de comentários principal.

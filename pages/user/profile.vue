@@ -60,20 +60,10 @@
         </ul>
         <p v-else>Você ainda não declarou nenhum viés.</p>
 
-        <div class="declare-bias-form">
-          <h3>Declarar Novo Viés</h3>
-          <div class="form-group">
-            <label for="bias-group-select">Selecione um Grupo de Viés:</label>
-            <select v-model="selectedGroupIdToDeclare" id="bias-group-select">
-              <option disabled value="">-- Escolha um grupo --</option>
-              <option v-for="group in availableBiasGroups" :key="group.id" :value="group.id">
-                {{ group.name }} ({{ group.country_code.toUpperCase() }})
-              </option>
-            </select>
-          </div>
-          <button @click="declareBias" :disabled="!selectedGroupIdToDeclare || isDeclaringBias" class="button-primary">
-            {{ isDeclaringBias ? 'Declarando...' : 'Declarar Viés' }}
-          </button>
+        <div class="declare-bias-action">
+          <NuxtLink to="/user/declare-bias" class="button-primary">
+            Declarar Novo Viés / Explorar Grupos
+          </NuxtLink>
         </div>
       </section>
     </div>
@@ -91,10 +81,7 @@ const toast = useToast();
 const defaultAvatarUrl = '/images/default-avatar.png';
 
 const userBiases = ref<Array<Bias & { group?: Partial<Group> }>>([]); // Para incluir nome do grupo
-const availableBiasGroups = ref<Group[]>([]);
-const selectedGroupIdToDeclare = ref<string>('');
 const isLoadingBiases = ref(false);
-const isDeclaringBias = ref(false);
 
 // Funções de formatação
 function formatGender(genderCode: string | null | undefined): string {
@@ -147,49 +134,6 @@ async function fetchUserBiases() {
   finally { isLoadingBiases.value = false; }
 }
 
-async function fetchAvailableBiasGroups() {
-  try {
-    const { data, error } = await supabase
-      .from('groups')
-      .select('id, name, country_code, slug')
-      .eq('is_open', false)
-      .order('name');
-    if (error) throw error;
-    // Filtrar grupos que o usuário já declarou
-    const declaredGroupIds = userBiases.value.map(b => b.group?.id);
-    availableBiasGroups.value = (data || []).filter((g: Group) => !declaredGroupIds.includes(g.id));
-  } catch (e: any) { toast.error("Erro ao buscar grupos disponíveis: " + e.message); }
-}
-
-async function declareBias() {
-  if (!user.value || !selectedGroupIdToDeclare.value) return;
-  isDeclaringBias.value = true;
-  try {
-    const { data, error } = await supabase
-      .from('biases')
-      .insert({
-        user_id: user.value.id,
-        group_id: selectedGroupIdToDeclare.value
-      })
-      .select()
-      .single();
-    if (error) throw error;
-    if (data) {
-      toast.success('Viés declarado com sucesso!');
-      fetchUserBiases(); // Re-busca para atualizar a lista
-      fetchAvailableBiasGroups(); // Re-busca para atualizar o select
-      selectedGroupIdToDeclare.value = '';
-    }
-  } catch (e: any) {
-    if (e.message?.includes('unique constraint')) {
-        toast.error('Você já declarou este viés.');
-    } else {
-        toast.error("Erro ao declarar viés: " + e.message);
-    }
-  } finally {
-    isDeclaringBias.value = false;
-  }
-}
 
 async function removeBias(biasId: string) {
   if (!confirm("Tem certeza que deseja remover este viés? Você perderá sua influência acumulada.")) return;
@@ -198,7 +142,6 @@ async function removeBias(biasId: string) {
     if (error) throw error;
     toast.success("Viés removido.");
     fetchUserBiases();
-    fetchAvailableBiasGroups();
   } catch (e:any) {
     toast.error("Erro ao remover viés: " + e.message);
   }
@@ -207,16 +150,13 @@ async function removeBias(biasId: string) {
 onMounted(async () => {
   if (user.value) {
     await fetchUserBiases();
-    await fetchAvailableBiasGroups();
   }
 });
 watch(user, async (currentUser) => {
   if(currentUser) {
     await fetchUserBiases();
-    await fetchAvailableBiasGroups();
   } else {
     userBiases.value = [];
-    availableBiasGroups.value = [];
   }
 });
 </script>
@@ -308,17 +248,15 @@ watch(user, async (currentUser) => {
 }
 .biases-list li:last-child { border-bottom: none; }
 .button-danger-text {
-    background: none; border: none; color: #dc3545; cursor: pointer; padding: 0.3rem;
-    font-size: 0.85rem;
+  background: none; border: none; color: #dc3545; cursor: pointer; padding: 0.3rem;
+  font-size: 0.85rem;
 }
 .button-danger-text:hover { text-decoration: underline; }
 
-.declare-bias-form { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px dashed var(--border-color); }
-.declare-bias-form h3 { margin-bottom: 1rem; font-size: 1.2rem; }
-.declare-bias-form .form-group { margin-bottom: 1rem; }
-.declare-bias-form select {
-  width: 100%; max-width: 400px; padding: 0.7rem;
-  border: 1px solid var(--border-color); border-radius: 4px;
-  font-size: 1rem; background-color: #fff;
+.declare-bias-action {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px dashed var(--border-color);
+  text-align: center;
 }
 </style>

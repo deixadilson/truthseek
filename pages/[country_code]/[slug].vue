@@ -89,12 +89,12 @@
 
 <script setup lang="ts">
 import type { Group, PostWithAuthor } from '~/types/app';
-import { useUserProfileState } from '~/composables/useUserProfile';
+import { useProfile } from '~/composables/useUserProfile';
 import { useToast } from 'vue-toastification';
 
 const route = useRoute();
 const supabase = useSupabaseClient();
-const userProfile = useUserProfileState();
+const userProfile = useProfile();
 const toast = useToast();
 
 const groupData = ref<Group | null>(null);

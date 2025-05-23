@@ -58,7 +58,7 @@
 <script setup lang="ts">
 import type { Database } from '~/types/supabase';
 import type { CommentWithAuthor, Profile } from '~/types/app';
-import { useUserProfileState } from '~/composables/useUserProfile';
+import { useProfile } from '~/composables/useUserProfile';
 import { useToast } from 'vue-toastification';
 import { getEmbedVideoUrl, isValidImageUrl } from '~/utils/formatters';
 
@@ -75,7 +75,7 @@ const emit = defineEmits<{
 
 const supabase = useSupabaseClient<Database>();
 const user = useSupabaseUser();
-const userProfile = useUserProfileState();
+const userProfile = useProfile();
 const toast = useToast();
 
 const commentText = ref('');
