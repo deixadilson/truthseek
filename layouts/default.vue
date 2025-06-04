@@ -1,12 +1,11 @@
 <template>
   <div class="app-container">
     <header class="app-header">
-      <NuxtLink to="/" class="logo-link">
+      <div class="logo-link">
         <img src="/images/logo.svg" alt="TruthSeek Network Logo" class="logo-img" />
         <h1>TruthSeek Network</h1>
-      </NuxtLink>
+      </div>
       <nav class="main-nav">
-        <NuxtLink to="/">Início</NuxtLink>
         <template v-if="user">
           <NuxtLink to="/categories">Categorias</NuxtLink>
           <NuxtLink to="/user/profile" class="user-greeting">
@@ -15,6 +14,7 @@
           <button @click="handleLogout" class="button-logout">Sair</button>
         </template>
         <template v-else>
+          <NuxtLink to="/">Início</NuxtLink>
           <NuxtLink to="/user/login">Entrar</NuxtLink>
           <NuxtLink to="/user/register">Cadastrar</NuxtLink>
         </template>

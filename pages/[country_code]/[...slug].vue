@@ -28,7 +28,7 @@
             <p class="group-meta">
               País: {{ groupData.country_code.toUpperCase() }}
               <span v-if="false">| Categoria: {{ groupData?.category_group_id }}</span>
-              <span v-if="groupData.is_open">| Grupo Aberto</span>
+              <span>| Grupo {{ groupData.is_open ? 'Aberto' : 'Fechado' }}</span>
             </p>
           </div>
           <div class="group-actions">
@@ -54,10 +54,6 @@
           </section>
         </div>
         <aside class="sidebar-column">
-          <section class="user-groups-sidebar card-style">
-            <h4>Seus Grupos</h4>
-            <p>(Lista de grupos do usuário em breve)</p>
-          </section>
           <section class="subgroups-sidebar card-style" v-if="subgroups.length > 0">
             <h4>Subgrupos</h4>
             <ul>
@@ -89,12 +85,10 @@
 
 <script setup lang="ts">
 import type { Group, PostWithAuthor } from '~/types/app';
-import { useProfile } from '~/composables/useUserProfile';
 import { useToast } from 'vue-toastification';
 
 const route = useRoute();
 const supabase = useSupabaseClient();
-const userProfile = useProfile();
 const toast = useToast();
 
 const groupData = ref<Group | null>(null);
@@ -102,10 +96,6 @@ const subgroups = ref<Group[]>([]);
 const posts = ref<PostWithAuthor[]>([]);
 const isLoading = ref(true);
 const isLoadingPosts = ref(false);
-
-const groupSlug = computed(() => route.params.slug as string);
-const countryCodeParam = computed(() => route.params.country_code as string);
-
 
 const groupFlagUrl = computed(() => {
   if (groupData.value?.flag_path) {
@@ -159,7 +149,7 @@ async function fetchGroupData(country: string, slug: string): Promise<void> {
       .from('groups')
       .select(`
         id, name, slug, description, flag_path, country_code, is_open,
-        category_group_id, parent_group_id, cover_image_path
+        category_group_id, parent_group_id, has_subgroups, cover_image_path
       `)
       .eq('slug', slug)
       .eq('country_code', country)
@@ -175,7 +165,7 @@ async function fetchGroupData(country: string, slug: string): Promise<void> {
     if (data) {
       groupData.value = data as Group;
 
-      if(groupData.value){
+      if(groupData.value.has_subgroups){
         const { data: subData, error: subError } = await supabase
           .from('groups')
           .select('id, name, slug, country_code')
@@ -208,12 +198,14 @@ function handleNewPost(newPost: PostWithAuthor) {
 
 watch(
   () => [route.params.country_code, route.params.slug],
-  ([newCountry, newSlug]) => {
-    if (newCountry && newSlug && typeof newCountry === 'string' && typeof newSlug === 'string') {
-      fetchGroupData(newCountry, newSlug);
+  ([newCountry, newSlugArray]) => {
+    if (newCountry && newSlugArray && Array.isArray(newSlugArray) && newSlugArray.length > 0) {
+      const countryStr = typeof newCountry === 'string' ? newCountry : newCountry[0];
+      const completeSlug = (newSlugArray as string[]).join('/');
+      fetchGroupData(countryStr, completeSlug);
     }
   },
-  { immediate: true, deep: true } // deep: true pode não ser necessário aqui, mas não prejudica
+  { immediate: true, deep: true }
 );
 
 // Atualizar título da página
@@ -223,7 +215,7 @@ watch(
       title: `${newData.name} - TruthSeek Network`,
       meta: [{ name: 'description', content: newData.description || `Página do grupo ${newData.name}` }]
     });
-  } else if (!isLoading.value && !newData) { // Se não está carregando e não encontrou dados
+  } else if (!isLoading.value && !newData) {
     useHead({
       title: `Grupo Não Encontrado - TruthSeek Network`,
     });

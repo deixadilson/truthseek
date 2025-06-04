@@ -1,212 +1,436 @@
 <template>
   <div class="categories-page container">
-    <h1>Explorar Categorias e Grupos</h1>
-    <p class="intro">
-      Navegue pelas categorias de discussão. Por padrão, exibimos os grupos
-      disponíveis para o Brasil.
-    </p>
+    <nav aria-label="breadcrumb" class="breadcrumb-nav" v-if="breadcrumbs.length > 0">
+      <ol>
+        <li><NuxtLink to="#" @click.prevent="navigateToCrumb(null)">Categorias</NuxtLink></li>
+        <li v-for="(crumb, index) in breadcrumbs" :key="crumb.groupId || 'root-crumb'">
+          <span v-if="index === breadcrumbs.length - 1" class="active">{{ crumb.name }}</span>
+          <NuxtLink v-else :to="`#${crumb.groupId}`" @click.prevent="navigateToCrumb(crumb)">{{ crumb.name }}</NuxtLink>
+        </li>
+      </ol>
+    </nav>
 
-    <div v-if="isLoading" class="loading-spinner">
-      Carregando categorias...
+    <div class="page-header">
+      <h1 v-if="breadcrumbs.length === 0">Explorar Categorias Raiz</h1>
+      <h1 v-else>Subgrupos de {{ breadcrumbs[breadcrumbs.length - 1].name }}</h1>
+      <div class="search-bar">
+        <input type="search" v-model="searchTerm" placeholder="Buscar grupos pelo nome..." />
+      </div>
     </div>
 
-    <div v-if="categoryGroups.length > 0" class="categories-grid">
-      <div
-        v-for="category in categoryGroups"
-        :key="category.id"
-        class="category-card"
-      >
-        <NuxtLink :to="`/${category.country_code}/${category.slug}`" class="category-link">
-          <!-- Container para a imagem/placeholder -->
-          <div class="category-image-container">
-            <img
-              v-if="category.flag_path"
-              :src="`https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/flags/${category.flag_path}`"
-              :alt="`Bandeira ${category.name}`"
-              class="category-flag"
-            />
-            <div v-else class="category-image-placeholder">
-              <span>{{ category.name.substring(0, 1) }}</span>
-            </div>
-          </div>
+    <div v-if="isLoading" class="loading-spinner">Carregando...</div>
+    <div v-else-if="errorLoading" class="error-message">{{ errorLoading }}</div>
 
-          <h2 class="category-name">{{ category.name }}</h2>
-          <p class="group-country-info line-clamp"> <!-- Adicionada classe line-clamp -->
-            {{ category.description }}
-          </p>
-          <span class="enter-group-button button-secondary">Entrar no Grupo</span>
-        </NuxtLink>
+    <div v-else-if="filteredGroups.length > 0" class="categories-grid">
+      <div
+        v-for="group in filteredGroups"
+        :key="group.id"
+        class="category-card"
+        @click="handleCardClick(group)"
+        :class="{ 'clickable': group.has_subgroups }"
+      >
+        <div class="card-image-container">
+          <img
+            v-if="group.flag_path"
+            :src="`https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/flags/${group.flag_path}`"
+            :alt="`Bandeira ${group.name}`"
+            class="category-flag"
+          />
+          <div v-else class="category-image-placeholder">
+            <span>{{ group.name.substring(0, 1).toUpperCase() }}</span>
+          </div>
+        </div>
+        <div class="card-content">
+          <h2 class="category-name">{{ group.name }}</h2>
+          <span class="group-status-badge" :class="group.is_open ? 'open' : 'closed'">
+            Grupo {{ group.is_open ? 'Aberto' : 'Fechado' }}
+          </span>
+          <p class="group-description line-clamp" :title="group.description || ''">{{ group.description }}</p>
+          <div class="card-actions">
+            <NuxtLink
+              v-if="group.is_open || isBiasDeclared(group.id)"
+              :to="`/${group.country_code}/${group.slug}`"
+              class="button-secondary action-button"
+              @click.stop
+            >
+              Entrar no Grupo
+            </NuxtLink>
+
+            <button
+              v-if="!group.is_open && !isBiasDeclared(group.id) && user"
+              @click.stop="declareBias(group.id)"
+              class="button-primary action-button"
+              :disabled="isDeclaringBiasFor === group.id"
+            >
+              {{ isDeclaringBiasFor === group.id ? 'Declarando...' : 'Defender Viés' }}
+            </button>
+            <span v-if="!group.is_open && isBiasDeclared(group.id) && user" class="bias-declared-badge action-button-placeholder">
+              Viés Declarado
+            </span>
+          </div>
+        </div>
       </div>
     </div>
     <div v-else class="no-categories">
-      <p>Nenhuma categoria ou grupo encontrado para os critérios selecionados.</p>
+      <p v-if="searchTerm && displayedGroups.length > 0">Nenhum grupo encontrado para "{{ searchTerm }}" na visão atual.</p>
+      <p v-else-if="searchTerm && displayedGroups.length === 0">Nenhum grupo encontrado para "{{ searchTerm }}".</p>
+      <p v-else-if="breadcrumbs.length > 0">Nenhum subgrupo encontrado nesta categoria.</p>
+      <p v-else>Nenhuma categoria raiz encontrada.</p>
+      <button v-if="breadcrumbs.length > 0" @click="goBackInBreadcrumb" class="button-secondary">
+        Voltar
+      </button>
     </div>
-
-    <!-- Futuramente: Filtros por país, busca, etc. -->
   </div>
 </template>
 
 <script setup lang="ts">
-import type { Group } from '~/types/app';
+import type { Database } from '~/types/supabase';
+// Certifique-se que GroupData em types/app.d.ts inclui:
+// id, name, description, slug, flag_path, country_code, level (number), is_open (boolean), parent_group_id (string | null), has_subgroups (boolean)
+import type { Group, Bias } from '~/types/app';
 import { useToast } from 'vue-toastification';
 
-const supabase = useSupabaseClient();
+interface BreadcrumbItem {
+  name: string;
+  groupId: string | null;
+}
+
+const supabase = useSupabaseClient<Database>();
+const user = useSupabaseUser();
 const toast = useToast();
 
-const categoryGroups = ref<Group[]>([]);
+const allFetchedGroups = ref<Record<string, Group[]>>({}); // Cache: { 'parentId_ou_root': [grupos] }
+const displayedGroups = ref<Group[]>([]); // Grupos atualmente na lista (antes de filtrar por busca)
 const isLoading = ref(true);
+const errorLoading = ref<string | null>(null);
+const searchTerm = ref('');
 
-async function fetchRootCategoryGroups(countryCode: string = 'br'): Promise<void> {
-  isLoading.value = true;
+const breadcrumbs = ref<BreadcrumbItem[]>([]);
+
+const userBiases = ref<Bias[]>([]);
+const isDeclaringBiasFor = ref<string | null>(null);
+
+// --- Lógica de Vieses Declarados ---
+async function fetchUserBiases() {
+  if (!user.value) {
+    userBiases.value = [];
+    return;
+  }
+  isLoading.value = true; // Pode ser um isLoadingBiases separado
   try {
-    // A coluna 'category_group_id' sendo NULL indica uma categoria raiz.
     const { data, error } = await supabase
+      .from('biases')
+      .select('id, user_id, group_id, influence_points, created_at')
+      .eq('user_id', user.value.id);
+    if (error) throw error;
+    userBiases.value = data || [];
+  } catch (e: any) {
+    console.error("Erro ao buscar vieses do usuário:", e.message);
+    // Não mostrar toast aqui, pois é uma carga em segundo plano
+  } finally {
+    // isLoading.value = false; // Se usar isLoadingBiases separado
+  }
+}
+
+function isBiasDeclared(groupId: string): boolean {
+  return userBiases.value.some(bias => bias.group_id === groupId);
+}
+
+async function declareBias(groupId: string) {
+  if (!user.value) { toast.error("Você precisa estar logado para declarar um viés."); return; }
+  isDeclaringBiasFor.value = groupId;
+  try {
+    const { data, error } = await supabase
+      .from('biases')
+      .insert({ user_id: user.value.id, group_id: groupId, influence_points: 10 })
+      .select('id, group_id, influence_points, created_at, user_id') // Selecionar para o tipo Bias
+      .single();
+
+    if (error) {
+      if (error.message?.includes('unique constraint') || error.code === '23505') {
+        toast.info('Você já declarou este viés.');
+        if (!isBiasDeclared(groupId)) { // Adicionar localmente se a info estava dessincronizada
+          userBiases.value.push({ id: 'temp-' + groupId, user_id: user.value.id, group_id: groupId, influence_points: 10, created_at: new Date().toISOString() });
+        }
+      } else {
+        throw error;
+      }
+    } else if (data) {
+      toast.success('Viés declarado com sucesso!');
+      userBiases.value.push(data as Bias);
+    }
+  } catch (e: any) {
+    toast.error("Erro ao declarar viés: " + e.message);
+  } finally {
+    isDeclaringBiasFor.value = null;
+  }
+}
+
+// --- Lógica de Navegação e Busca de Grupos ---
+const currentParentIdForQuery = computed<string | null>(() => {
+  return breadcrumbs.value.length > 0 ? breadcrumbs.value[breadcrumbs.value.length - 1].groupId : null;
+});
+
+async function fetchAndDisplayGroups(parentId: string | null, parentName?: string) {
+  isLoading.value = true;
+  errorLoading.value = null;
+  const cacheKey = parentId || 'root';
+
+  // Atualiza breadcrumbs antes de verificar o cache ou buscar
+  // Isso garante que o título da página seja atualizado corretamente
+  if (parentId && parentName) {
+    const existingCrumbIndex = breadcrumbs.value.findIndex(b => b.groupId === parentId);
+    if (existingCrumbIndex !== -1) {
+      breadcrumbs.value.splice(existingCrumbIndex + 1);
+    } else {
+      breadcrumbs.value.push({ name: parentName, groupId: parentId });
+    }
+  } else {
+    breadcrumbs.value = [];
+  }
+
+  if (allFetchedGroups.value[cacheKey]) {
+    displayedGroups.value = allFetchedGroups.value[cacheKey];
+    isLoading.value = false;
+    return;
+  }
+
+  try {
+    let query = supabase
       .from('groups')
-      .select(`
-        id,
-        name,
-        description,
-        slug,
-        flag_path,
-        country_code
-      `)
-      .is('category_group_id', null)
-      .eq('country_code', countryCode)
-      .order('name', { ascending: true });
+      .select('id, name, description, slug, flag_path, country_code, level, is_open, parent_group_id, has_subgroups')
+      .eq('country_code', 'br');
+    if (parentId) {
+      query = query.eq('parent_group_id', parentId);
+    } else {
+      query = query.is('parent_group_id', null);
+    }
+    const { data, error } = await query.order('name', { ascending: true });
 
     if (error) throw error;
 
-    if (data) {
-      categoryGroups.value = data as Group[];
-    }
+    const groups = data as Group[] || [];
+    allFetchedGroups.value[cacheKey] = groups;
+    displayedGroups.value = groups;
+
   } catch (e: any) {
-    console.error('Erro ao buscar categorias e grupos:', e);
-    toast.error(e.message || 'Falha ao carregar dados.');
+    console.error('Erro ao buscar grupos:', e);
+    errorLoading.value = e.message || 'Falha ao carregar dados.';
   } finally {
     isLoading.value = false;
   }
 }
 
-useHead({
-  title: 'Categorias - TruthSeek Network',
-  meta: [
-    { name: 'description', content: 'Explore as categorias de debate da TruthSeek Network.' }
-  ]
+function handleCardClick(group: Group) {
+  if (group.has_subgroups) {
+    fetchAndDisplayGroups(group.id, group.name);
+  }
+  // Se não tiver subgrupos, o clique no card não faz nada, pois os botões dentro dele
+  // têm @click.stop para impedir a propagação.
+}
+
+function navigateToCrumb(crumb: BreadcrumbItem | null) {
+  if (crumb) {
+    fetchAndDisplayGroups(crumb.groupId, crumb.name);
+  } else {
+    fetchAndDisplayGroups(null);
+  }
+}
+
+function goBackInBreadcrumb() {
+  if (breadcrumbs.value.length > 0) {
+    const parentOfCurrent = breadcrumbs.value.length > 1 ? breadcrumbs.value[breadcrumbs.value.length - 2] : null;
+    navigateToCrumb(parentOfCurrent);
+  }
+}
+
+const filteredGroups = computed(() => {
+  if (!searchTerm.value.trim()) {
+    return displayedGroups.value;
+  }
+  const lowerSearchTerm = searchTerm.value.toLowerCase();
+  return displayedGroups.value.filter(group =>
+    group.name.toLowerCase().includes(lowerSearchTerm)
+  );
 });
 
+// --- Hooks ---
 onMounted(() => {
-  fetchRootCategoryGroups('br'); // Carregar grupos do Brasil por padrão
+  fetchUserBiases();
+  fetchAndDisplayGroups(null);
 });
+watch(user, () => fetchUserBiases()); // Re-buscar vieses se o usuário mudar
+
+watch(breadcrumbs, (newCrumbs) => {
+  let title = 'Categorias';
+  if (newCrumbs.length > 0) {
+    title = `Subgrupos de ${newCrumbs[newCrumbs.length - 1].name}`;
+  }
+  useHead({
+    title: `${title} - TruthSeek Network`,
+    meta: [
+      { name: 'description', content: `Explore ${title.toLowerCase()} na TruthSeek Network.` }
+    ]
+  });
+}, { deep: true, immediate: true });
 </script>
 
 <style scoped>
 .categories-page {
-  padding-top: 2rem;
+  padding-top: 1rem;
   padding-bottom: 3rem;
 }
 
-.categories-page h1 {
-  text-align: center;
+.breadcrumb-nav {
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  background-color: var(--card-bg);
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.breadcrumb-nav ol {
+  list-style: none; padding: 0; margin: 0;
+  display: flex; flex-wrap: wrap; /* Para quebra em telas pequenas */
+  gap: 0.25rem 0.5rem;
+  align-items: center;
+}
+.breadcrumb-nav li:not(:last-child)::after {
+  content: '›';
+  margin-left: 0.5rem;
+  color: #888;
+  display: inline-block;
+}
+.breadcrumb-nav a { color: var(--primary-color); text-decoration: none; }
+.breadcrumb-nav a:hover { text-decoration: underline; }
+.breadcrumb-nav li span.active { color: var(--text-color); font-weight: 500; }
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.page-header h1 {
   color: var(--primary-color);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0;
+  text-align: left;
+  flex-grow: 1;
+  font-size: 2rem;
 }
-.categories-page p.intro {
-  text-align: center;
-  margin-bottom: 2.5rem;
-  color: #555;
-  max-width: 700px;
-  margin-left: auto;
-  margin-right: auto;
+.search-bar {
+  flex-basis: 300px;
+  max-width: 100%;
 }
+.search-bar input {
+  width: 100%;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  font-size: 0.95rem;
+}
+.search-bar input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+
 
 .categories-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.75rem;
 }
 
 .category-card {
   background-color: var(--card-bg);
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.07);
   transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
   overflow: hidden;
-}
-.category-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 5px 15px rgba(0,0,0,0.12);
-}
-
-.category-link {
   display: flex;
   flex-direction: column;
-  padding: 1.5rem;
-  text-decoration: none;
-  color: inherit;
-  height: 100%;
+}
+.category-card.clickable { cursor: pointer; }
+.category-card.clickable:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.1);
 }
 
-.category-image-container {
+.card-image-container {
   width: 100%;
-  height: 240px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 1rem;
-  border-radius: 4px;
+  height: 200px;
+  display: flex; align-items: center; justify-content: center;
   overflow: hidden;
   background-color: var(--primary-color-light);
 }
-
+.category-flag { width: 100%; height: 100%; object-fit: cover; }
 .category-image-placeholder {
-  width: 100%;
-  height: 100%;
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--primary-color); font-size: 3.5rem; font-weight: bold;
+}
+
+.card-content {
+  padding: 1.25rem;
+  flex-grow: 1;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--primary-color);
-  font-size: 3rem;
-  font-weight: bold;
+  flex-direction: column;
 }
-
-.category-flag {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
 .category-name {
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   color: var(--primary-color);
-  margin-bottom: 0.5rem;
-  line-height: 1.2;
+  margin-bottom: 0.3rem;
+  font-weight: 600;
 }
-
+.group-status-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-block;
+}
+.group-status-badge.open {
+  color: var(--primary-color);
+}
+.group-status-badge.closed {
+  color: #b81727;
+}
+.group-description {
+  font-size: 0.9rem; color: #555;
+  margin-bottom: 1rem; line-height: 1.6;
+  flex-grow: 1;
+}
 .line-clamp {
   display: -webkit-box;
   line-clamp: 3;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  /* Altura mínima para garantir espaço mesmo com poucas linhas, ajuste conforme necessário */
-  min-height: calc(0.9rem * 1.7 * 1); /* (font-size * line-height * num_linhas_minimas) */
-  /* Altura máxima para quando tem 3 linhas */
-  max-height: calc(0.9rem * 1.7 * 3);
+  overflow: hidden; text-overflow: ellipsis;
+  min-height: calc(0.9rem * 1.6 * 1); /* Garante espaço para pelo menos 1 linha */
+  max-height: calc(0.9rem * 1.6 * 3); /* Espaço para até 3 linhas */
 }
 
-.group-country-info {
-  font-size: 0.9rem;
-  color: #666;
-  margin-bottom: 1rem;
-  line-height: 1.7;
-}
-
-.enter-group-button {
+.card-actions {
   margin-top: auto;
-  text-align: center;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.75rem;
+  justify-content: flex-start;
+}
+.action-button, .action-button-placeholder {
+  font-size: 0.8rem;
   padding: 0.6em 1em;
-  font-size: 0.95rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.bias-declared-badge {
+  font-weight: 500;
 }
 
 .loading-spinner, .error-message, .no-categories {
@@ -215,7 +439,5 @@ onMounted(() => {
   font-size: 1.1rem;
   color: #555;
 }
-.error-message {
-  color: #dc3545;
-}
+.no-categories button { margin-top: 1rem; }
 </style>

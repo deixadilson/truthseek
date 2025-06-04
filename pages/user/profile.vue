@@ -51,17 +51,17 @@
         <div v-if="isLoadingBiases">Carregando vieses...</div>
         <ul v-else-if="userBiases.length > 0" class="biases-list">
           <li v-for="bias in userBiases" :key="bias.id">
-            <NuxtLink :to="`/g/${bias.group?.country_code}/${bias.group?.slug}`"> <!-- Assumindo que group tem country_code e slug -->
+            <NuxtLink :to="`/${bias.group?.country_code}/${bias.group?.slug}`">
                 {{ bias.group?.name || 'Grupo Desconhecido' }}
             </NuxtLink>
-            (Influência: {{ bias.influence_points }})
+            Influência: {{ bias.influence_points }}
             <button @click="removeBias(bias.id)" class="button-danger-text">× Remover</button>
           </li>
         </ul>
         <p v-else>Você ainda não declarou nenhum viés.</p>
 
         <div class="declare-bias-action">
-          <NuxtLink to="/user/declare-bias" class="button-primary">
+          <NuxtLink to="/categories" class="button-primary">
             Declarar Novo Viés / Explorar Grupos
           </NuxtLink>
         </div>
