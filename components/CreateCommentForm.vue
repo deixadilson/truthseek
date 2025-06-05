@@ -57,8 +57,7 @@
 
 <script setup lang="ts">
 import type { Database } from '~/types/supabase';
-import type { CommentWithAuthor, Profile } from '~/types/app';
-import { useProfile } from '~/composables/useUserProfile';
+import type { CommentWithAuthor } from '~/types/app';
 import { useToast } from 'vue-toastification';
 import { getEmbedVideoUrl, isValidImageUrl } from '~/utils/formatters';
 
@@ -184,7 +183,7 @@ async function submitComment() {
       const file = imageFile.value;
       const fileExt = file.name.split('.').pop()?.toLowerCase() || 'png';
       const fileName = `${user.value.id}_${Date.now()}.${fileExt}`;
-      const filePath = `public/${props.postId}/${fileName}`;
+      const filePath = `${props.postId}/${fileName}`;
 
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('comment-media')

@@ -37,7 +37,6 @@
 
 <script setup lang="ts">
 import { useToast } from 'vue-toastification';
-import { useProfile } from '~/composables/useUserProfile';
 
 const user = useSupabaseUser();
 const supabase = useSupabaseClient();
@@ -61,7 +60,7 @@ async function fetchAndSetUserProfile(userId: string) {
 
     if (data) {
       userProfile.value = data;
-    } else { // Perfil não encontrado
+    } else {
       userProfile.value = null;
       console.warn(`Perfil não encontrado para o usuário ${userId}`);
     }

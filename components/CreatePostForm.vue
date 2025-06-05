@@ -68,7 +68,6 @@
 
 <script setup lang="ts">
 import type { Database } from '~/types/supabase';
-import { useProfile } from '~/composables/useUserProfile';
 import { useToast } from 'vue-toastification';
 import type { PostWithAuthor } from '~/types/app';
 import { isValidImageUrl } from '~/utils/formatters';
@@ -205,7 +204,7 @@ async function submitPost() {
       const file = imageFile.value;
       const fileExt = file.name.split('.').pop()?.toLowerCase() || 'png';
       const fileName = `${user.value.id}_${Date.now()}.${fileExt}`;
-      const filePath = `public/${props.ownerType}/${props.ownerId}/${fileName}`;
+      const filePath = `${props.ownerType}/${props.ownerId}/${fileName}`;
 
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('post-media')

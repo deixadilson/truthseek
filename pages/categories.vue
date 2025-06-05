@@ -97,7 +97,7 @@ const supabase = useSupabaseClient<Database>();
 const user = useSupabaseUser();
 const toast = useToast();
 
-const allFetchedGroups = ref<Record<string, Group[]>>({}); // Cache: { 'parentId_ou_root': [grupos] }
+const allFetchedGroups = ref<Record<string, Group[]>>({});
 const displayedGroups = ref<Group[]>([]);
 const isLoading = ref(true);
 const errorLoading = ref<string | null>(null);
