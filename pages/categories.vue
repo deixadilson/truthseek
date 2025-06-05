@@ -1,6 +1,6 @@
 <template>
   <div class="categories-page container">
-    <nav aria-label="breadcrumb" class="breadcrumb-nav" v-if="breadcrumbs.length > 0">
+    <nav aria-label="breadcrumb" class="breadcrumb-nav" v-if="!isSearching && breadcrumbs.length > 0">
       <ol>
         <li><NuxtLink to="#" @click.prevent="navigateToCrumb(null)">Categorias</NuxtLink></li>
         <li v-for="(crumb, index) in breadcrumbs" :key="crumb.groupId || 'root-crumb'">
@@ -11,7 +11,8 @@
     </nav>
 
     <div class="page-header">
-      <h1 v-if="breadcrumbs.length === 0">Explorar Categorias Raiz</h1>
+      <h1 v-if="isSearching">Resultados da Busca por "{{ searchTerm }}"</h1>
+      <h1 v-else-if="breadcrumbs.length === 0">Explorar Categorias Raiz</h1>
       <h1 v-else>Subgrupos de {{ breadcrumbs[breadcrumbs.length - 1].name }}</h1>
       <div class="search-bar">
         <input type="search" v-model="searchTerm" placeholder="Buscar grupos pelo nome..." />
@@ -21,13 +22,13 @@
     <div v-if="isLoading" class="loading-spinner">Carregando...</div>
     <div v-else-if="errorLoading" class="error-message">{{ errorLoading }}</div>
 
-    <div v-else-if="filteredGroups.length > 0" class="categories-grid">
+    <div v-else-if="groupsToRender.length > 0" class="categories-grid">
       <div
-        v-for="group in filteredGroups"
+        v-for="group in groupsToRender"
         :key="group.id"
         class="category-card"
         @click="handleCardClick(group)"
-        :class="{ 'clickable': group.has_subgroups }"
+        :class="{ 'clickable': !isSearching && group.has_subgroups }"
       >
         <div class="card-image-container">
           <img
@@ -72,11 +73,10 @@
       </div>
     </div>
     <div v-else class="no-categories">
-      <p v-if="searchTerm && displayedGroups.length > 0">Nenhum grupo encontrado para "{{ searchTerm }}" na visão atual.</p>
-      <p v-else-if="searchTerm && displayedGroups.length === 0">Nenhum grupo encontrado para "{{ searchTerm }}".</p>
-      <p v-else-if="breadcrumbs.length > 0">Nenhum subgrupo encontrado nesta categoria.</p>
-      <p v-else>Nenhuma categoria raiz encontrada.</p>
-      <button v-if="breadcrumbs.length > 0" @click="goBackInBreadcrumb" class="button-secondary">
+      <p v-if="isSearching && searchTerm">Nenhum grupo encontrado para "{{ searchTerm }}".</p>
+      <p v-else-if="!isSearching && breadcrumbs.length > 0">Nenhum subgrupo encontrado nesta categoria.</p>
+      <p v-else-if="!isSearching && breadcrumbs.length === 0">Nenhuma categoria raiz encontrada.</p>
+      <button v-if="!isSearching && breadcrumbs.length > 0" @click="goBackInBreadcrumb" class="button-secondary">
         Voltar
       </button>
     </div>
@@ -85,8 +85,6 @@
 
 <script setup lang="ts">
 import type { Database } from '~/types/supabase';
-// Certifique-se que GroupData em types/app.d.ts inclui:
-// id, name, description, slug, flag_path, country_code, level (number), is_open (boolean), parent_group_id (string | null), has_subgroups (boolean)
 import type { Group, Bias } from '~/types/app';
 import { useToast } from 'vue-toastification';
 
@@ -100,23 +98,28 @@ const user = useSupabaseUser();
 const toast = useToast();
 
 const allFetchedGroups = ref<Record<string, Group[]>>({}); // Cache: { 'parentId_ou_root': [grupos] }
-const displayedGroups = ref<Group[]>([]); // Grupos atualmente na lista (antes de filtrar por busca)
+const displayedGroups = ref<Group[]>([]);
 const isLoading = ref(true);
 const errorLoading = ref<string | null>(null);
+
 const searchTerm = ref('');
+const searchResults = ref<Group[]>([]);
+const isSearching = ref(false);
 
 const breadcrumbs = ref<BreadcrumbItem[]>([]);
 
 const userBiases = ref<Bias[]>([]);
 const isDeclaringBiasFor = ref<string | null>(null);
 
-// --- Lógica de Vieses Declarados ---
+const groupsToRender = computed(() => {
+  return isSearching.value ? searchResults.value : displayedGroups.value;
+});
+
 async function fetchUserBiases() {
   if (!user.value) {
     userBiases.value = [];
     return;
-  }
-  isLoading.value = true; // Pode ser um isLoadingBiases separado
+  }  
   try {
     const { data, error } = await supabase
       .from('biases')
@@ -126,9 +129,6 @@ async function fetchUserBiases() {
     userBiases.value = data || [];
   } catch (e: any) {
     console.error("Erro ao buscar vieses do usuário:", e.message);
-    // Não mostrar toast aqui, pois é uma carga em segundo plano
-  } finally {
-    // isLoading.value = false; // Se usar isLoadingBiases separado
   }
 }
 
@@ -137,13 +137,14 @@ function isBiasDeclared(groupId: string): boolean {
 }
 
 async function declareBias(groupId: string) {
-  if (!user.value) { toast.error("Você precisa estar logado para declarar um viés."); return; }
+  if (!user.value) return;
+
   isDeclaringBiasFor.value = groupId;
   try {
     const { data, error } = await supabase
       .from('biases')
       .insert({ user_id: user.value.id, group_id: groupId, influence_points: 10 })
-      .select('id, group_id, influence_points, created_at, user_id') // Selecionar para o tipo Bias
+      .select('id, group_id, influence_points, created_at, user_id')
       .single();
 
     if (error) {
@@ -166,18 +167,11 @@ async function declareBias(groupId: string) {
   }
 }
 
-// --- Lógica de Navegação e Busca de Grupos ---
-const currentParentIdForQuery = computed<string | null>(() => {
-  return breadcrumbs.value.length > 0 ? breadcrumbs.value[breadcrumbs.value.length - 1].groupId : null;
-});
-
 async function fetchAndDisplayGroups(parentId: string | null, parentName?: string) {
   isLoading.value = true;
   errorLoading.value = null;
   const cacheKey = parentId || 'root';
 
-  // Atualiza breadcrumbs antes de verificar o cache ou buscar
-  // Isso garante que o título da página seja atualizado corretamente
   if (parentId && parentName) {
     const existingCrumbIndex = breadcrumbs.value.findIndex(b => b.groupId === parentId);
     if (existingCrumbIndex !== -1) {
@@ -221,12 +215,43 @@ async function fetchAndDisplayGroups(parentId: string | null, parentName?: strin
   }
 }
 
-function handleCardClick(group: Group) {
-  if (group.has_subgroups) {
-    fetchAndDisplayGroups(group.id, group.name);
+async function searchGroupsByName() {
+  if (!searchTerm.value.trim()) {
+    resetSearch();
+    return;
   }
-  // Se não tiver subgrupos, o clique no card não faz nada, pois os botões dentro dele
-  // têm @click.stop para impedir a propagação.
+  isSearching.value = true;
+  isLoading.value = true;
+  try {
+    const { data, error } = await supabase
+      .from('groups')
+      .select('id, name, description, slug, flag_path, country_code, level, is_open, parent_group_id, has_subgroups')
+      .ilike('name', `%${searchTerm.value.trim()}%`)
+      .eq('country_code', 'br')
+      .order('name', { ascending: true });
+
+    if (error) throw error;
+    searchResults.value = data as Group[] || [];
+  } catch (e: any) {
+    console.error('Erro ao buscar grupos:', e);
+    toast.error(e.message || 'Falha ao realizar a busca.');
+    searchResults.value = [];
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+function resetSearch() {
+    isSearching.value = false;
+    searchResults.value = [];
+    searchTerm.value = '';
+    const lastCrumb = breadcrumbs.value.length > 0 ? breadcrumbs.value[breadcrumbs.value.length - 1] : null;
+    fetchAndDisplayGroups(lastCrumb?.groupId || null, lastCrumb?.name);
+}
+
+function handleCardClick(group: Group) {
+  if (isSearching.value) return;
+  if (group.has_subgroups) fetchAndDisplayGroups(group.id, group.name);
 }
 
 function navigateToCrumb(crumb: BreadcrumbItem | null) {
@@ -254,12 +279,22 @@ const filteredGroups = computed(() => {
   );
 });
 
-// --- Hooks ---
 onMounted(() => {
   fetchUserBiases();
   fetchAndDisplayGroups(null);
 });
-watch(user, () => fetchUserBiases()); // Re-buscar vieses se o usuário mudar
+
+let searchDebounceTimer: NodeJS.Timeout;
+watch(searchTerm, (newValue) => {
+  clearTimeout(searchDebounceTimer);
+  if (newValue.trim() !== '') {
+    searchDebounceTimer = setTimeout(() => {
+      searchGroupsByName();
+    }, 500);
+  } else {
+    resetSearch();
+  }
+});
 
 watch(breadcrumbs, (newCrumbs) => {
   let title = 'Categorias';
@@ -291,7 +326,8 @@ watch(breadcrumbs, (newCrumbs) => {
 }
 .breadcrumb-nav ol {
   list-style: none; padding: 0; margin: 0;
-  display: flex; flex-wrap: wrap; /* Para quebra em telas pequenas */
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.25rem 0.5rem;
   align-items: center;
 }
@@ -336,7 +372,6 @@ watch(breadcrumbs, (newCrumbs) => {
   border-color: var(--primary-color);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color) 20%, transparent);
 }
-
 
 .categories-grid {
   display: grid;
