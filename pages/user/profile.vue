@@ -64,7 +64,7 @@
                 {{ bias.group?.name || 'Grupo Desconhecido' }}
             </NuxtLink>
             Influência: {{ bias.influence_points }}
-            <button @click="removeBias(bias.id)" class="button-danger-text">× Remover</button>
+            <button @click="removeBias(bias.id)" class="button-danger-text" title="Remover Viés">×</button>
           </li>
         </ul>
         <p v-else>Você ainda não declarou nenhum viés.</p>
@@ -91,8 +91,8 @@ const defaultAvatarUrl = '/images/default-avatar.png';
 const avatarFileInputRef = ref<HTMLInputElement | null>(null);
 const currentAvatarDisplay = ref<string>(defaultAvatarUrl);
 const isUploadingAvatar = ref(false);
+const avatarBucketPath = 'https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/avatars';
 let currentSelectedFileForUpload: File | null = null;
-let avatarBucketPath = 'https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/avatars';
 
 const userBiases = ref<Array<Bias & { group?: Partial<Group> }>>([]);
 const isLoadingBiases = ref(false);
@@ -203,7 +203,7 @@ async function uploadAvatar(fileToUpload: File) {
 
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ avatar_path: actualPathInBucket, updated_at: new Date().toISOString() }) // Salvar o path relativo ao bucket
+        .update({ avatar_path: actualPathInBucket, updated_at: new Date().toISOString() } as never)
         .eq('id', user.value.id);
 
       if (updateError) throw updateError;
