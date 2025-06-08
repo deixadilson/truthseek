@@ -67,7 +67,6 @@
 import type { Database } from '~/types/supabase';
 import type { PostWithAuthor } from '~/types/app';
 import { useToast } from 'vue-toastification';
-import { timeAgo, formatTextToHtml, getEmbedVideoUrl } from '~/utils/formatters';
 
 const props = defineProps<{
   post: PostWithAuthor;

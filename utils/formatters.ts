@@ -15,6 +15,33 @@ export function timeAgo(timestamp: string): string {
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+export function formatGender(genderCode: string | null | undefined): string {
+  if (genderCode === 'm') return 'Masculino';
+  if (genderCode === 'f') return 'Feminino';
+  return 'Não informado';
+}
+
+export function formatDate(dateString: string | null | undefined, includeTime: boolean = false): string {
+  if (!dateString) return 'Não informada';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Data inválida';
+    const options: Intl.DateTimeFormatOptions = {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    };
+    if (includeTime) {
+      options.hour = '2-digit';
+      options.minute = '2-digit';
+    }
+    return date.toLocaleDateString('pt-BR', options);
+  } catch (error) {
+    console.error("Erro ao formatar data:", dateString, error);
+    return dateString; // Retorna a string original em caso de erro
+  }
+}
+
 // Formatar texto para exibir quebras de linha e detectar links
 export function formatTextToHtml(text: string | null): string {
   if (!text) return '';

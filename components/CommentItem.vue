@@ -53,7 +53,6 @@
 import type { Database } from '~/types/supabase';
 import type { CommentWithAuthor } from '~/types/app';
 import { useToast } from 'vue-toastification';
-import { timeAgo, formatTextToHtml, getEmbedVideoUrl } from '~/utils/formatters';
 
 const props = defineProps<{
   comment: CommentWithAuthor;

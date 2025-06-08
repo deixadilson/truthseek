@@ -55,19 +55,47 @@
           <span>{{ formatDate(userProfile?.created_at, true) }}</span>
         </div>
       </div>
-      <section class="user-biases-section card-style" v-if="user">
+      <section class="user-biases-section" v-if="user">
         <h2>Meus Vieses Declarados</h2>
-        <div v-if="isLoadingBiases">Carregando vieses...</div>
-        <ul v-else-if="userBiases.length > 0" class="biases-list">
-          <li v-for="bias in userBiases" :key="bias.id">
-            <NuxtLink :to="`/${bias.group?.country_code}/${bias.group?.slug}`">
-                {{ bias.group?.name || 'Grupo Desconhecido' }}
-            </NuxtLink>
-            Influência: {{ bias.influence_points }}
-            <button @click="removeBias(bias.id)" class="button-danger-text" title="Remover Viés">×</button>
-          </li>
-        </ul>
-        <p v-else>Você ainda não declarou nenhum viés.</p>
+        <div v-if="isLoadingBiases" class="loading-spinner">Carregando vieses...</div>
+        <div v-else-if="groupedBiases.length > 0">
+          <div
+            v-for="category in groupedBiases"
+            :key="category.categoryName"
+            class="bias-category-group"
+          >
+            <header class="category-header">
+              <span class="category-name">{{ category.categoryName }}</span>
+              <span class="influence-header">Influência</span>
+            </header>
+            <ul class="biases-list">
+              <li v-for="bias in category.biases" :key="`${bias.id}`" class="bias-item">
+                <NuxtLink :to="`/g/${bias.group_country_code}/${bias.group_slug}`" class="bias-link">
+                  <div class="bias-flag-container">
+                    <img
+                      v-if="bias.group_flag_path"
+                      :src="`https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/flags/${bias.group_flag_path}`"
+                      :alt="`Bandeira de ${bias.group_name}`"
+                      class="bias-flag"
+                    />
+                    <div class="bias-flag-placeholder">
+                      <span>{{ bias.group_name?.substring(0, 1) || '?' }}</span>
+                    </div>
+                  </div>
+                  <span class="bias-name">{{ bias.group_name || 'Grupo Desconhecido' }}</span>
+                </NuxtLink>
+                <div class="bias-influence">
+                  <span class="points">{{ bias.influence_points }}</span>
+                  <span class="title">Aspirante</span>
+                </div>
+                <button  v-if="bias.id" @click="removeBias(bias.id)" class="remove-bias-btn" title="Remover Viés">
+                  ×
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <p v-else class="no-biases-message">Você ainda não declarou nenhum viés.</p>
         <div class="declare-bias-action">
           <NuxtLink to="/categories" class="button-primary">
             Declarar Novo Viés / Explorar Grupos
@@ -80,7 +108,7 @@
 
 <script setup lang="ts">
 import { useToast } from 'vue-toastification';
-import type { Profile, Bias, Group } from '~/types/app';
+import type { Profile, BiasWithDetails } from '~/types/app';
 
 const supabase = useSupabaseClient();
 const user = useSupabaseUser();
@@ -94,53 +122,46 @@ const isUploadingAvatar = ref(false);
 const avatarBucketPath = 'https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/avatars';
 let currentSelectedFileForUpload: File | null = null;
 
-const userBiases = ref<Array<Bias & { group?: Partial<Group> }>>([]);
+const userBiases = ref<BiasWithDetails[]>([]); // Usar o novo tipo
 const isLoadingBiases = ref(false);
 
-function formatGender(genderCode: string | null | undefined): string {
-  if (genderCode === 'm') return 'Masculino';
-  if (genderCode === 'f') return 'Feminino';
-  return 'Não informado';
-}
+const groupedBiases = computed(() => {
+  const groups: Record<string, { categoryName: string; biases: BiasWithDetails[] }> = {};
+  if (!userBiases.value) return [];
 
-function formatDate(dateString: string | null | undefined, includeTime: boolean = false): string {
-  if (!dateString) return 'Não informada';
-  try {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return 'Data inválida';
-    const options: Intl.DateTimeFormatOptions = {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    };
-    if (includeTime) {
-      options.hour = '2-digit';
-      options.minute = '2-digit';
+  userBiases.value.forEach(bias => {
+    const categoryId = bias.category_id || 'other'; // Usa o ID da categoria vindo da VIEW
+    const categoryName = bias.category_name || 'Outros Vieses'; // Usa o nome da categoria vindo da VIEW
+
+    if (!groups[categoryId]) {
+      groups[categoryId] = {
+        categoryName: categoryName,
+        biases: []
+      };
     }
-    return date.toLocaleDateString('pt-BR', options);
-  } catch (error) {
-    console.error("Erro ao formatar data:", dateString, error);
-    return dateString; // Retorna a string original em caso de erro
-  }
-}
+    groups[categoryId].biases.push(bias);
+  });
+
+  return Object.values(groups);
+});
 
 async function fetchUserBiases() {
   if (!user.value) return;
   isLoadingBiases.value = true;
   try {
+    // Agora fazemos a query na VIEW
     const { data, error } = await supabase
-      .from('biases')
-      .select(`
-        id,
-        influence_points,
-        created_at,
-        group:groups (id, name, slug, country_code)
-      `)
+      .from('biases_with_details')
+      .select('*')
       .eq('user_id', user.value.id);
+
     if (error) throw error;
     userBiases.value = data || [];
-  } catch (e: any) { toast.error("Erro ao buscar seus vieses: " + e.message); }
-  finally { isLoadingBiases.value = false; }
+  } catch (e: any) {
+    toast.error("Erro ao buscar seus vieses: " + e.message);
+  } finally {
+    isLoadingBiases.value = false;
+  }
 }
 
 function triggerFileInput() {
@@ -227,8 +248,8 @@ async function uploadAvatar(fileToUpload: File) {
       URL.revokeObjectURL(currentAvatarDisplay.value);
     }
     currentAvatarDisplay.value = userProfile.value?.avatar_path
-        ? `${avatarBucketPath}/${userProfile.value.avatar_path}`
-        : defaultAvatarUrl;
+      ? `${avatarBucketPath}/${userProfile.value.avatar_path}`
+      : defaultAvatarUrl;
   } finally {
     isUploadingAvatar.value = false;
   }
@@ -338,27 +359,141 @@ watch(userProfile, (newProfileData) => {
   font-size: 1.1rem;
 }
 
-.user-biases-section { margin-top: 2rem; }
-.user-biases-section h2 { margin-bottom: 1rem; }
-.biases-list { list-style: none; padding-left: 0; }
-.biases-list li {
+.user-biases-section {
+  margin-top: 2rem;
+}
+.user-biases-section h2 {
+  margin-bottom: 1rem;
+}
+
+.bias-category-group {
+  margin-bottom: 1.5rem;
+}
+.bias-category-group:last-child {
+  margin-bottom: 0;
+}
+
+.category-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem 0;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--primary-color-light);
+  color: var(--primary-color-dark);
+  font-weight: 500;
+  font-size: 0.9rem;
+  border-radius: 4px 4px 0 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--primary-color) 30%, transparent);
+}
+.influence-header {
+  min-width: 120px;
+}
+
+.biases-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border: 1px solid var(--border-color);
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+}
+
+.bias-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
   border-bottom: 1px solid var(--border-color);
 }
-.biases-list li:last-child { border-bottom: none; }
-.button-danger-text {
-  background: none; border: none; color: #dc3545; cursor: pointer; padding: 0.3rem;
-  font-size: 0.85rem;
+.biases-list li:last-child {
+  border-bottom: none;
 }
-.button-danger-text:hover { text-decoration: underline; }
+
+.bias-link {
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: var(--text-color);
+}
+.bias-link:hover .bias-name {
+  color: var(--primary-color);
+}
+
+.bias-flag-container {
+  flex-shrink: 0;
+}
+.bias-flag {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+.bias-flag-placeholder {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  background-color: #eee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: #888;
+}
+
+.bias-name {
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.bias-influence {
+  flex-shrink: 0;
+  min-width: 120px;
+  text-align: right;
+  font-size: 0.9rem;
+}
+.bias-influence .points {
+  font-weight: bold;
+  color: var(--primary-color);
+  margin-right: 0.5rem;
+}
+.bias-influence .title {
+  color: #666;
+}
+
+.remove-bias-btn {
+  background: none;
+  border: none;
+  color: #aaa;
+  font-size: 1.5rem;
+  line-height: 1;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+}
+.remove-bias-btn:hover {
+  color: #dc3545;
+}
 
 .declare-bias-action {
   margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px dashed var(--border-color);
   text-align: center;
+}
+.no-biases-message {
+    padding: 1.5rem;
+    text-align: center;
+    color: #777;
+    font-style: italic;
+    background-color: #f9f9f9;
+    border: 1px dashed var(--border-color);
+    border-radius: 4px;
+}
+
+/* Responsividade */
+@media (max-width: 600px) {
+  .influence-header,
+  .bias-influence {
+    display: none; /* Esconder coluna de influência em telas pequenas */
+  }
 }
 </style>
