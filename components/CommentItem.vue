@@ -3,17 +3,24 @@
     <div class="comment-main-content">
       <img :src="authorAvatarUrl" alt="Avatar" class="author-avatar-small" />
       <div class="comment-body">
-        <div class="comment-author-line">
-          <span class="comment-author-name">
-            {{ comment.is_anonymous ? 'Anônimo' : (comment.author_username || 'Usuário') }}
-          </span>
-          <span v-if="comment.created_at" class="comment-timestamp">
-            {{ timeAgo(comment.created_at) }} <span v-if="comment.is_edited">(editado)</span>
-          </span>
-          <span v-else class="comment-timestamp">
-            Data indisponível
-          </span>
-        </div>
+        <AuthorPopover
+          :author-id="comment.author_id"
+          :context-group-id="postOwnerGroupId"
+          :hide-trigger-arrow="true"
+          v-if="comment.author_id && !comment.is_anonymous"
+        >
+          <div class="comment-author-line">
+            <span class="comment-author-name">
+              {{ comment.is_anonymous ? 'Anônimo' : (comment.author_username || 'Usuário') }}
+            </span>
+            <span v-if="comment.created_at" class="comment-timestamp">
+              {{ timeAgo(comment.created_at) }} <span v-if="comment.is_edited">(editado)</span>
+            </span>
+            <span v-else class="comment-timestamp">
+              Data indisponível
+            </span>
+          </div>
+        </AuthorPopover>
 
         <div v-if="comment.reply_to && repliedToUsername" class="reply-info">
           Em resposta a
@@ -58,6 +65,7 @@ const props = defineProps<{
   comment: CommentWithAuthor;
   repliedToUsername?: string | null;
   isHighlighted?: boolean;
+  postOwnerGroupId: string;
 }>();
 
 const emit = defineEmits<{

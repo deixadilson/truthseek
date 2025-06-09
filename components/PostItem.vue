@@ -1,21 +1,31 @@
 <template>
   <article class="post-item card-style">
     <header class="post-header">
-      <div class="author-info">
-        <img
-          :src="authorAvatarUrl"
-          alt="Avatar do autor"
-          class="author-avatar"
-        />
-        <div>
-          <span class="author-name">{{ post.author_username || (post.is_anonymous ? 'Anônimo' : 'Usuário Desconhecido') }}</span>
-          <span v-if="post.created_at" class="post-timestamp">
-            {{ timeAgo(post.created_at) }} <span v-if="post.is_edited">(editado)</span>
-          </span>
-          <span v-else class="post-timestamp">
-            Data indisponível
-          </span>
+      <AuthorPopover
+        :author-id="post.author_id"
+        :context-group-id="post.owner_id"
+        :hide-trigger-arrow="true"
+        v-if="post.author_id && post.owner_id && !post.is_anonymous"
+      >
+        <div class="author-info">
+          <img :src="authorAvatarUrl" alt="Avatar do autor" class="author-avatar"/>
+          <div>
+            <span class="author-name">{{ post.author_username || (post.is_anonymous ? 'Anônimo' : 'Usuário Desconhecido') }}</span>
+            <span v-if="post.created_at" class="post-timestamp">
+              {{ timeAgo(post.created_at) }} <span v-if="post.is_edited">(editado)</span>
+            </span>
+            <span v-else class="post-timestamp">
+              Data indisponível
+            </span>
+          </div>
         </div>
+      </AuthorPopover>
+      <div v-else class="author-info">
+         <img :src="authorAvatarUrl" alt="Avatar" class="author-avatar"/>
+          <div>
+            <span class="author-name">{{ post.is_anonymous ? 'Anônimo' : (post.author_username || 'Usuário Desconhecido') }}</span>
+            <span v-if="post.created_at" class="post-timestamp">{{ timeAgo(post.created_at) }} <span v-if="post.is_edited">(editado)</span></span>
+          </div>
       </div>
       <div class="post-options-dropdown">
         <!-- Placeholder para menu de opções (editar, deletar, denunciar) -->

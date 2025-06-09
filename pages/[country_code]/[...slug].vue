@@ -31,9 +31,6 @@
               <span>| Grupo {{ groupData.is_open ? 'Aberto' : 'Fechado' }}</span>
             </p>
           </div>
-          <div class="group-actions">
-            <button class="button-primary">Participar / Seguir (Em breve)</button>
-          </div>
         </div>
       </header>
 
@@ -292,20 +289,6 @@ watch(
   opacity: 0.9;
   text-shadow: 1px 1px 1px rgba(0,0,0,0.4);
 }
-
-.group-actions {
-  margin-left: auto; /* Empurra para a direita */
-  align-self: flex-end; /* Alinha com a base dos outros itens */
-}
-.group-actions .button-primary {
-  background-color: rgba(255,255,255,0.9);
-  color: var(--primary-color);
-  border-color: transparent;
-}
-.group-actions .button-primary:hover {
-  background-color: #fff;
-}
-
 
 .group-body {
   display: grid;

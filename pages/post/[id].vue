@@ -16,9 +16,6 @@
           @comment-created="addNewCommentToList"
           class="main-comment-form"
         />
-        <div v-else class="login-to-comment">
-          <NuxtLink :to="`/user/login?redirectTo=/post/${postId}`">Faça login</NuxtLink> para comentar.
-        </div>
 
         <!-- Lista de Comentários -->
         <div v-if="isLoadingComments" class="loading-spinner">Carregando comentários...</div>
@@ -28,6 +25,7 @@
             v-for="comment in comments"
             :key="`${comment.id}`"
             :comment="comment"
+            :post-owner-group-id="post.owner_id"
             :replied-to-username="comment.reply_to ? getRepliedToUsernameForChild(comment.reply_to) : null"
             :is-highlighted="highlightedCommentId === comment.id"
             @request-reply="handleRequestReply"

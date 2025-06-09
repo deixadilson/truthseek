@@ -70,7 +70,7 @@
             </header>
             <ul class="biases-list">
               <li v-for="bias in category.biases" :key="`${bias.id}`" class="bias-item">
-                <NuxtLink :to="`/g/${bias.group_country_code}/${bias.group_slug}`" class="bias-link">
+                <NuxtLink :to="`/${bias.group_country_code}/${bias.group_slug}`" class="bias-link">
                   <div class="bias-flag-container">
                     <img
                       v-if="bias.group_flag_path"
@@ -98,7 +98,7 @@
         <p v-else class="no-biases-message">Você ainda não declarou nenhum viés.</p>
         <div class="declare-bias-action">
           <NuxtLink to="/categories" class="button-primary">
-            Declarar Novo Viés / Explorar Grupos
+            Declarar Novo Viés / Explorar&nbsp;Grupos
           </NuxtLink>
         </div>
       </section>
@@ -328,7 +328,6 @@ watch(userProfile, (newProfileData) => {
 
 .profile-info {
   display: grid;
-  /* grid-template-columns: auto 1fr; */ /* Label e valor */
   gap: 1rem;
 }
 
@@ -489,11 +488,10 @@ watch(userProfile, (newProfileData) => {
     border-radius: 4px;
 }
 
-/* Responsividade */
 @media (max-width: 600px) {
   .influence-header,
   .bias-influence {
-    display: none; /* Esconder coluna de influência em telas pequenas */
+    display: none;
   }
 }
 </style>
