@@ -122,7 +122,7 @@ const isUploadingAvatar = ref(false);
 const avatarBucketPath = 'https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/avatars';
 let currentSelectedFileForUpload: File | null = null;
 
-const userBiases = ref<BiasWithDetails[]>([]); // Usar o novo tipo
+const userBiases = ref<BiasWithDetails[]>([]);
 const isLoadingBiases = ref(false);
 
 const groupedBiases = computed(() => {
@@ -130,8 +130,8 @@ const groupedBiases = computed(() => {
   if (!userBiases.value) return [];
 
   userBiases.value.forEach(bias => {
-    const categoryId = bias.category_id || 'other'; // Usa o ID da categoria vindo da VIEW
-    const categoryName = bias.category_name || 'Outros Vieses'; // Usa o nome da categoria vindo da VIEW
+    const categoryId = bias.category_id || 'other';
+    const categoryName = bias.category_name || 'Outros Vieses';
 
     if (!groups[categoryId]) {
       groups[categoryId] = {
@@ -149,7 +149,6 @@ async function fetchUserBiases() {
   if (!user.value) return;
   isLoadingBiases.value = true;
   try {
-    // Agora fazemos a query na VIEW
     const { data, error } = await supabase
       .from('biases_with_details')
       .select('*')

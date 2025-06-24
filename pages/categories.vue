@@ -32,13 +32,22 @@
       >
         <div class="card-image-container">
           <img
-            v-if="group.flag_path"
-            :src="`https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/flags/${group.flag_path}`"
-            :alt="`Bandeira ${group.name}`"
-            class="category-flag"
+            v-if="group.cover_image_path"
+            :src="`${bucket}/covers/${group.cover_image_path}`"
+            :alt="`Capa ${group.name}`"
+            class="group-cover"
           />
-          <div v-else class="category-image-placeholder">
-            <span>{{ group.name.substring(0, 1).toUpperCase() }}</span>
+          <div v-else class="group-cover-placeholder"></div>
+          <div class="group-flag-container">
+            <img
+              v-if="group.flag_path"
+              :src="`${bucket}/flags/${group.flag_path}`"
+              :alt="`Bandeira de ${group.name}`"
+              class="group-flag"
+            />
+            <div v-else class="group-flag-placeholder">
+              <span>{{ group.name.substring(0, 1) }}</span>
+            </div>
           </div>
         </div>
         <div class="card-content">
@@ -110,6 +119,8 @@ const breadcrumbs = ref<BreadcrumbItem[]>([]);
 
 const userBiases = ref<Bias[]>([]);
 const isDeclaringBiasFor = ref<string | null>(null);
+
+const bucket = 'https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public';
 
 const groupsToRender = computed(() => {
   return isSearching.value ? searchResults.value : displayedGroups.value;
@@ -397,17 +408,40 @@ watch(breadcrumbs, (newCrumbs) => {
 .card-image-container {
   width: 100%;
   height: 200px;
-  display: flex; align-items: center; justify-content: center;
-  overflow: hidden;
   background-color: var(--primary-color-light);
 }
-.category-flag { width: 100%; height: 100%; object-fit: cover; }
-.category-image-placeholder {
+.card-image-container::after {
+  content: '';
+  background-color: rgba(0, 0, 0, 0.3);
+  height: 100%;
+  position: relative;
+  display: block;
+  bottom: 320px;
+}
+.group-flag-container {
+  width: 120px;
+  height: 120px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 3px solid var(--card-bg);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  background-color: var(--primary-color);
+  position: relative;
+  left: 15px;
+  bottom: 110px;
+  z-index: 1;
+}
+.group-flag-placeholder {
   width: 100%; height: 100%;
   display: flex; align-items: center; justify-content: center;
-  color: var(--primary-color); font-size: 3.5rem; font-weight: bold;
+  font-size: 3rem; font-weight: bold; color: var(--header-text);
 }
-
+.group-cover, .group-flag { width: 100%; height: 100%; object-fit: cover; }
+.group-cover-placeholder {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 3.5rem; font-weight: bold;
+}
 .card-content {
   padding: 1.25rem;
   flex-grow: 1;
