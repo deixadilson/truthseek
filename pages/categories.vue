@@ -149,9 +149,27 @@ function isBiasDeclared(groupId: string): boolean {
 
 async function declareBias(groupId: string) {
   if (!user.value) return;
-
+  
   isDeclaringBiasFor.value = groupId;
+
   try {
+    // Verifica se o usuário pode declarar viés para este grupo
+    const { data: checkData, error: checkError } = await supabase.rpc('can_declare_bias', {
+      p_user_id: user.value.id,
+      p_group_id_to_declare: groupId,
+    });
+
+    if (checkError) throw checkError;
+
+    const result = checkData?.[0];
+
+    if (result && !result.can_declare) {
+      toast.error(result.reason || "Não foi possível declarar este viés.");
+      isDeclaringBiasFor.value = null;
+      return;
+    }
+
+    // Tenta inserir o viés
     const { data, error } = await supabase
       .from('biases')
       .insert({ user_id: user.value.id, group_id: groupId, influence_points: 10 })
@@ -161,9 +179,7 @@ async function declareBias(groupId: string) {
     if (error) {
       if (error.message?.includes('unique constraint') || error.code === '23505') {
         toast.info('Você já declarou este viés.');
-        if (!isBiasDeclared(groupId)) { // Adicionar localmente se a info estava dessincronizada
-          userBiases.value.push({ id: 'temp-' + groupId, user_id: user.value.id, group_id: groupId, influence_points: 10, created_at: new Date().toISOString() });
-        }
+        if (!isBiasDeclared(groupId)) fetchUserBiases(); // sincronizar o estado local se ele estiver incorreto
       } else {
         throw error;
       }
@@ -204,7 +220,8 @@ async function fetchAndDisplayGroups(parentId: string | null, parentName?: strin
     let query = supabase
       .from('groups')
       .select('id, name, description, slug, flag_path, country_code, level, is_open, parent_group_id, has_subgroups')
-      .eq('country_code', 'br');
+      .eq('country_code', 'br')
+      .eq('hidden', false);
     if (parentId) {
       query = query.eq('parent_group_id', parentId);
     } else {

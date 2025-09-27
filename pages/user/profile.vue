@@ -27,16 +27,12 @@
       </div>
       <div class="profile-info">
         <div class="info-item">
-          <strong>ID do Usuário:</strong>
-          <span>{{ user?.id }}</span>
+          <strong>Nome de Usuário:</strong>
+          <span>{{ userProfile?.username }}</span>
         </div>
         <div class="info-item">
           <strong>Email:</strong>
           <span>{{ user?.email }}</span>
-        </div>
-        <div class="info-item">
-          <strong>Nome de Usuário:</strong>
-          <span>{{ userProfile?.username }}</span>
         </div>
         <div class="info-item" v-if="userProfile?.country_code">
           <strong>País:</strong>
@@ -78,7 +74,7 @@
                       :alt="`Bandeira de ${bias.group_name}`"
                       class="bias-flag"
                     />
-                    <div class="bias-flag-placeholder">
+                    <div v-else class="bias-flag-placeholder">
                       <span>{{ bias.group_name?.substring(0, 1) || '?' }}</span>
                     </div>
                   </div>
