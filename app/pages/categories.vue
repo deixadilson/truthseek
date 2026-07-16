@@ -104,6 +104,7 @@ interface BreadcrumbItem {
 
 const supabase = useSupabaseClient<Database>();
 const user = useSupabaseUser();
+const authUserId = useAuthUserId();
 const toast = useToast();
 
 const allFetchedGroups = ref<Record<string, Group[]>>({});
@@ -127,7 +128,7 @@ const groupsToRender = computed(() => {
 });
 
 async function fetchUserBiases() {
-  if (!user.value) {
+  if (!authUserId.value) {
     userBiases.value = [];
     return;
   }  
@@ -135,7 +136,7 @@ async function fetchUserBiases() {
     const { data, error } = await supabase
       .from('biases')
       .select('id, user_id, group_id, influence_points, created_at')
-      .eq('user_id', user.value.id);
+      .eq('user_id', authUserId.value);
     if (error) throw error;
     userBiases.value = data || [];
   } catch (e: any) {
@@ -148,14 +149,14 @@ function isBiasDeclared(groupId: string): boolean {
 }
 
 async function declareBias(groupId: string) {
-  if (!user.value) return;
+  if (!authUserId.value) return;
   
   isDeclaringBiasFor.value = groupId;
 
   try {
     // Verifica se o usuário pode declarar viés para este grupo
     const { data: checkData, error: checkError } = await supabase.rpc('can_declare_bias', {
-      p_user_id: user.value.id,
+      p_user_id: authUserId.value,
       p_group_id_to_declare: groupId,
     });
 
@@ -172,7 +173,7 @@ async function declareBias(groupId: string) {
     // Tenta inserir o viés
     const { data, error } = await supabase
       .from('biases')
-      .insert({ user_id: user.value.id, group_id: groupId, influence_points: 10 })
+      .insert({ user_id: authUserId.value, group_id: groupId, influence_points: 10 })
       .select('id, group_id, influence_points, created_at, user_id')
       .single();
 

@@ -74,6 +74,7 @@
 import { useToast } from 'vue-toastification';
 
 const user = useSupabaseUser();
+const authUserId = useAuthUserId();
 const supabase = useSupabaseClient();
 const userProfile = useProfile();
 const router = useRouter();
@@ -128,9 +129,9 @@ function onNavAvatarError(event: Event) {
   if (imgElement.src !== defaultUserAvatar) { imgElement.src = defaultUserAvatar; }
 }
 
-watch(user, (currentUser) => {
-  if (currentUser) {
-    fetchAndSetUserProfile(currentUser.id);
+watch(authUserId, (userId) => {
+  if (userId) {
+    fetchAndSetUserProfile(userId);
   } else {
     userProfile.value = null;
   }

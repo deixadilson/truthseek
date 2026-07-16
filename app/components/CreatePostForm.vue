@@ -81,6 +81,7 @@ const emit = defineEmits(['post-created']);
 
 const supabase = useSupabaseClient<Database>();
 const user = useSupabaseUser();
+const authUserId = useAuthUserId();
 const userProfile = useProfile();
 const toast = useToast();
 
@@ -192,7 +193,7 @@ function resetForm() {
 
 async function submitPost() {
   if (!canSubmit.value) return;
-  if (!user.value) return;
+  if (!authUserId.value) return;
   if (!textContent.value.trim()) return;
   if (imageFile.value && videoUrlToSave.value) return;
 
@@ -203,7 +204,7 @@ async function submitPost() {
     if (imageFile.value) {
       const file = imageFile.value;
       const fileExt = file.name.split('.').pop()?.toLowerCase() || 'png';
-      const fileName = `${user.value.id}_${Date.now()}.${fileExt}`;
+      const fileName = `${authUserId.value}_${Date.now()}.${fileExt}`;
       const filePath = `${props.ownerType}/${props.ownerId}/${fileName}`;
 
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -217,7 +218,7 @@ async function submitPost() {
     const { data: postData, error: postError } = await supabase
       .from('posts')
       .insert({
-        author_id: user.value.id,
+        author_id: authUserId.value,
         owner_id: props.ownerId,
         owner_type: props.ownerType,
         text_content: textContent.value.trim() || null,

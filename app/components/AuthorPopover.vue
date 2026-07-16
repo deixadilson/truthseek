@@ -60,10 +60,10 @@
                     >
                       {{ bias.group_name }}
                     </NuxtLink>
-                    <span class="influence">{{ bias.influence_points }} Aspirante</span>
+                    <span class="influence">{{ bias.influence_points }} {{ bias.title }}</span>
                   </div>
                 </div>
-                <div v-if="user && user.id !== authorId" class="endorse-actions">
+                <div v-if="user && authUserId !== authorId" class="endorse-actions">
                   <button
                     @click="toggleEndorsement(bias, 1)"
                     class="endorse-btn up"
@@ -114,6 +114,7 @@ const props = defineProps<{
 
 const supabase = useSupabaseClient<Database>();
 const user = useSupabaseUser();
+const authUserId = useAuthUserId();
 const toast = useToast();
 
 const authorBiases = ref<UserBiasForPopover[]>([]);
@@ -130,14 +131,14 @@ let openDelayTimeoutId: NodeJS.Timeout | null = null;
 let closeDelayTimeoutId: NodeJS.Timeout | null = null;
 
 async function fetchAuthorBiases() {
-  if (!props.authorId || !props.contextGroupId || !user.value) return;
+  if (!props.authorId || !props.contextGroupId || !authUserId.value) return;
   isLoading.value = true;
   error.value = null;
   try {
     const { data, error: rpcError } = await supabase.rpc('get_user_biases_for_category', {
       p_author_id: props.authorId,
       p_context_group_id: props.contextGroupId,
-      p_current_user_id: user.value.id,
+      p_current_user_id: authUserId.value,
     });
 
     if (rpcError) throw rpcError;
@@ -224,14 +225,14 @@ function simulateClickAndFetch(isCurrentlyOpen: boolean) {
 }
 
 async function toggleEndorsement(bias: UserBiasForPopover, endorsementType: 1 | -1) {
-  if (!user.value  || !bias.bias_id) return;
-  if (user.value.id === props.authorId) return;
+  if (!authUserId.value || !bias.bias_id) return;
+  if (authUserId.value === props.authorId) return;
 
   isHandlingEndorsement.value = bias.bias_id;
   try {
     const { data, error: rpcError } = await supabase.rpc('handle_endorsement', {
       p_bias_id: bias.bias_id,
-      p_endorsing_user_id: user.value.id,
+      p_endorsing_user_id: authUserId.value,
       p_endorsement_type: endorsementType,
       p_points_to_award: 1,
     });

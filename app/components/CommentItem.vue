@@ -76,6 +76,7 @@ const emit = defineEmits<{
 
 const supabase = useSupabaseClient<Database>();
 const user = useSupabaseUser();
+const authUserId = useAuthUserId();
 const toast = useToast();
 
 const defaultUserAvatar = '/images/default-avatar.png';
@@ -100,7 +101,7 @@ const commentImageUrl = computed(() => {
 const commentEmbedVideoUrl = computed(() => getEmbedVideoUrl(props.comment.video_url));
 
 async function fetchCurrentUserVoteForComment() {
-  if (!user.value || !props.comment.id) {
+  if (!authUserId.value || !props.comment.id) {
     currentUserVote.value = null;
     return;
   }
@@ -108,7 +109,7 @@ async function fetchCurrentUserVoteForComment() {
     const { data, error } = await supabase
       .from('votes')
       .select('vote_type')
-      .eq('user_id', user.value.id)
+      .eq('user_id', authUserId.value)
       .eq('target_id', props.comment.id)
       .eq('target_type', 'comment')
       .maybeSingle();
@@ -129,12 +130,12 @@ onMounted(() => {
   fetchCurrentUserVoteForComment();
 });
 
-watch(user, () => {
+watch(authUserId, () => {
   fetchCurrentUserVoteForComment();
 });
 
 async function handleVote(newVoteType: 1 | -1) {
-  if (!user.value || !user.value.id || !props.comment.id) {
+  if (!authUserId.value || !props.comment.id) {
     return;
   }
 
@@ -159,11 +160,11 @@ async function handleVote(newVoteType: 1 | -1) {
   
   try {
     if (oldVote === newVoteType ) {
-      await supabase.from('votes').delete().match({ user_id: user.value.id, target_id: props.comment.id, target_type: 'comment' });
+      await supabase.from('votes').delete().match({ user_id: authUserId.value, target_id: props.comment.id, target_type: 'comment' });
     } else if (oldVote !== null) {
-      await supabase.from('votes').update({ vote_type: newVoteType }).match({ user_id: user.value.id, target_id: props.comment.id, target_type: 'comment' });
+      await supabase.from('votes').update({ vote_type: newVoteType }).match({ user_id: authUserId.value, target_id: props.comment.id, target_type: 'comment' });
     } else {
-      await supabase.from('votes').insert({ user_id: user.value.id, target_id: props.comment.id, target_type: 'comment', vote_type: newVoteType });
+      await supabase.from('votes').insert({ user_id: authUserId.value, target_id: props.comment.id, target_type: 'comment', vote_type: newVoteType });
     }
     emit('vote-updated', { commentId: props.comment.id, likes: optimisticLikes, dislikes: optimisticDislikes, userVote: currentUserVote.value });
   } catch (e: any) {

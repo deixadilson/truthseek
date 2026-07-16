@@ -82,7 +82,7 @@
                 </NuxtLink>
                 <div class="bias-influence">
                   <span class="points">{{ bias.influence_points }}</span>
-                  <span class="title">Aspirante</span>
+                  <span class="title">{{ bias.title }}</span>
                 </div>
                 <button  v-if="bias.id" @click="removeBias(bias.id)" class="remove-bias-btn" title="Remover Viés">
                   ×
@@ -108,6 +108,7 @@ import type { Profile, BiasWithDetails } from '~/types/app';
 
 const supabase = useSupabaseClient();
 const user = useSupabaseUser();
+const authUserId = useAuthUserId();
 const userProfile = useProfile();
 const toast = useToast();
 const defaultAvatarUrl = '/images/default-avatar.png';
@@ -142,13 +143,13 @@ const groupedBiases = computed(() => {
 });
 
 async function fetchUserBiases() {
-  if (!user.value) return;
+  if (!authUserId.value) return;
   isLoadingBiases.value = true;
   try {
     const { data, error } = await supabase
       .from('biases_with_details')
       .select('*')
-      .eq('user_id', user.value.id);
+      .eq('user_id', authUserId.value);
 
     if (error) throw error;
     userBiases.value = data || [];
@@ -196,7 +197,7 @@ async function handleFileSelect(event: Event) {
 }
 
 async function uploadAvatar(fileToUpload: File) {
-  if (!user.value || !userProfile.value) {
+  if (!authUserId.value || !userProfile.value) {
     toast.error('Sessão de usuário inválida para upload.');
     return;
   }
@@ -205,7 +206,7 @@ async function uploadAvatar(fileToUpload: File) {
 
   try {
     const fileExt = fileToUpload.name.split('.').pop()?.toLowerCase();
-    const filePath = `${user.value.id}.${fileExt}`;
+    const filePath = `${authUserId.value}.${fileExt}`;
 
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('avatars')
@@ -215,12 +216,12 @@ async function uploadAvatar(fileToUpload: File) {
 
     if (uploadData?.path) {
       const newAvatarPath = uploadData.path;
-      const actualPathInBucket = newAvatarPath.startsWith(user.value.id) ? newAvatarPath : newAvatarPath.split('/').slice(1).join('/');
+      const actualPathInBucket = newAvatarPath.startsWith(authUserId.value) ? newAvatarPath : newAvatarPath.split('/').slice(1).join('/');
 
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ avatar_path: actualPathInBucket, updated_at: new Date().toISOString() } as never)
-        .eq('id', user.value.id);
+        .eq('id', authUserId.value);
 
       if (updateError) throw updateError;
 
@@ -263,9 +264,13 @@ async function removeBias(biasId: string) {
 }
 
 onMounted(async () => {
-  if (user.value) {
+  if (authUserId.value) {
     await fetchUserBiases();
   }
+});
+watch(authUserId, async (id) => {
+  if (id) await fetchUserBiases();
+  else userBiases.value = [];
 });
 watch(userProfile, (newProfileData) => {
   if (newProfileData) {

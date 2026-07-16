@@ -1,6 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  compatibilityDate: '2024-11-01',
+  compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   build: {
     transpile: ['vue-toastification'],
@@ -9,6 +9,7 @@ export default defineNuxtConfig({
     '@nuxtjs/supabase'
   ],
   supabase: {
+    types: '~/types/supabase.ts',
     redirectOptions: {
       login: '/user/login',
       callback: '/user/confirm',

@@ -84,6 +84,7 @@ const props = defineProps<{
 
 const supabase = useSupabaseClient<Database>();
 const user = useSupabaseUser();
+const authUserId = useAuthUserId();
 const toast = useToast();
 
 // Estado local para feedback imediato da UI e para saber o voto atual do usuário
@@ -113,7 +114,7 @@ const formattedTextContent = computed(() => formatTextToHtml(props.post.text_con
 
 // Função para buscar o voto atual do usuário para este post
 async function fetchCurrentUserVote() {
-  if (!user.value || !props.post.id) {
+  if (!authUserId.value || !props.post.id) {
     currentUserVote.value = null;
     return;
   }
@@ -121,7 +122,7 @@ async function fetchCurrentUserVote() {
     const { data, error } = await supabase
       .from('votes')
       .select('vote_type')
-      .eq('user_id', user.value.id)
+      .eq('user_id', authUserId.value)
       .eq('target_id', props.post.id)
       .eq('target_type', 'post')
       .maybeSingle();
@@ -135,7 +136,7 @@ async function fetchCurrentUserVote() {
 }
 
 async function handleVote(newVoteType: 1 | -1) {
-  if (!user.value || !props.post.id) return;
+  if (!authUserId.value || !props.post.id) return;
 
   const oldVote = currentUserVote.value;
 
@@ -158,7 +159,7 @@ async function handleVote(newVoteType: 1 | -1) {
       const { error } = await supabase
         .from('votes')
         .delete()
-        .eq('user_id', user.value.id)
+        .eq('user_id', authUserId.value)
         .eq('target_id', props.post.id)
         .eq('target_type', 'post');
       if (error) throw error;
@@ -166,7 +167,7 @@ async function handleVote(newVoteType: 1 | -1) {
       const { error } = await supabase
         .from('votes')
         .update({ vote_type: newVoteType })
-        .eq('user_id', user.value.id)
+        .eq('user_id', authUserId.value)
         .eq('target_id', props.post.id)
         .eq('target_type', 'post');
       if (error) throw error;
@@ -174,7 +175,7 @@ async function handleVote(newVoteType: 1 | -1) {
       const { error } = await supabase
         .from('votes')
         .insert({
-          user_id: user.value.id,
+          user_id: authUserId.value,
           target_id: props.post.id,
           target_type: 'post',
           vote_type: newVoteType,

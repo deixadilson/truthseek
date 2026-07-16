@@ -74,6 +74,7 @@ const emit = defineEmits<{
 
 const supabase = useSupabaseClient<Database>();
 const user = useSupabaseUser();
+const authUserId = useAuthUserId();
 const userProfile = useProfile();
 const toast = useToast();
 
@@ -171,7 +172,7 @@ function cancelReply() {
 
 async function submitComment() {
   if (!canSubmit.value) return;
-  if (!user.value || !userProfile.value) return;
+  if (!authUserId.value || !userProfile.value) return;
   if (!commentText.value.trim()) return;
   if (imageFile.value && videoUrlToSave.value) return;
 
@@ -182,7 +183,7 @@ async function submitComment() {
     if (imageFile.value) {
       const file = imageFile.value;
       const fileExt = file.name.split('.').pop()?.toLowerCase() || 'png';
-      const fileName = `${user.value.id}_${Date.now()}.${fileExt}`;
+      const fileName = `${authUserId.value}_${Date.now()}.${fileExt}`;
       const filePath = `${props.postId}/${fileName}`;
 
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -197,7 +198,7 @@ async function submitComment() {
       .from('comments')
       .insert({
         post_id: props.postId,
-        author_id: user.value.id,
+        author_id: authUserId.value,
         text_content: commentText.value.trim() || null,
         image_path: imagePathToSave,
         video_url: videoUrlToSave.value,
