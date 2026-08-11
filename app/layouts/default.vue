@@ -25,6 +25,8 @@
           <template v-else>
             <NuxtLink to="/" class="nav-link">Início</NuxtLink>
             <span class="nav-separator">|</span>
+            <NuxtLink to="/categories" class="nav-link">Categorias</NuxtLink>
+            <span class="nav-separator">|</span>
             <NuxtLink to="/user/login" class="nav-link">Entrar</NuxtLink>
             <span class="nav-separator">|</span>
             <NuxtLink to="/user/register" class="nav-link">Cadastrar</NuxtLink>
@@ -48,9 +50,10 @@
           <a href="#" @click.prevent="handleLogoutMobile">Sair</a>
         </template>
         <template v-else>
-          <NuxtLink to="/">Início</NuxtLink>
-          <NuxtLink to="/user/login">Entrar</NuxtLink>
-          <NuxtLink to="/user/register">Cadastrar</NuxtLink>
+          <NuxtLink to="/" @click="closeMobileMenu">Início</NuxtLink>
+          <NuxtLink to="/categories" @click="closeMobileMenu">Categorias</NuxtLink>
+          <NuxtLink to="/user/login" @click="closeMobileMenu">Entrar</NuxtLink>
+          <NuxtLink to="/user/register" @click="closeMobileMenu">Cadastrar</NuxtLink>
         </template>
       </nav>
     </div>

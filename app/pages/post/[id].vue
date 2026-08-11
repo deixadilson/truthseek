@@ -1,6 +1,8 @@
 <template>
   <div class="single-post-page container">
-    <div v-if="isLoadingPost" class="loading-spinner">Carregando post...</div>
+    <div v-if="isLoadingPost" class="loading-spinner">
+      <LoadingMessage message="Carregando post..." />
+    </div>
     <div v-else-if="postError" class="error-message">
       {{ postError }}
       <p><NuxtLink :to="goBackLink" class="button-secondary">Voltar</NuxtLink></p>
@@ -16,9 +18,19 @@
           @comment-created="addNewCommentToList"
           class="main-comment-form"
         />
+        <div v-else-if="post && !user" class="guest-comment-prompt">
+          <p>
+            <NuxtLink to="/user/register">Crie uma conta</NuxtLink>
+            ou
+            <NuxtLink to="/user/login">faça login</NuxtLink>
+            para comentar.
+          </p>
+        </div>
 
         <!-- Lista de Comentários -->
-        <div v-if="isLoadingComments" class="loading-spinner">Carregando comentários...</div>
+        <div v-if="isLoadingComments" class="loading-spinner">
+          <LoadingMessage message="Carregando comentários..." />
+        </div>
         <div v-else-if="commentsError" class="error-message">{{ commentsError }}</div>
         <div v-else-if="comments.length > 0" class="comments-list">
           <CommentItem
@@ -56,10 +68,12 @@
 import type { Database } from '~/types/supabase';
 import type { PostWithAuthor, CommentWithAuthor} from '~/types/app';
 import { useToast } from 'vue-toastification';
+import { MIN_INFLUENCE_TO_ENTER_GROUP } from '~/utils/formatters';
 
 const route = useRoute();
 const supabase = useSupabaseClient<Database>();
 const user = useSupabaseUser();
+const authUserId = useAuthUserId();
 const toast = useToast();
 
 const postId = route.params.id as string;
@@ -75,14 +89,37 @@ const replyingToCommentId = ref<string | null>(null);
 const highlightedCommentId = ref<string | null>(null);
 const replyingToUsername = ref<string | null>(null);
 
-const defaultUserAvatar = '/images/default-avatar.png';
-
 const goBackLink = computed(() => {
-  // Tentar pegar o slug e country_code do post para voltar ao grupo,
-  // ou simplesmente voltar para categorias.
-  // Isso requer que o objeto 'post' tenha essas infos ou você as busque de outra forma.
-  return '/categories'; // Placeholder
+  return '/categories';
 });
+
+/** Guests and low-influence users may only open posts from open groups. */
+async function canViewPost(postData: PostWithAuthor): Promise<boolean> {
+  if (postData.owner_type !== 'group' || !postData.owner_id) {
+    return !!authUserId.value;
+  }
+
+  const { data: group, error } = await supabase
+    .from('groups')
+    .select('id, is_open')
+    .eq('id', postData.owner_id)
+    .single();
+
+  if (error || !group) return false;
+  if (group.is_open) return true;
+
+  // Closed group: require influence threshold
+  if (!authUserId.value) return false;
+
+  const { data: bias } = await supabase
+    .from('biases')
+    .select('influence_points')
+    .eq('user_id', authUserId.value)
+    .eq('group_id', group.id)
+    .maybeSingle();
+
+  return (bias?.influence_points ?? 0) >= MIN_INFLUENCE_TO_ENTER_GROUP;
+}
 
 async function fetchPostDetails() {
   isLoadingPost.value = true; postError.value = null;
@@ -98,7 +135,16 @@ async function fetchPostDetails() {
       throw error;
     }
     if (data) {
-      post.value = data as PostWithAuthor;
+      const postData = data as PostWithAuthor;
+      const allowed = await canViewPost(postData);
+      if (!allowed) {
+        post.value = null;
+        postError.value = authUserId.value
+          ? 'Você não tem influência suficiente para ver este post de grupo fechado.'
+          : 'Este post pertence a um grupo fechado. Crie uma conta e declare o viés para acessá-lo.';
+        return;
+      }
+      post.value = postData;
       await fetchComments();
     } else {
       postError.value = 'Post não encontrado.';
@@ -206,6 +252,26 @@ onMounted(() => {
 .comments-list { margin-top: 1.5rem; }
 
 .no-comments { text-align: center; padding: 1.5rem; color: #777; font-style: italic; }
-.loading-spinner, .error-message { text-align: center; padding: 2rem; font-size: 1.1rem; }
+.guest-comment-prompt {
+  text-align: center;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: #f7f7f7;
+  border-radius: 6px;
+  color: #555;
+}
+.guest-comment-prompt a { color: var(--primary-color); font-weight: 500; }
+.loading-spinner {
+  display: flex;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem;
+  font-size: 1.1rem;
+}
+.error-message {
+  text-align: center;
+  padding: 2rem;
+  font-size: 1.1rem;
+}
 .error-message { color: #dc3545; }
 </style>

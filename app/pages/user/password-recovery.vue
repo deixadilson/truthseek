@@ -20,7 +20,8 @@
         </div>
 
         <button type="submit" class="button-primary recovery-button" :disabled="isLoading">
-          {{ isLoading ? 'Enviando...' : 'Enviar Link de Recuperação' }}
+          <LoadingMessage v-if="isLoading" message="Enviando..." :icon-size="16" />
+          <template v-else>Enviar Link de Recuperação</template>
         </button>
       </form>
       <div class="action-links">

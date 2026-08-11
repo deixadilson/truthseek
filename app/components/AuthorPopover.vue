@@ -32,7 +32,9 @@
         ref="popoverPanelRef"
       >
         <div class="popover-content-wrapper">
-          <div v-if="isLoading" class="popover-message">Carregando vieses...</div>
+          <div v-if="isLoading" class="popover-message">
+            <LoadingMessage message="Carregando vieses..." :icon-size="16" />
+          </div>
           <div v-else-if="error" class="popover-message error">{{ error }}</div>
           <div v-else-if="authorBiases.length === 0" class="popover-message">
             Nenhum viés relevante do autor nesta categoria.
@@ -353,6 +355,8 @@ function placeholderAction(action: string) {
 }
 
 .popover-message {
+  display: flex;
+  justify-content: center;
   padding: 0.5rem 0;
   text-align: center;
   font-size: 0.8rem;

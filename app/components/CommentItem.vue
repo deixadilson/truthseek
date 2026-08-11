@@ -39,15 +39,15 @@
 
         <footer class="comment-footer">
           <button @click="handleVote(1)" class="action-btn" :class="{ 'active': currentUserVote === 1 }" title="Gostei">
-            <svg width="16" height="16" viewBox="0 0 24 24" :fill="currentUserVote === 1 ? 'var(--primary-color)' : 'none'" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
+            <Icon name="lucide:thumbs-up" :size="16" />
             <span>{{ localLikesCount }}</span>
           </button>
           <button @click="handleVote(-1)" class="action-btn" :class="{ 'active': currentUserVote === -1 }" title="Não gostei">
-            <svg width="16" height="16" viewBox="0 0 24 24" :fill="currentUserVote === -1 ? 'var(--primary-color)' : 'none'" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"></path></svg>
+            <Icon name="lucide:thumbs-down" :size="16" />
             <span>{{ localDislikesCount }}</span>
           </button>
           <button @click="emitReply" class="action-btn reply-btn-action" title="Responder">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+            <Icon name="lucide:message-circle" :size="16" />
             <span>Responder</span>
           </button>
         </footer>
@@ -249,6 +249,14 @@ function emitScrollToReply(commentId: string) {
   transition: background-color 0.2s, color 0.2s;
 }
 .action-btn:hover { background-color: var(--primary-color-light); color: var(--primary-color-dark); }
-.action-btn.active { color: var(--primary-color-dark); font-weight: bold; }
-.action-btn.active svg { fill: var(--primary-color) !important; }.action-btn span { font-size: 0.8rem; }
+.action-btn :deep(svg) {
+  stroke: currentColor;
+  fill: none;
+}
+.action-btn.active { color: var(--primary-color); font-weight: bold; }
+.action-btn.active :deep(svg) {
+  fill: var(--primary-color);
+  stroke: var(--primary-color);
+}
+.action-btn span { font-size: 0.8rem; }
 </style>

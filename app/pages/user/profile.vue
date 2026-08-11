@@ -1,6 +1,8 @@
 <template>
   <div class="profile-page container">
-    <div v-if="!userProfile" class="loading-spinner">Carregando perfil...</div>
+    <div v-if="!userProfile" class="loading-spinner">
+      <LoadingMessage message="Carregando perfil..." />
+    </div>
     <div v-else class="profile-card">
       <h2>Seu Perfil</h2>
       <div class="avatar-section">
@@ -22,7 +24,8 @@
           class="button-secondary upload-button"
           :disabled="isUploadingAvatar"
         >
-          {{ isUploadingAvatar ? 'Enviando...' : 'Alterar Avatar' }}
+          <LoadingMessage v-if="isUploadingAvatar" message="Enviando..." :icon-size="16" />
+          <template v-else>Alterar Avatar</template>
         </button>
       </div>
       <div class="profile-info">
@@ -64,7 +67,9 @@
       </div>
       <section class="user-biases-section" v-if="user">
         <h2>Meus Vieses Declarados</h2>
-        <div v-if="isLoadingBiases" class="loading-spinner">Carregando vieses...</div>
+        <div v-if="isLoadingBiases" class="loading-spinner">
+          <LoadingMessage message="Carregando vieses..." />
+        </div>
         <div v-else-if="groupedBiases.length > 0">
           <div
             v-for="category in groupedBiases"
@@ -383,6 +388,8 @@ watch(userProfile, (newProfileData) => {
 }
 
 .loading-spinner {
+  display: flex;
+  justify-content: center;
   text-align: center;
   padding: 2rem;
   font-size: 1.1rem;

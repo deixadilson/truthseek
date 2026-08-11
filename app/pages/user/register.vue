@@ -89,7 +89,8 @@
         </div>
 
         <button type="submit" class="button-primary register-button" :disabled="isLoading">
-          {{ isLoading ? 'Cadastrando...' : 'Cadastrar' }}
+          <LoadingMessage v-if="isLoading" message="Cadastrando..." :icon-size="16" />
+          <template v-else>Cadastrar</template>
         </button>
       </form>
 

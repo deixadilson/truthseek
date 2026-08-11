@@ -34,11 +34,8 @@
 
       <div class="form-actions-toolbar">
         <div class="media-and-options">
-          <label for="hidden-file-input" class="button-like-label button-secondary add-image-btn" title="Adicionar Imagem">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
-              <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
-              <path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z"/>
-            </svg>
+          <label for="hidden-file-input" class="toolbar-action-btn button-secondary add-image-btn" title="Adicionar Imagem">
+            <Icon name="lucide:image" :size="16" />
             <span class="btn-text">Imagem</span>
           </label>
           <input
@@ -46,20 +43,23 @@
             accept="image/*" style="display: none" ref="fileInputRef"
           />
 
-          <div class="post-options">
-            <label title="Postar anonimamente">
-              <input type="checkbox" v-model="isAnonymous" />
-              <span class="checkbox-label">Anônimo</span>
-            </label>
-            <label title="Conteúdo requer moderação / Respostas moderadas">
-              <input type="checkbox" v-model="isModeratedContent" />
-              <span class="checkbox-label">Moderado</span>
-            </label>
-          </div>
+          <OptionToggle
+            v-model="isAnonymous"
+            label="Anônimo"
+            icon="lucide:hat-glasses"
+            title="Postar anonimamente"
+          />
+          <OptionToggle
+            v-model="isModeratedContent"
+            label="Moderado"
+            icon="lucide:shield-check"
+            title="Conteúdo requer moderação / Respostas moderadas"
+          />
         </div>
 
         <button type="submit" class="button-primary submit-post-btn" :disabled="isLoading || !canSubmit">
-          {{ isLoading ? 'Postando...' : 'Postar' }}
+          <LoadingMessage v-if="isLoading" message="Postando..." :icon-size="16" />
+          <template v-else>Postar</template>
         </button>
       </div>
     </form>
@@ -193,7 +193,13 @@ function resetForm() {
 
 async function submitPost() {
   if (!canSubmit.value) return;
-  if (!authUserId.value) return;
+
+  if (!authUserId.value) {
+    toast.info('É necessário criar uma conta para publicar. Cadastre-se ou faça login.');
+    await navigateTo('/user/register');
+    return;
+  }
+
   if (!textContent.value.trim()) return;
   if (imageFile.value && videoUrlToSave.value) return;
 
@@ -304,30 +310,23 @@ textarea.drag-over {
 .media-and-options {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.5rem;
   flex-wrap: wrap;
 }
 .media-actions { margin-top: 0.5rem; }
-.button-like-label.add-image-btn {
+.toolbar-action-btn.add-image-btn {
   display: inline-flex;
   align-items: center;
-  padding: 0.5em 0.8em;
+  justify-content: center;
+  gap: 0.35rem;
+  height: 2.25rem;
+  padding: 0 0.75em;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1;
+  box-sizing: border-box;
   cursor: pointer;
-}
-.button-like-label.add-image-btn .btn-text {
-  margin-left: 0.4em;
-}
-.post-options {
-  display: flex;
-  gap: 1rem;
-  font-size: 0.9rem;
-}
-.post-options label {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  cursor: pointer;
-  white-space: nowrap;
 }
 .form-actions { display: flex; justify-content: flex-end; margin-top: 1rem; }
 
@@ -337,27 +336,11 @@ textarea.drag-over {
     align-items: stretch;
   }
   .media-and-options {
-    justify-content: space-around;
+    justify-content: flex-start;
     margin-bottom: 1rem;
   }
   .submit-post-btn {
     align-self: flex-end;
   }
 }
-
-/* Opcional: Esconder texto dos botões de ação em telas muito pequenas, mostrando só ícones
-@media (max-width: 480px) {
-  .button-like-label.add-image-btn .btn-text,
-  .post-options .checkbox-label {
-    /* display: none; /* Descomente para esconder texto e mostrar só ícone/checkbox
-  }
-   .media-and-options {
-    gap: 0.5rem; /* Menor espaço em telas muito pequenas
-    justify-content: space-between;
-  }
-  .post-options {
-    gap: 0.75rem;
-  }
-}
- */
 </style>

@@ -23,7 +23,8 @@
   </div>
 
   <button type="submit" class="button-primary login-button" :disabled="isLoading">
-    {{ isLoading ? 'Entrando...' : 'Entrar' }}
+    <LoadingMessage v-if="isLoading" message="Entrando..." :icon-size="16" />
+    <template v-else>Entrar</template>
   </button>
 </form>
 </template>

@@ -28,27 +28,25 @@
       </div>
       <div class="comment-actions-toolbar">
         <div class="left-actions">
-          <label for="comment-hidden-file-input" class="button-like-label button-tertiary add-image-btn" title="Adicionar Imagem ao Comentário">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-              <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
-              <path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z"/>
-            </svg>
+          <label for="comment-hidden-file-input" class="toolbar-action-btn button-tertiary add-image-btn" title="Adicionar Imagem ao Comentário">
+            <Icon name="lucide:image" :size="16" />
             <span class="btn-text-optional">Imagem</span>
           </label>
           <input
             type="file" id="comment-hidden-file-input" @change="handleImageFileSelected"
             accept="image/*" style="display: none" ref="commentFileInputRef"
           />
-          <div class="comment-options">
-            <label title="Comentar anonimamente">
-              <input type="checkbox" v-model="isAnonymous" />
-              <span class="checkbox-label">Anônimo</span>
-            </label>
-          </div>
+          <OptionToggle
+            v-model="isAnonymous"
+            label="Anônimo"
+            icon="lucide:hat-glasses"
+            title="Comentar anonimamente"
+          />
         </div>
 
         <button type="submit" :disabled="isSubmitting || !commentText.trim() && !imageFile && !videoUrlToSave" class="button-primary submit-comment-btn">
-          {{ isSubmitting ? 'Enviando...' : (replyToCommentId ? 'Responder' : 'Comentar') }}
+          <LoadingMessage v-if="isSubmitting" message="Enviando..." :icon-size="16" />
+          <template v-else>{{ replyToCommentId ? 'Responder' : 'Comentar' }}</template>
         </button>
       </div>
     </form>
@@ -277,23 +275,25 @@ textarea:focus {
 .left-actions {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.5rem;
+  flex-wrap: wrap;
   flex-grow: 1;
 }
 
-.button-like-label.add-image-btn {
+.toolbar-action-btn.add-image-btn {
   display: inline-flex;
   align-items: center;
-  padding: 0.4em 0.7em;
+  justify-content: center;
+  gap: 0.35rem;
+  height: 2.25rem;
+  padding: 0 0.75em;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1;
+  box-sizing: border-box;
   cursor: pointer;
 }
-.button-like-label.add-image-btn .btn-text-optional {
-  font-size: 0.85rem;
-  margin-left: 0.3em;
-}
-
-.comment-options { display: flex; gap: 1rem; font-size: 0.85rem; }
-.comment-options label { display: flex; align-items: center; gap: 0.3rem; cursor: pointer; }
 
 .submit-comment-btn {
   font-size: 0.9rem;
@@ -313,13 +313,6 @@ textarea:focus {
 }
 .remove-media-btn:hover { background-color: rgba(0,0,0,0.7); }
 
-.add-image-btn {
-  padding: 0.4em 0.7em;
-}
-.add-image-btn .btn-text-optional { /* Mostrar/esconder texto baseado no espaço */
-  font-size: 0.85rem;
-  margin-left: 0.3em;
-}
 @media (max-width: 400px) {
   .add-image-btn .btn-text-optional { display: none; }
 }

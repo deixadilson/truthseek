@@ -9,7 +9,7 @@
       :post="post"
     />
     <div v-if="isLoading" class="loading-more-posts">
-      Carregando mais posts...
+      <LoadingMessage message="Carregando mais posts..." />
     </div>
   </div>
 </template>
@@ -34,6 +34,8 @@ defineProps<{
   border-radius: 8px;
 }
 .loading-more-posts {
+  display: flex;
+  justify-content: center;
   text-align: center;
   padding: 1.5rem;
   color: #555;

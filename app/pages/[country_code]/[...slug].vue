@@ -1,7 +1,7 @@
 <template>
   <div class="group-page">
     <div v-if="isLoading" class="loading-spinner container">
-      Carregando dados do grupo...
+      <LoadingMessage message="Carregando dados do grupo..." />
     </div>
     <div v-else-if="!groupData && !isLoading" class="group-not-found container">
       <h2>Grupo não encontrado</h2>
@@ -26,9 +26,29 @@
           <div class="group-title-info">
             <h1>{{ groupData.name }}</h1>
             <p class="group-meta">
-              País: {{ groupData.country_code.toUpperCase() }}
+              <span class="country-with-flag">
+                País:
+                <img
+                  v-if="groupCountryFlag"
+                  :src="groupCountryFlag"
+                  :alt="`Bandeira de ${formatCountryName(groupData.country_code)}`"
+                  class="country-flag"
+                  width="24"
+                  height="18"
+                  loading="lazy"
+                />
+                {{ groupData.country_code.toUpperCase() }}
+              </span>
               <span v-if="false">| Categoria: {{ groupData?.category_group_id }}</span>
-              <span>| Grupo {{ groupData.is_open ? 'Aberto' : 'Fechado' }}</span>
+              <span class="group-access-status" :class="groupData.is_open ? 'open' : 'closed'">
+                |
+                <Icon
+                  :name="groupData.is_open ? 'lucide:unlock' : 'lucide:lock'"
+                  :size="14"
+                  class="group-status-icon"
+                />
+                Grupo {{ groupData.is_open ? 'Aberto' : 'Restrito' }}
+              </span>
             </p>
           </div>
         </div>
@@ -43,8 +63,13 @@
           <div v-if="accessChecked && !canInteractWithPosts" class="access-locked card-style">
             <h3>Postagens restritas</h3>
             <p v-if="!authUserId">
-              Faça login para verificar se você pode ver e criar postagens neste grupo.
+              Este é um grupo fechado. Crie uma conta ou faça login para declarar o viés
+              e acumular influência.
             </p>
+            <div v-if="!authUserId" class="access-actions">
+              <NuxtLink to="/user/register" class="button-primary">Criar conta</NuxtLink>
+              <NuxtLink to="/user/login" class="button-secondary">Entrar</NuxtLink>
+            </div>
             <template v-else-if="!userBiasForGroup">
               <p>
                 Este é um grupo fechado. Declare este viés para começar a acumular influência
@@ -56,7 +81,12 @@
                 :disabled="isDeclaringBias"
                 @click="declareBiasForCurrentGroup"
               >
-                {{ isDeclaringBias ? 'Declarando...' : 'Defender este Viés' }}
+                <LoadingMessage
+                  v-if="isDeclaringBias"
+                  message="Declarando..."
+                  :icon-size="16"
+                />
+                <template v-else>Defender este Viés</template>
               </button>
             </template>
             <template v-else>
@@ -123,7 +153,7 @@
 <script setup lang="ts">
 import type { Bias, Group, PostWithAuthor } from '~/types/app';
 import { useToast } from 'vue-toastification';
-import { MIN_INFLUENCE_TO_ENTER_GROUP } from '~/utils/formatters';
+import { MIN_INFLUENCE_TO_ENTER_GROUP, countryFlagUrl, formatCountryName } from '~/utils/formatters';
 
 const route = useRoute();
 const supabase = useSupabaseClient();
@@ -153,6 +183,8 @@ const groupFlagUrl = computed(() => {
   }
   return '';
 });
+
+const groupCountryFlag = computed(() => countryFlagUrl(groupData.value?.country_code));
 
 const headerBackgroundStyle = computed(() => {
   if (groupData.value?.cover_image_path) {
@@ -471,6 +503,32 @@ watch(authUserId, () => {
   color: var(--header-text);
   opacity: 0.9;
   text-shadow: 1px 1px 1px rgba(0,0,0,0.4);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+.country-with-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.country-flag {
+  display: inline-block;
+  width: 24px;
+  height: 18px;
+  object-fit: cover;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+.group-access-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.group-status-icon {
+  flex-shrink: 0;
 }
 
 .group-body {
@@ -520,6 +578,19 @@ watch(authUserId, () => {
 .access-locked .button-primary:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+.access-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.access-actions .button-primary,
+.access-actions .button-secondary {
+  display: inline-block;
+  text-decoration: none;
 }
 
 .card-style { /* Estilo comum para cards na sidebar */
@@ -602,7 +673,13 @@ watch(authUserId, () => {
 }
 
 
-.loading-spinner, .error-message, .group-not-found {
+.loading-spinner {
+  display: flex;
+  justify-content: center;
+  text-align: center;
+  padding: 3rem 1rem;
+}
+.error-message, .group-not-found {
   text-align: center;
   padding: 3rem 1rem;
 }

@@ -19,7 +19,9 @@
       </div>
     </div>
 
-    <div v-if="isLoading" class="loading-spinner">Carregando...</div>
+    <div v-if="isLoading" class="loading-spinner">
+      <LoadingMessage message="Carregando..." />
+    </div>
     <div v-else-if="errorLoading" class="error-message">{{ errorLoading }}</div>
 
     <div v-else-if="groupsToRender.length > 0" class="categories-grid">
@@ -53,30 +55,42 @@
         <div class="card-content">
           <h2 class="category-name">{{ group.name }}</h2>
           <span class="group-status-badge" :class="group.is_open ? 'open' : 'closed'">
-            Grupo {{ group.is_open ? 'Aberto' : 'Fechado' }}
+            <Icon
+              :name="group.is_open ? 'lucide:unlock' : 'lucide:lock'"
+              :size="14"
+              class="group-status-icon"
+            />
+            Grupo {{ group.is_open ? 'Aberto' : 'Restrito' }}
           </span>
           <p class="group-description line-clamp" :title="group.description || ''">{{ group.description }}</p>
           <div class="card-actions">
             <NuxtLink
-              v-if="group.is_open || isBiasDeclared(group.id)"
               :to="`/${group.country_code}/${group.slug}`"
               class="button-secondary action-button"
               @click.stop
             >
-              Entrar no Grupo
+              Acessar grupo
             </NuxtLink>
 
-            <button
-              v-if="!group.is_open && !isBiasDeclared(group.id) && user"
-              @click.stop="declareBias(group.id)"
-              class="button-primary action-button"
-              :disabled="isDeclaringBiasFor === group.id"
-            >
-              {{ isDeclaringBiasFor === group.id ? 'Declarando...' : 'Defender Viés' }}
-            </button>
-            <span v-if="!group.is_open && isBiasDeclared(group.id) && user" class="bias-declared-badge action-button-placeholder">
-              Viés Declarado
-            </span>
+            <template v-if="!group.is_open">
+              <button
+                v-if="!isBiasDeclared(group.id)"
+                @click.stop="declareBias(group.id)"
+                class="button-primary action-button"
+                :disabled="isDeclaringBiasFor === group.id"
+              >
+                <LoadingMessage
+                  v-if="isDeclaringBiasFor === group.id"
+                  message="Declarando..."
+                  :icon-size="16"
+                />
+                <template v-else>Defender viés</template>
+              </button>
+              <span v-else class="bias-declared-badge">
+                <Icon name="lucide:shield-check" :size="16" class="bias-declared-icon" />
+                Viés Declarado
+              </span>
+            </template>
           </div>
         </div>
       </div>
@@ -103,7 +117,6 @@ interface BreadcrumbItem {
 }
 
 const supabase = useSupabaseClient<Database>();
-const user = useSupabaseUser();
 const authUserId = useAuthUserId();
 const toast = useToast();
 
@@ -149,8 +162,12 @@ function isBiasDeclared(groupId: string): boolean {
 }
 
 async function declareBias(groupId: string) {
-  if (!authUserId.value) return;
-  
+  if (!authUserId.value) {
+    toast.info('É necessário criar uma conta para defender um viés. Cadastre-se ou faça login.');
+    await navigateTo('/user/register');
+    return;
+  }
+
   isDeclaringBiasFor.value = groupId;
 
   try {
@@ -477,7 +494,12 @@ watch(breadcrumbs, (newCrumbs) => {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.group-status-icon {
+  flex-shrink: 0;
 }
 .group-status-badge.open {
   color: var(--primary-color);
@@ -506,10 +528,11 @@ watch(breadcrumbs, (newCrumbs) => {
   border-top: 1px solid var(--border-color);
   display: flex;
   flex-wrap: nowrap;
+  align-items: center;
   gap: 0.75rem;
-  justify-content: flex-start;
+  justify-content: space-between;
 }
-.action-button, .action-button-placeholder {
+.action-button {
   font-size: 0.8rem;
   padding: 0.6em 1em;
   text-align: center;
@@ -517,10 +540,27 @@ watch(breadcrumbs, (newCrumbs) => {
 }
 
 .bias-declared-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
   font-weight: 500;
+  color: var(--primary-color);
+  white-space: nowrap;
+}
+.bias-declared-icon {
+  flex-shrink: 0;
 }
 
-.loading-spinner, .error-message, .no-categories {
+.loading-spinner {
+  display: flex;
+  justify-content: center;
+  text-align: center;
+  padding: 3rem 1rem;
+  font-size: 1.1rem;
+  color: #555;
+}
+.error-message, .no-categories {
   text-align: center;
   padding: 3rem 1rem;
   font-size: 1.1rem;

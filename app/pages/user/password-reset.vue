@@ -27,7 +27,8 @@
           />
         </div>
         <button type="submit" class="button-primary reset-button" :disabled="isLoading">
-          {{ isLoading ? 'Redefinindo...' : 'Redefinir Senha' }}
+          <LoadingMessage v-if="isLoading" message="Redefinindo..." :icon-size="16" />
+          <template v-else>Redefinir Senha</template>
         </button>
       </form>
 

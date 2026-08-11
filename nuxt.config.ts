@@ -6,7 +6,8 @@ export default defineNuxtConfig({
     transpile: ['vue-toastification'],
   },
   modules: [
-    '@nuxtjs/supabase'
+    '@nuxtjs/supabase',
+    '@nuxt/icon',
   ],
   supabase: {
     types: '~/types/supabase.ts',
@@ -19,7 +20,14 @@ export default defineNuxtConfig({
         '/how-it-works',
         '/terms-of-service',
         '/user/register',
-        '/user/password-recovery'
+        '/user/password-recovery',
+        '/categories',
+        // Group pages (open groups are browsable by guests)
+        '/br/**',
+        '/pt/**',
+        '/us/**',
+        // Individual posts (open-group posts browsable by guests)
+        '/post/**',
       ]
     }
   },

@@ -12,7 +12,7 @@
       @reply-posted-to-list="handleReplyInList"
     />
     <div v-if="isLoading" class="loading-comments">
-      Carregando comentários...
+      <LoadingMessage message="Carregando comentários..." />
     </div>
     <!-- Paginação ou botão "Carregar mais" viria aqui -->
   </div>
@@ -51,7 +51,15 @@ function handleReplyInList(newReply: CommentWithAuthor) {
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--border-color);
 }
-.no-comments-message, .loading-comments {
+.no-comments-message {
+  text-align: center;
+  padding: 1rem;
+  color: #777;
+  font-style: italic;
+}
+.loading-comments {
+  display: flex;
+  justify-content: center;
   text-align: center;
   padding: 1rem;
   color: #777;
