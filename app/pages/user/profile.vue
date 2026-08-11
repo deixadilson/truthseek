@@ -36,7 +36,18 @@
         </div>
         <div class="info-item" v-if="userProfile?.country_code">
           <strong>País:</strong>
-          <span>Brasil</span>
+          <span class="country-with-flag">
+            <img
+              v-if="profileCountryFlag"
+              :src="profileCountryFlag"
+              :alt="`Bandeira de ${formatCountryName(userProfile.country_code)}`"
+              class="country-flag"
+              width="24"
+              height="18"
+              loading="lazy"
+            />
+            {{ formatCountryName(userProfile.country_code) }}
+          </span>
         </div>
         <div class="info-item" v-if="userProfile?.gender">
           <strong>Sexo:</strong>
@@ -46,9 +57,9 @@
           <strong>Nascimento:</strong>
           <span>{{ formatDate(userProfile?.birth_date) }}</span>
         </div>
-         <div class="info-item">
-          <strong>Membro desde:</strong>
-          <span>{{ formatDate(userProfile?.created_at, true) }}</span>
+         <div class="info-item" v-if="userProfile?.created_at">
+          <strong>Membro há:</strong>
+          <span>{{ formatMembershipDuration(userProfile.created_at).replace(/^há\s+/i, '') }}</span>
         </div>
       </div>
       <section class="user-biases-section" v-if="user">
@@ -112,6 +123,8 @@ const authUserId = useAuthUserId();
 const userProfile = useProfile();
 const toast = useToast();
 const defaultAvatarUrl = '/images/default-avatar.png';
+
+const profileCountryFlag = computed(() => countryFlagUrl(userProfile.value?.country_code));
 
 const avatarFileInputRef = ref<HTMLInputElement | null>(null);
 const currentAvatarDisplay = ref<string>(defaultAvatarUrl);
@@ -350,6 +363,23 @@ watch(userProfile, (newProfileData) => {
 .info-item span {
   color: #555;
   text-align: right;
+}
+
+.country-with-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.country-flag {
+  display: inline-block;
+  width: 24px;
+  height: 18px;
+  object-fit: cover;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
+  image-rendering: auto;
+  flex-shrink: 0;
 }
 
 .loading-spinner {

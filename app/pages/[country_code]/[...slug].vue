@@ -39,16 +39,52 @@
           <p v-if="groupData.description" class="group-description">
             {{ groupData.description }}
           </p>
-          <CreatePostForm v-if="groupData" 
-            :owner-id="groupData.id"
-            owner-type="group"
-            @post-created="handleNewPost"
-            class="create-post-component"
-          />
-          <section class="posts-list-section">
-            <!-- <h3>Postagens Recentes</h3> -->
-            <PostList :posts="posts" :is-loading="isLoadingPosts" empty-message="Nenhuma postagem neste grupo ainda. Seja o primeiro!" />
-          </section>
+
+          <div v-if="accessChecked && !canInteractWithPosts" class="access-locked card-style">
+            <h3>Postagens restritas</h3>
+            <p v-if="!authUserId">
+              Faça login para verificar se você pode ver e criar postagens neste grupo.
+            </p>
+            <template v-else-if="!userBiasForGroup">
+              <p>
+                Este é um grupo fechado. Declare este viés para começar a acumular influência
+                e, com endossos suficientes, liberar as postagens.
+              </p>
+              <button
+                type="button"
+                class="button-primary"
+                :disabled="isDeclaringBias"
+                @click="declareBiasForCurrentGroup"
+              >
+                {{ isDeclaringBias ? 'Declarando...' : 'Defender este Viés' }}
+              </button>
+            </template>
+            <template v-else>
+              <p>
+                Você já defende este viés, mas tem apenas
+                <strong>{{ userBiasForGroup.influence_points ?? 0 }}</strong> pontos de influência.
+                É necessário acumular
+                <strong>{{ MIN_INFLUENCE_TO_ENTER_GROUP }}</strong> pontos para ver e criar postagens.
+              </p>
+              <p class="access-hint">
+                Poste na categoria raiz deste viés para que outros defensores possam endossá-lo.
+              </p>
+              <NuxtLink to="/categories" class="button-primary">Ir para Categorias</NuxtLink>
+            </template>
+          </div>
+
+          <template v-else-if="accessChecked && canInteractWithPosts">
+            <CreatePostForm
+              v-if="groupData"
+              :owner-id="groupData.id"
+              owner-type="group"
+              @post-created="handleNewPost"
+              class="create-post-component"
+            />
+            <section class="posts-list-section">
+              <PostList :posts="posts" :is-loading="isLoadingPosts" empty-message="Nenhuma postagem neste grupo ainda. Seja o primeiro!" />
+            </section>
+          </template>
         </div>
         <aside class="sidebar-column">
           <section class="subgroups-sidebar card-style" v-if="subgroups.length > 0">
@@ -59,17 +95,21 @@
               </li>
             </ul>
           </section>
-          <section class="members-sidebar card-style">
-            <h4>Membros: 0</h4>
-            <p>(Lista de membros em breve)</p>
-          </section>
-          <section class="events-sidebar card-style">
-            <h4>Eventos</h4>
-            <p>(Eventos do grupo em breve)</p>
-          </section>
-          <section class="debates-sidebar card-style">
-            <h4>Debates</h4>
-            <p>(Debates do grupo em breve)</p>
+          <section class="opposites-sidebar card-style" v-if="oppositeGroups.length > 0">
+            <h4>Grupos Opostos</h4>
+            <ul>
+              <li v-for="opposite in oppositeGroups" :key="opposite.id">
+                <NuxtLink :to="`/${opposite.country_code}/${opposite.slug}`">
+                  <img
+                    v-if="opposite.flag_path"
+                    :src="`https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/flags/${opposite.flag_path}`"
+                    :alt="`Bandeira de ${opposite.name}`"
+                    class="opposite-flag"
+                  />
+                  <span>{{ opposite.name }}</span>
+                </NuxtLink>
+              </li>
+            </ul>
           </section>
           <NuxtLink :to="`/${groupData.country_code}/${groupData.slug}/details`" class="details-link">
             Ver Detalhes do Grupo
@@ -81,18 +121,31 @@
 </template>
 
 <script setup lang="ts">
-import type { Group, PostWithAuthor } from '~/types/app';
+import type { Bias, Group, PostWithAuthor } from '~/types/app';
 import { useToast } from 'vue-toastification';
+import { MIN_INFLUENCE_TO_ENTER_GROUP } from '~/utils/formatters';
 
 const route = useRoute();
 const supabase = useSupabaseClient();
 const toast = useToast();
+const authUserId = useAuthUserId();
 
 const groupData = ref<Group | null>(null);
 const subgroups = ref<Group[]>([]);
+const oppositeGroups = ref<Pick<Group, 'id' | 'name' | 'slug' | 'country_code' | 'flag_path'>[]>([]);
 const posts = ref<PostWithAuthor[]>([]);
 const isLoading = ref(true);
 const isLoadingPosts = ref(false);
+const accessChecked = ref(false);
+const isDeclaringBias = ref(false);
+const userBiasForGroup = ref<Pick<Bias, 'id' | 'group_id' | 'influence_points'> | null>(null);
+
+const canInteractWithPosts = computed(() => {
+  if (!groupData.value) return false;
+  if (groupData.value.is_open) return true;
+  const points = userBiasForGroup.value?.influence_points ?? 0;
+  return points >= MIN_INFLUENCE_TO_ENTER_GROUP;
+});
 
 const groupFlagUrl = computed(() => {
   if (groupData.value?.flag_path) {
@@ -108,6 +161,116 @@ const headerBackgroundStyle = computed(() => {
   }
   return { backgroundColor: 'var(--primary-color-light)' };
 });
+
+async function resolveGroupAccess(groupId: string, isOpen: boolean) {
+  accessChecked.value = false;
+  userBiasForGroup.value = null;
+
+  if (isOpen) {
+    accessChecked.value = true;
+    return;
+  }
+
+  if (!authUserId.value) {
+    accessChecked.value = true;
+    return;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('biases')
+      .select('id, group_id, influence_points')
+      .eq('user_id', authUserId.value)
+      .eq('group_id', groupId)
+      .maybeSingle();
+
+    if (error) throw error;
+    userBiasForGroup.value = data;
+  } catch (e: any) {
+    console.error('Erro ao verificar acesso ao grupo:', e);
+    toast.error(e.message || 'Falha ao verificar permissão de acesso.');
+  } finally {
+    accessChecked.value = true;
+  }
+}
+
+async function declareBiasForCurrentGroup() {
+  if (!authUserId.value || !groupData.value || isDeclaringBias.value) return;
+
+  isDeclaringBias.value = true;
+  try {
+    const { data: checkData, error: checkError } = await supabase.rpc('can_declare_bias', {
+      p_user_id: authUserId.value,
+      p_group_id_to_declare: groupData.value.id,
+    });
+
+    if (checkError) throw checkError;
+
+    const result = checkData?.[0];
+    if (result && !result.can_declare) {
+      toast.error(result.reason || 'Não foi possível declarar este viés.');
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('biases')
+      .insert({
+        user_id: authUserId.value,
+        group_id: groupData.value.id,
+        influence_points: 10,
+      })
+      .select('id, group_id, influence_points')
+      .single();
+
+    if (error) {
+      if (error.message?.includes('unique constraint') || error.code === '23505') {
+        toast.info('Você já declarou este viés.');
+        await resolveGroupAccess(groupData.value.id, !!groupData.value.is_open);
+      } else {
+        throw error;
+      }
+      return;
+    }
+
+    if (data) {
+      userBiasForGroup.value = data;
+      toast.success('Viés declarado com sucesso!');
+    }
+  } catch (e: any) {
+    toast.error('Erro ao declarar viés: ' + e.message);
+  } finally {
+    isDeclaringBias.value = false;
+  }
+}
+
+async function fetchOppositeGroups(groupId: string) {
+  oppositeGroups.value = [];
+  try {
+    const { data: opps, error: oppError } = await supabase
+      .from('group_oppositions')
+      .select('group_id_a, group_id_b')
+      .or(`group_id_a.eq.${groupId},group_id_b.eq.${groupId}`);
+
+    if (oppError) throw oppError;
+
+    const oppositeIds = (opps || [])
+      .map((row) => (row.group_id_a === groupId ? row.group_id_b : row.group_id_a))
+      .filter(Boolean);
+
+    if (oppositeIds.length === 0) return;
+
+    const { data: groups, error: groupsError } = await supabase
+      .from('groups')
+      .select('id, name, slug, country_code, flag_path')
+      .in('id', oppositeIds)
+      .order('name', { ascending: true });
+
+    if (groupsError) throw groupsError;
+    oppositeGroups.value = groups || [];
+  } catch (e: any) {
+    console.error('Erro ao buscar grupos opostos:', e);
+  }
+}
 
 async function fetchPostsForGroup(groupId: string) {
   isLoadingPosts.value = true;
@@ -132,12 +295,17 @@ async function fetchPostsForGroup(groupId: string) {
 
 async function fetchGroupData(country: string, slug: string): Promise<void> {
   isLoading.value = true;
+  accessChecked.value = false;
   groupData.value = null;
   subgroups.value = [];
+  oppositeGroups.value = [];
+  posts.value = [];
+  userBiasForGroup.value = null;
 
   if (!slug || !country) {
     toast.error('Informações do grupo incompletas para carregar a página.');
     isLoading.value = false;
+    accessChecked.value = true;
     return;
   }
 
@@ -162,21 +330,25 @@ async function fetchGroupData(country: string, slug: string): Promise<void> {
     if (data) {
       groupData.value = data as Group;
 
-      if(groupData.value.has_subgroups){
+      await resolveGroupAccess(groupData.value.id, !!groupData.value.is_open);
+      await fetchOppositeGroups(groupData.value.id);
+
+      if (groupData.value.has_subgroups) {
         const { data: subData, error: subError } = await supabase
           .from('groups')
           .select('id, name, slug, country_code')
           .eq('parent_group_id', groupData.value.id)
           .eq('country_code', country)
-          .order('name', {ascending: true});
+          .order('name', { ascending: true });
 
-        if(subError) throw subError;
-        if(subData) subgroups.value = subData as Group[];
+        if (subError) throw subError;
+        if (subData) subgroups.value = subData as Group[];
+      }
 
+      if (canInteractWithPosts.value) {
         await fetchPostsForGroup(groupData.value.id);
       }
     } else {
-      // Este caso não deve ser alcançado se .single() e PGRST116 são tratados
       toast.error(`Grupo "${slug}" no país "${country.toUpperCase()}" não foi encontrado.`);
     }
 
@@ -184,6 +356,7 @@ async function fetchGroupData(country: string, slug: string): Promise<void> {
     console.error('Erro ao buscar dados do grupo:', e);
     toast.error(e.message || 'Falha ao carregar dados do grupo.');
     groupData.value = null;
+    accessChecked.value = true;
   } finally {
     isLoading.value = false;
   }
@@ -204,6 +377,16 @@ watch(
   },
   { immediate: true, deep: true }
 );
+
+watch(authUserId, () => {
+  if (groupData.value) {
+    resolveGroupAccess(groupData.value.id, !!groupData.value.is_open).then(() => {
+      if (canInteractWithPosts.value && posts.value.length === 0 && groupData.value) {
+        fetchPostsForGroup(groupData.value.id);
+      }
+    });
+  }
+});
 
 // Atualizar título da página
  watch(groupData, (newData) => {
@@ -302,7 +485,44 @@ watch(
   }
 }
 
-.sidebar-column .card-style { /* Estilo comum para cards na sidebar */
+.access-locked {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.access-locked h3 {
+  margin-top: 0;
+  color: var(--primary-color);
+}
+
+.access-locked p {
+  margin: 0.75rem 0;
+  line-height: 1.5;
+  color: #444;
+}
+
+.access-hint {
+  font-size: 0.95rem;
+  color: #666;
+  font-style: italic;
+}
+
+.access-locked .button-primary {
+  display: inline-block;
+  margin-top: 0.75rem;
+  border: none;
+  cursor: pointer;
+}
+
+.access-locked .button-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.card-style { /* Estilo comum para cards na sidebar */
   margin-bottom: 1.5rem;
 }
 
@@ -330,32 +550,46 @@ watch(
   margin-left: auto; /* Alinhar à direita */
 }
 
-.posts-list-section p, .subgroups-sidebar p, .members-sidebar p, .events-sidebar p, .debates-sidebar p {
+.posts-list-section p, .subgroups-sidebar p, .opposites-sidebar p {
   color: #777;
   font-style: italic;
 }
-.subgroups-sidebar ul {
+.subgroups-sidebar ul,
+.opposites-sidebar ul {
   list-style: none;
   padding-left: 0;
+  margin: 0;
 }
-.subgroups-sidebar li a {
-  display: block;
+.subgroups-sidebar li a,
+.opposites-sidebar li a {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   padding: 0.5rem 0;
   color: var(--link-color);
   text-decoration: none;
   border-bottom: 1px dotted var(--border-color);
 }
-.subgroups-sidebar li:last-child a {
+.subgroups-sidebar li:last-child a,
+.opposites-sidebar li:last-child a {
   border-bottom: none;
 }
-.subgroups-sidebar li a:hover {
+.subgroups-sidebar li a:hover,
+.opposites-sidebar li a:hover {
   color: var(--primary-color-dark);
+}
+.opposite-flag {
+  width: 22px;
+  height: 22px;
+  object-fit: cover;
+  border-radius: 3px;
+  flex-shrink: 0;
 }
 
 .details-link {
   display: block;
   text-align: center;
-  margin-top: 1rem;
+  margin: 1rem 0;
   padding: 0.75rem;
   background-color: var(--primary-color-light);
   color: var(--primary-color);

@@ -63,7 +63,7 @@
                     <span class="influence">{{ bias.influence_points }} {{ bias.title }}</span>
                   </div>
                 </div>
-                <div v-if="user && authUserId !== authorId" class="endorse-actions">
+                <div v-if="user && authUserId !== authorId && canEndorseBias(bias)" class="endorse-actions">
                   <button
                     @click="toggleEndorsement(bias, 1)"
                     class="endorse-btn up"
@@ -118,6 +118,7 @@ const authUserId = useAuthUserId();
 const toast = useToast();
 
 const authorBiases = ref<UserBiasForPopover[]>([]);
+const myBiasGroupIds = ref<Set<string>>(new Set());
 const isLoading = ref(false);
 const isHandlingEndorsement = ref<string | null>(null);
 const error = ref<string | null>(null);
@@ -130,11 +131,34 @@ const isOpenForUI = ref(false);
 let openDelayTimeoutId: NodeJS.Timeout | null = null;
 let closeDelayTimeoutId: NodeJS.Timeout | null = null;
 
+async function fetchMyBiasGroupIds() {
+  myBiasGroupIds.value = new Set();
+  if (!authUserId.value) return;
+  try {
+    const { data, error: fetchError } = await supabase
+      .from('biases')
+      .select('group_id')
+      .eq('user_id', authUserId.value);
+    if (fetchError) throw fetchError;
+    myBiasGroupIds.value = new Set(
+      (data || []).map((row) => row.group_id).filter((id): id is string => !!id)
+    );
+  } catch (e: any) {
+    console.error('Erro ao buscar vieses do usuário logado:', e);
+  }
+}
+
+/** Endorsement only when the logged-in user also defends the same bias. */
+function canEndorseBias(bias: UserBiasForPopover): boolean {
+  return !!bias.group_id && myBiasGroupIds.value.has(bias.group_id);
+}
+
 async function fetchAuthorBiases() {
   if (!props.authorId || !props.contextGroupId || !authUserId.value) return;
   isLoading.value = true;
   error.value = null;
   try {
+    await fetchMyBiasGroupIds();
     const { data, error: rpcError } = await supabase.rpc('get_user_biases_for_category', {
       p_author_id: props.authorId,
       p_context_group_id: props.contextGroupId,
@@ -227,6 +251,10 @@ function simulateClickAndFetch(isCurrentlyOpen: boolean) {
 async function toggleEndorsement(bias: UserBiasForPopover, endorsementType: 1 | -1) {
   if (!authUserId.value || !bias.bias_id) return;
   if (authUserId.value === props.authorId) return;
+  if (!canEndorseBias(bias)) {
+    toast.info('Você só pode endossar vieses que também defende.');
+    return;
+  }
 
   isHandlingEndorsement.value = bias.bias_id;
   try {
