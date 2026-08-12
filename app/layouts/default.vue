@@ -19,8 +19,6 @@
               />
               <span>{{ userProfile.username }}</span>
             </NuxtLink>
-            <span class="nav-separator">|</span>
-            <a href="#" @click.prevent="handleLogout" class="nav-link">Sair</a>
           </template>
           <template v-else>
             <NuxtLink to="/" class="nav-link">Início</NuxtLink>
@@ -32,6 +30,11 @@
             <NuxtLink to="/user/register" class="nav-link">Cadastrar</NuxtLink>
           </template>
         </div>
+        <NotificationBell v-if="user && userProfile" class="nav-notification-bell" />
+        <div v-if="user && userProfile" class="desktop-nav-items desktop-user-items">
+          <span class="nav-separator">|</span>
+          <a href="#" @click.prevent="handleLogout" class="nav-link">Sair</a>
+        </div>
         <button class="mobile-menu-toggle" @click="toggleMobileMenu" aria-label="Abrir menu" :aria-expanded="isMobileMenuOpen">
           <svg v-if="!isMobileMenuOpen" xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/></svg>
           <svg v-else xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" viewBox="0 0 16 16"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/></svg>
@@ -42,11 +45,12 @@
     <div class="mobile-nav-overlay" :class="{ 'open': isMobileMenuOpen }" @click="closeMobileMenu">
       <nav class="mobile-nav-content" :class="{ 'open': isMobileMenuOpen }">
         <template v-if="user && userProfile">
-          <NuxtLink to="/user/profile" class="user-nav-link-mobile">
+          <NuxtLink to="/user/profile" class="user-nav-link-mobile" @click="closeMobileMenu">
             <img :src="userProfile.avatar_path ? `${avatarBucketPath}/${userProfile.avatar_path}` : defaultUserAvatar" alt="Avatar" class="nav-user-avatar-mobile" @error="onNavAvatarError" />
             <span>Meu Perfil</span>
           </NuxtLink>
-          <NuxtLink to="/categories">Categorias</NuxtLink>
+          <NuxtLink to="/user/notifications" @click="closeMobileMenu">Notificações</NuxtLink>
+          <NuxtLink to="/categories" @click="closeMobileMenu">Categorias</NuxtLink>
           <a href="#" @click.prevent="handleLogoutMobile">Sair</a>
         </template>
         <template v-else>
@@ -105,10 +109,10 @@ async function fetchAndSetUserProfile(userId: string) {
       userProfile.value = data;
     } else {
       userProfile.value = null;
-      console.warn(`Perfil não encontrado para o usuário ${userId}`);
+      console.warn(`Perfil nÃƒÂ£o encontrado para o usuÃƒÂ¡rio ${userId}`);
     }
   } catch (e: any) {
-    console.error('Erro ao buscar perfil do usuário para o estado:', e);
+    console.error('Erro ao buscar perfil do usuÃƒÂ¡rio para o estado:', e);
     userProfile.value = null;
   }
 }
@@ -119,7 +123,7 @@ function closeMobileMenu() { isMobileMenuOpen.value = false; }
 async function handleLogout() {
   const { error } = await supabase.auth.signOut();
   if (error) { toast.error(error.message || 'Falha ao sair.'); }
-  else { toast.success('Você saiu com sucesso!'); router.push('/'); }
+  else { toast.success('VocÃƒÂª saiu com sucesso!'); router.push('/'); }
 }
 
 async function handleLogoutMobile() {
@@ -201,6 +205,12 @@ watch(authUserId, (userId) => {
   z-index: 1020; margin-left: 0.5rem;
 }
 
+.nav-notification-bell {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 0.15rem 0 0.35rem;
+}
+
 .mobile-nav-overlay {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
   background-color: rgba(0,0,0,0.5);
@@ -243,8 +253,13 @@ watch(authUserId, (userId) => {
 }
 .nav-user-avatar-mobile { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
 
+.desktop-user-items {
+  display: none;
+}
+
 @media (min-width: 768px) {
   .desktop-nav-items { display: flex; }
+  .desktop-user-items { display: flex; align-items: center; gap: 0.25rem; }
   .mobile-menu-toggle { display: none; }
   .mobile-nav-overlay { display: none; }
   .mobile-nav-content { display: none; }

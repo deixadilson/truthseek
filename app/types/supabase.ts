@@ -371,6 +371,42 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          id: string
+          post_id: string | null
+          read_at: string | null
+          target_id: string
+          target_type: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          post_id?: string | null
+          read_at?: string | null
+          target_id: string
+          target_type: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          post_id?: string | null
+          read_at?: string | null
+          target_id?: string
+          target_type?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       posts: {
         Row: {
           author_id: string | null
@@ -661,6 +697,22 @@ export type Database = {
           },
         ]
       }
+      notifications_with_actor: {
+        Row: {
+          actor_avatar_path: string | null
+          actor_id: string | null
+          actor_username: string | null
+          created_at: string | null
+          id: string | null
+          post_id: string | null
+          read_at: string | null
+          target_id: string | null
+          target_type: string | null
+          type: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       posts_with_author_info: {
         Row: {
           author_avatar_path: string | null
@@ -692,6 +744,17 @@ export type Database = {
           can_declare: boolean
           reason: string
         }[]
+      }
+      create_notification: {
+        Args: {
+          p_actor_id: string
+          p_post_id?: string
+          p_target_id: string
+          p_target_type: string
+          p_type: string
+          p_user_id: string
+        }
+        Returns: undefined
       }
       create_report: {
         Args: {
@@ -811,6 +874,10 @@ export type Database = {
           new_influence_points: number
           success: boolean
         }[]
+      }
+      mark_notifications_read: {
+        Args: { p_notification_ids?: string[] }
+        Returns: number
       }
       soft_delete_comment: { Args: { p_comment_id: string }; Returns: boolean }
       soft_delete_post: { Args: { p_post_id: string }; Returns: boolean }

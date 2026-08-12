@@ -271,8 +271,13 @@
           <li>
             <strong>Denúncias:</strong> categorias como nsfw, gore, offense,
             spam e off-topic. Posts marcados como <em>moderados</em> permitem
-            denúncia por ofensa; quem preferir, pode filtrar só conteúdo
-            moderado.
+            denúncia por ofensa.
+          </li>
+          <li>
+            <strong>Filtro de conteúdo moderado:</strong> se você deseja
+            participar apenas de debates de alto nível e respeitosos, nos
+            filtros do grupo selecione ver apenas conteúdo moderado. A
+            preferência permanece salva até você desmarcá-la.
           </li>
           <li>
             <strong>Desendossamento:</strong> se um líder abusar do poder, a

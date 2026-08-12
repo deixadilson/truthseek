@@ -164,8 +164,14 @@
             <p>
               <strong>Moderado:</strong> conteúdo sinalizado como adequado a um
               filtro mais restrito. Comentários em posts moderados também são
-              tratados como moderados. Usuários podem preferir ver só conteúdo
-              moderado; denúncias por ofensa aplicam-se a posts moderados.
+              tratados como moderados. Denúncias por ofensa aplicam-se a posts
+              moderados.
+            </p>
+            <p>
+              Se você deseja participar apenas de debates de alto nível e
+              respeitosos, use os
+              <strong>filtros do grupo</strong> e selecione ver apenas conteúdo
+              moderado. Essa preferência fica salva até você desmarcá-la.
             </p>
           </div>
         </details>
