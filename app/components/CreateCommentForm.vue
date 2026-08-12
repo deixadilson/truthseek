@@ -62,6 +62,7 @@ const props = defineProps<{
   postId: string;
   replyToCommentId?: string | null;
   replyToUsername?: string | null;
+  postIsModerated?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -143,6 +144,7 @@ async function submitComment() {
         image_path: imagePathToSave,
         video_url: videoUrlToSave.value,
         is_anonymous: isAnonymous.value,
+        is_moderated: !!props.postIsModerated,
         reply_to: props.replyToCommentId || null,
       })
       .select('*')

@@ -46,14 +46,16 @@
           </div>
       </div>
       <ContentOptionsMenu
-        v-if="post.id"
+        v-if="post.id && showOptionsMenu"
         :can-edit="isAuthor"
         :can-delete="isAuthor"
+        :can-report="canReport"
         :share-url="shareUrl"
         :disabled="isBusy"
         @edit="startEdit"
         @delete="confirmDelete"
         @share="sharePost"
+        @report="openReportDialog"
       />
     </header>
 
@@ -158,6 +160,14 @@
       :busy="isBusy"
       @confirm="executeDelete"
     />
+
+    <ReportDialog
+      v-if="post.id"
+      v-model:open="showReportDialog"
+      target-type="post"
+      :target-id="post.id"
+      :is-moderated="!!post.is_moderated"
+    />
   </article>
 </template>
 
@@ -202,6 +212,7 @@ const isEditing = ref(false);
 const editText = ref('');
 const isBusy = ref(false);
 const showDeleteConfirm = ref(false);
+const showReportDialog = ref(false);
 
 const {
   imageFile,
@@ -231,9 +242,17 @@ const isAuthor = computed(() => {
   return !!authUserId.value && !!props.post.author_id && authUserId.value === props.post.author_id;
 });
 
+const canReport = computed(() => {
+  return !isAuthor.value;
+});
+
 const shareUrl = computed(() => {
   if (!props.post.id || !import.meta.client) return `/post/${props.post.id}`;
   return `${window.location.origin}/post/${props.post.id}`;
+});
+
+const showOptionsMenu = computed(() => {
+  return isAuthor.value || canReport.value || !!shareUrl.value;
 });
 
 const authorAvatarUrl = computed(() => {
@@ -400,6 +419,16 @@ async function saveEdit() {
 function confirmDelete() {
   if (!props.post.id || !isAuthor.value) return;
   showDeleteConfirm.value = true;
+}
+
+function openReportDialog() {
+  if (!authUserId.value) {
+    toast.info('Faça login para denunciar conteúdo.');
+    navigateTo('/user/login');
+    return;
+  }
+  if (isAuthor.value) return;
+  showReportDialog.value = true;
 }
 
 async function executeDelete() {

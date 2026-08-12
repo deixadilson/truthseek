@@ -76,6 +76,7 @@ export type Database = {
           likes_count: number
           post_id: string
           reply_to: string | null
+          report_points: number
           text_content: string | null
           updated_at: string
           video_url: string | null
@@ -93,6 +94,7 @@ export type Database = {
           likes_count?: number
           post_id: string
           reply_to?: string | null
+          report_points?: number
           text_content?: string | null
           updated_at?: string
           video_url?: string | null
@@ -110,6 +112,7 @@ export type Database = {
           likes_count?: number
           post_id?: string
           reply_to?: string | null
+          report_points?: number
           text_content?: string | null
           updated_at?: string
           video_url?: string | null
@@ -383,6 +386,7 @@ export type Database = {
           likes_count: number
           owner_id: string
           owner_type: string
+          report_points: number
           text_content: string | null
           updated_at: string
           video_url: string | null
@@ -401,6 +405,7 @@ export type Database = {
           likes_count?: number
           owner_id: string
           owner_type: string
+          report_points?: number
           text_content?: string | null
           updated_at?: string
           video_url?: string | null
@@ -419,6 +424,7 @@ export type Database = {
           likes_count?: number
           owner_id?: string
           owner_type?: string
+          report_points?: number
           text_content?: string | null
           updated_at?: string
           video_url?: string | null
@@ -465,6 +471,48 @@ export type Database = {
             referencedColumns: ["code"]
           },
         ]
+      }
+      reports: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          points: number
+          report_type: string
+          reported_user_id: string | null
+          reporter_id: string
+          resolved_at: string | null
+          status: string
+          target_id: string
+          target_type: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          points?: number
+          report_type: string
+          reported_user_id?: string | null
+          reporter_id: string
+          resolved_at?: string | null
+          status?: string
+          target_id: string
+          target_type: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          points?: number
+          report_type?: string
+          reported_user_id?: string | null
+          reporter_id?: string
+          resolved_at?: string | null
+          status?: string
+          target_id?: string
+          target_type?: string
+        }
+        Relationships: []
       }
       taxons: {
         Row: {
@@ -591,6 +639,7 @@ export type Database = {
           likes_count: number | null
           post_id: string | null
           reply_to: string | null
+          report_points: number | null
           text_content: string | null
           updated_at: string | null
           video_url: string | null
@@ -628,6 +677,7 @@ export type Database = {
           likes_count: number | null
           owner_id: string | null
           owner_type: string | null
+          report_points: number | null
           text_content: string | null
           updated_at: string | null
           video_url: string | null
@@ -643,12 +693,39 @@ export type Database = {
           reason: string
         }[]
       }
+      create_report: {
+        Args: {
+          p_description?: string
+          p_report_type: string
+          p_target_id: string
+          p_target_type: string
+        }
+        Returns: {
+          created_at: string
+          description: string | null
+          id: string
+          points: number
+          report_type: string
+          reported_user_id: string | null
+          reporter_id: string
+          resolved_at: string | null
+          status: string
+          target_id: string
+          target_type: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "reports"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       edit_comment: {
         Args: {
           p_comment_id: string
+          p_image_path?: string
           p_text_content: string
-          p_image_path?: string | null
-          p_video_url?: string | null
+          p_video_url?: string
         }
         Returns: {
           author_id: string | null
@@ -663,6 +740,7 @@ export type Database = {
           likes_count: number
           post_id: string
           reply_to: string | null
+          report_points: number
           text_content: string | null
           updated_at: string
           video_url: string | null
@@ -676,10 +754,10 @@ export type Database = {
       }
       edit_post: {
         Args: {
+          p_image_path?: string
           p_post_id: string
           p_text_content: string
-          p_image_path?: string | null
-          p_video_url?: string | null
+          p_video_url?: string
         }
         Returns: {
           author_id: string | null
@@ -695,6 +773,7 @@ export type Database = {
           likes_count: number
           owner_id: string
           owner_type: string
+          report_points: number
           text_content: string | null
           updated_at: string
           video_url: string | null

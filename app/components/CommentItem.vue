@@ -48,12 +48,14 @@
           </div>
 
           <ContentOptionsMenu
-            v-if="comment.id && isAuthor"
+            v-if="comment.id && showOptionsMenu"
             :can-edit="isAuthor"
             :can-delete="isAuthor"
+            :can-report="canReport"
             :disabled="isBusy"
             @edit="startEdit"
             @delete="confirmDelete"
+            @report="openReportDialog"
           />
         </div>
 
@@ -148,6 +150,14 @@
       :busy="isBusy"
       @confirm="executeDelete"
     />
+
+    <ReportDialog
+      v-if="comment.id"
+      v-model:open="showReportDialog"
+      target-type="comment"
+      :target-id="comment.id"
+      :is-moderated="!!comment.is_moderated || !!postIsModerated"
+    />
   </div>
 </template>
 
@@ -162,6 +172,7 @@ const props = defineProps<{
   repliedToUsername?: string | null;
   isHighlighted?: boolean;
   postOwnerGroupId: string;
+  postIsModerated?: boolean;
 }>();
 
 export type CommentUpdatedPayload = {
@@ -199,6 +210,7 @@ const isEditing = ref(false);
 const editText = ref('');
 const isBusy = ref(false);
 const showDeleteConfirm = ref(false);
+const showReportDialog = ref(false);
 
 const {
   imageFile,
@@ -225,6 +237,10 @@ const canSaveEdit = computed(() => canSubmitWith());
 const isAuthor = computed(() => {
   return !!authUserId.value && !!props.comment.author_id && authUserId.value === props.comment.author_id;
 });
+
+const canReport = computed(() => !isAuthor.value);
+
+const showOptionsMenu = computed(() => isAuthor.value || canReport.value);
 
 const authorAvatarUrl = computed(() => {
   return props.comment.author_avatar_path
@@ -394,6 +410,16 @@ async function saveEdit() {
 function confirmDelete() {
   if (!props.comment.id || !isAuthor.value) return;
   showDeleteConfirm.value = true;
+}
+
+function openReportDialog() {
+  if (!authUserId.value) {
+    toast.info('Faça login para denunciar conteúdo.');
+    navigateTo('/user/login');
+    return;
+  }
+  if (isAuthor.value) return;
+  showReportDialog.value = true;
 }
 
 async function executeDelete() {

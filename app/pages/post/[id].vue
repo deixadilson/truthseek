@@ -20,6 +20,7 @@
         <CreateCommentForm
           v-if="user && post && post.id"
           :post-id="post.id"
+          :post-is-moderated="!!post.is_moderated"
           @comment-created="addNewCommentToList"
           class="main-comment-form"
         />
@@ -43,6 +44,7 @@
             :key="`${comment.id}`"
             :comment="comment"
             :post-owner-group-id="post.owner_id"
+            :post-is-moderated="!!post.is_moderated"
             :replied-to-username="comment.reply_to ? getRepliedToUsernameForChild(comment.reply_to) : null"
             :is-highlighted="highlightedCommentId === comment.id"
             @request-reply="handleRequestReply"
@@ -60,6 +62,7 @@
           v-if="user && post && post.id && replyingToCommentId"
           :key="`reply-form-${replyingToCommentId}`"
           :post-id="post.id"
+          :post-is-moderated="!!post.is_moderated"
           :reply-to-comment-id="replyingToCommentId"
           :reply-to-username="replyingToUsername"
           @comment-created="handleNewComment"

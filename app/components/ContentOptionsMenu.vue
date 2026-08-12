@@ -35,6 +35,17 @@
             Compartilhar
           </button>
         </MenuItem>
+        <MenuItem v-if="canReport" v-slot="{ active }">
+          <button
+            type="button"
+            class="menu-item"
+            :class="{ active }"
+            @click="emit('report'); close()"
+          >
+            <Icon name="lucide:flag" :size="14" />
+            Denunciar
+          </button>
+        </MenuItem>
         <MenuItem v-if="canDelete" v-slot="{ active }">
           <button
             type="button"
@@ -57,6 +68,7 @@ import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue';
 defineProps<{
   canEdit?: boolean;
   canDelete?: boolean;
+  canReport?: boolean;
   shareUrl?: string | null;
   disabled?: boolean;
 }>();
@@ -65,6 +77,7 @@ const emit = defineEmits<{
   (e: 'edit'): void;
   (e: 'delete'): void;
   (e: 'share'): void;
+  (e: 'report'): void;
 }>();
 </script>
 
