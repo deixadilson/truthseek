@@ -7,6 +7,7 @@
           <AuthorPopover
             :author-id="comment.author_id"
             :context-group-id="postOwnerGroupId"
+            :author-username="comment.author_username"
             :hide-trigger-arrow="true"
             v-if="comment.author_id && !comment.is_anonymous"
           >

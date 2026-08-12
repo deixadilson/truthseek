@@ -92,7 +92,14 @@
           </template>
           <hr class="popover-divider" />
           <div class="popover-user-actions">
-            <button @click="placeholderAction('Ver Perfil')" class="action-link" type="button">Ver Perfil</button>
+            <button
+              @click="goToPublicProfile"
+              class="action-link"
+              type="button"
+              :disabled="isNavigatingToProfile"
+            >
+              Ver Perfil
+            </button>
             <button @click="placeholderAction('Seguir')" class="action-link" type="button">Seguir</button>
             <button @click="placeholderAction('Bloquear')" class="action-link" type="button">Bloquear</button>
           </div>
@@ -111,6 +118,7 @@ import { useToast } from 'vue-toastification';
 const props = defineProps<{
   authorId: string;
   contextGroupId: string;
+  authorUsername?: string | null;
   hideTriggerArrow?: boolean;
 }>();
 
@@ -123,6 +131,7 @@ const authorBiases = ref<UserBiasForPopover[]>([]);
 const myBiasGroupIds = ref<Set<string>>(new Set());
 const isLoading = ref(false);
 const isHandlingEndorsement = ref<string | null>(null);
+const isNavigatingToProfile = ref(false);
 const error = ref<string | null>(null);
 
 const popoverButtonRef = ref<{ $el: HTMLElement } | null>(null);
@@ -293,6 +302,34 @@ async function toggleEndorsement(bias: UserBiasForPopover, endorsementType: 1 | 
     toast.error(e.message || "Falha ao processar endosso.");
   } finally {
     isHandlingEndorsement.value = null;
+  }
+}
+
+async function goToPublicProfile() {
+  if (!props.authorId || isNavigatingToProfile.value) return;
+  isNavigatingToProfile.value = true;
+  try {
+    let username = props.authorUsername?.trim() || null;
+    if (!username) {
+      const { data, error: profileError } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', props.authorId)
+        .maybeSingle();
+      if (profileError) throw profileError;
+      username = data?.username ?? null;
+    }
+    if (!username) {
+      toast.error('Perfil não encontrado.');
+      return;
+    }
+    isOpenForUI.value = false;
+    await navigateTo(`/user/${username}`);
+  } catch (e: any) {
+    console.error('Erro ao abrir perfil público:', e);
+    toast.error(e.message || 'Não foi possível abrir o perfil.');
+  } finally {
+    isNavigatingToProfile.value = false;
   }
 }
 

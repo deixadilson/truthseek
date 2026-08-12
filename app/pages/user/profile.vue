@@ -27,6 +27,13 @@
           <LoadingMessage v-if="isUploadingAvatar" message="Enviando..." :icon-size="16" />
           <template v-else>Alterar Avatar</template>
         </button>
+        <NuxtLink
+          v-if="userProfile?.username"
+          :to="`/user/${userProfile.username}`"
+          class="public-profile-link"
+        >
+          Ver perfil público
+        </NuxtLink>
       </div>
       <div class="profile-info">
         <div class="info-item">
@@ -121,6 +128,10 @@
 <script setup lang="ts">
 import { useToast } from 'vue-toastification';
 import type { Profile, BiasWithDetails } from '~/types/app';
+
+definePageMeta({
+  middleware: 'auth',
+});
 
 const supabase = useSupabaseClient();
 const user = useSupabaseUser();
@@ -342,6 +353,16 @@ watch(userProfile, (newProfileData) => {
 
 .upload-button {
   font-size: 0.9em;
+}
+
+.public-profile-link {
+  font-size: 0.88rem;
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+.public-profile-link:hover {
+  color: var(--primary-color-dark, var(--primary-color));
 }
 
 .profile-info {

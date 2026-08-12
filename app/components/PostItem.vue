@@ -4,6 +4,7 @@
       <AuthorPopover
         :author-id="post.author_id"
         :context-group-id="post.owner_id"
+        :author-username="post.author_username"
         :hide-trigger-arrow="true"
         v-if="post.author_id && post.owner_id && !post.is_anonymous"
       >

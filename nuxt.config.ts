@@ -21,6 +21,8 @@ export default defineNuxtConfig({
         '/terms-of-service',
         '/user/register',
         '/user/password-recovery',
+        // Public profiles (/user/:username); protected pages use auth middleware
+        '/user/**',
         '/categories',
         // Group pages (open groups are browsable by guests)
         '/br/**',
