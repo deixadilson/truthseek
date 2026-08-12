@@ -7,6 +7,8 @@
       v-for="post in posts"
       :key="`${post.id}`"
       :post="post"
+      @deleted="(id) => emit('post-deleted', id)"
+      @updated="(payload) => emit('post-updated', payload)"
     />
     <div v-if="isLoading" class="loading-more-posts">
       <LoadingMessage message="Carregando mais posts..." />
@@ -21,6 +23,11 @@ defineProps<{
   posts: PostWithAuthor[];
   isLoading?: boolean;
   emptyMessage?: string;
+}>();
+
+const emit = defineEmits<{
+  (e: 'post-deleted', postId: string): void;
+  (e: 'post-updated', payload: { id: string; text_content: string | null; image_path: string | null; video_url: string | null; is_edited: boolean; updated_at: string }): void;
 }>();
 </script>
 

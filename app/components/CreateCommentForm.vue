@@ -34,7 +34,7 @@
           </label>
           <input
             type="file" id="comment-hidden-file-input" @change="handleImageFileSelected"
-            accept="image/*" style="display: none" ref="commentFileInputRef"
+            accept="image/*" style="display: none" ref="fileInputRef"
           />
           <OptionToggle
             v-model="isAnonymous"
@@ -44,7 +44,7 @@
           />
         </div>
 
-        <button type="submit" :disabled="isSubmitting || !commentText.trim() && !imageFile && !videoUrlToSave" class="button-primary submit-comment-btn">
+        <button type="submit" :disabled="isSubmitting || !canSubmit" class="button-primary submit-comment-btn">
           <LoadingMessage v-if="isSubmitting" message="Enviando..." :icon-size="16" />
           <template v-else>{{ replyToCommentId ? 'Responder' : 'Comentar' }}</template>
         </button>
@@ -57,7 +57,6 @@
 import type { Database } from '~/types/supabase';
 import type { CommentWithAuthor } from '~/types/app';
 import { useToast } from 'vue-toastification';
-import { getEmbedVideoUrl, isValidImageUrl } from '~/utils/formatters';
 
 const props = defineProps<{
   postId: string;
@@ -77,89 +76,33 @@ const userProfile = useProfile();
 const toast = useToast();
 
 const commentText = ref('');
-const imageFile = ref<File | null>(null);
-const imagePreviewUrl = ref<string | null>(null);
-const videoUrlToSave = ref<string | null>(null);
-const embedVideoUrl = ref<string | null>(null);
 const isAnonymous = ref(false);
 const isSubmitting = ref(false);
-const isDraggingOver = ref(false);
-
 const commentTextareaRef = ref<HTMLTextAreaElement | null>(null);
-const commentFileInputRef = ref<HTMLInputElement | null>(null);
 
-const canSubmit = computed(() => {
-  return commentText.value.trim() !== '' || imageFile.value !== null || videoUrlToSave.value !== null;
-});
+const {
+  imageFile,
+  imagePreviewUrl,
+  videoUrlToSave,
+  embedVideoUrl,
+  isDraggingOver,
+  fileInputRef,
+  removeImage,
+  removeVideo,
+  resetMedia,
+  handlePaste,
+  handleImageFileSelected,
+  handleDragOver,
+  handleDragLeave,
+  handleDrop,
+  canSubmitWith,
+} = useMediaAttachment(commentText);
 
-function processPastedOrDroppedMedia(data: string | File) {
-  if (typeof data === 'string') {
-    const potentialVideoEmbedUrl = getEmbedVideoUrl(data);
-    if (potentialVideoEmbedUrl) {
-      if (imageFile.value) {
-        toast.warning('Remova a imagem antes de adicionar um vídeo ao comentário.');
-        return;
-      }
-      embedVideoUrl.value = potentialVideoEmbedUrl;
-      videoUrlToSave.value = data;
-      commentText.value = commentText.value.replace(data, '').trim();
-    } else if (isValidImageUrl(data)) {
-      toast.info('Para adicionar uma imagem de um link, use o botão "Imagem" ou arraste e solte o arquivo.');
-    }
-  } else {
-    if (videoUrlToSave.value) {
-      toast.warning('Remova o vídeo antes de adicionar uma imagem ao comentário.');
-      return;
-    }
-    imageFile.value = data;
-    imagePreviewUrl.value = URL.createObjectURL(data);
-  }
-}
-
-function handlePaste(event: ClipboardEvent) {
-  const pastedText = event.clipboardData?.getData('text');
-  if (pastedText) {
-    setTimeout(() => { processPastedOrDroppedMedia(pastedText); }, 0);
-  }
-  const items = event.clipboardData?.items;
-  if (items) {
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].type.indexOf('image') !== -1) {
-        const blob = items[i].getAsFile();
-        if (blob) {
-          if (videoUrlToSave.value) { toast.warning('Remova o vídeo antes de colar uma imagem.'); return; }
-          imageFile.value = blob;
-          imagePreviewUrl.value = URL.createObjectURL(blob);
-          event.preventDefault(); break;
-        }
-      }
-    }
-  }
-}
-
-function handleImageFileSelected(event: Event) {
-  const target = event.target as HTMLInputElement;
-  if (target.files && target.files[0]) { processPastedOrDroppedMedia(target.files[0]); }
-}
-function handleDragOver() { isDraggingOver.value = true; }
-function handleDragLeave() { isDraggingOver.value = false; }
-function handleDrop(event: DragEvent) {
-  isDraggingOver.value = false;
-  if (event.dataTransfer?.files && event.dataTransfer.files[0]) {
-    if (event.dataTransfer.files[0].type.startsWith('image/')) {
-      processPastedOrDroppedMedia(event.dataTransfer.files[0]);
-    } else { toast.error('Apenas arquivos de imagem podem ser arrastados.'); }
-  }
-}
-function removeImage() {
-  imageFile.value = null; imagePreviewUrl.value = null;
-  if (commentFileInputRef.value) commentFileInputRef.value.value = '';
-}
-function removeVideo() { embedVideoUrl.value = null; videoUrlToSave.value = null; }
+const canSubmit = computed(() => canSubmitWith());
 
 function resetForm() {
   commentText.value = '';
-  removeImage(); removeVideo();
+  resetMedia();
   isAnonymous.value = false;
 }
 
@@ -171,8 +114,7 @@ function cancelReply() {
 async function submitComment() {
   if (!canSubmit.value) return;
   if (!authUserId.value || !userProfile.value) return;
-  if (!commentText.value.trim()) return;
-  if (imageFile.value && videoUrlToSave.value) return;
+  if (!commentText.value.trim() && !imageFile.value && !videoUrlToSave.value) return;
 
   isSubmitting.value = true;
   let imagePathToSave: string | null = null;
@@ -227,7 +169,6 @@ async function submitComment() {
   }
 }
 
-// Se estiver respondendo, focar no textarea
 watch(() => props.replyToCommentId, (newVal) => {
   if (newVal && commentTextareaRef.value) {
     commentTextareaRef.value.focus();

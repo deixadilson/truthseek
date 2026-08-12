@@ -112,7 +112,13 @@
               class="create-post-component"
             />
             <section class="posts-list-section">
-              <PostList :posts="posts" :is-loading="isLoadingPosts" empty-message="Nenhuma postagem neste grupo ainda. Seja o primeiro!" />
+              <PostList
+                :posts="posts"
+                :is-loading="isLoadingPosts"
+                empty-message="Nenhuma postagem neste grupo ainda. Seja o primeiro!"
+                @post-deleted="handlePostDeleted"
+                @post-updated="handlePostUpdated"
+              />
             </section>
           </template>
         </div>
@@ -396,6 +402,23 @@ async function fetchGroupData(country: string, slug: string): Promise<void> {
 
 function handleNewPost(newPost: PostWithAuthor) {
   posts.value.unshift(newPost);
+}
+
+function handlePostDeleted(postId: string) {
+  posts.value = posts.value.filter((p) => p.id !== postId);
+}
+
+function handlePostUpdated(payload: { id: string; text_content: string | null; image_path: string | null; video_url: string | null; is_edited: boolean; updated_at: string }) {
+  const index = posts.value.findIndex((p) => p.id === payload.id);
+  if (index === -1) return;
+  posts.value[index] = {
+    ...posts.value[index],
+    text_content: payload.text_content,
+    image_path: payload.image_path,
+    video_url: payload.video_url,
+    is_edited: payload.is_edited,
+    updated_at: payload.updated_at,
+  };
 }
 
 watch(

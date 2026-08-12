@@ -8,7 +8,12 @@
       <p><NuxtLink :to="goBackLink" class="button-secondary">Voltar</NuxtLink></p>
     </div>
     <div v-else-if="post" class="post-and-comments">
-      <PostItem :post="post" class="main-post-item" />
+      <PostItem
+        :post="post"
+        class="main-post-item"
+        @deleted="handlePostDeleted"
+        @updated="handlePostUpdated"
+      />
 
       <section class="comments-section card-style">
         <h3>Comentários ({{ comments.length }})</h3>
@@ -43,6 +48,8 @@
             @request-reply="handleRequestReply"
             @scroll-to-comment="scrollToComment"
             @vote-updated="handleCommentVoteUpdated"
+            @deleted="handleCommentDeleted"
+            @updated="handleCommentUpdated"
           />
         </div>
         <div v-else class="no-comments">
@@ -228,6 +235,42 @@ function handleCommentVoteUpdated(payload: { commentId: string, likes: number, d
     comments.value[commentIndex].likes_count = payload.likes;
     comments.value[commentIndex].dislikes_count = payload.dislikes;
   }
+}
+
+function handleCommentDeleted(commentId: string) {
+  comments.value = comments.value.filter((c) => c.id !== commentId);
+  if (post.value?.comments_count != null) {
+    post.value.comments_count = Math.max(0, (post.value.comments_count || 0) - 1);
+  }
+}
+
+function handleCommentUpdated(payload: { id: string; text_content: string | null; image_path: string | null; video_url: string | null; is_edited: boolean; updated_at: string }) {
+  const index = comments.value.findIndex((c) => c.id === payload.id);
+  if (index === -1) return;
+  comments.value[index] = {
+    ...comments.value[index],
+    text_content: payload.text_content,
+    image_path: payload.image_path,
+    video_url: payload.video_url,
+    is_edited: payload.is_edited,
+    updated_at: payload.updated_at,
+  };
+}
+
+async function handlePostDeleted() {
+  await navigateTo(goBackLink.value);
+}
+
+function handlePostUpdated(payload: { id: string; text_content: string | null; image_path: string | null; video_url: string | null; is_edited: boolean; updated_at: string }) {
+  if (!post.value || post.value.id !== payload.id) return;
+  post.value = {
+    ...post.value,
+    text_content: payload.text_content,
+    image_path: payload.image_path,
+    video_url: payload.video_url,
+    is_edited: payload.is_edited,
+    updated_at: payload.updated_at,
+  };
 }
 
 useHead({

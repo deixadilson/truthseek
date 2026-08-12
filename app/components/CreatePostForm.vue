@@ -6,7 +6,7 @@
         <textarea
           ref="textareaRef"
           v-model="textContent"
-          placeholder="O que você tem em mente? Cole um link de vídeo do YouTube/Vimeo ou uma imagem aqui, ou arraste uma imagem."
+          placeholder="O que você tem em mente? Cole ou arraste uma imagem ou cole um link de vídeo do YouTube/Vimeo aqui."
           rows="4"
           @paste="handlePaste"
           @dragover.prevent="handleDragOver"
@@ -70,7 +70,6 @@
 import type { Database } from '~/types/supabase';
 import { useToast } from 'vue-toastification';
 import type { PostWithAuthor } from '~/types/app';
-import { isValidImageUrl } from '~/utils/formatters';
 
 const props = defineProps<{
   ownerId: string;
@@ -86,107 +85,34 @@ const userProfile = useProfile();
 const toast = useToast();
 
 const textContent = ref('');
-const imageFile = ref<File | null>(null);
-const imagePreviewUrl = ref<string | null>(null);
-const videoUrlToSave = ref<string | null>(null);
-const embedVideoUrl = ref<string | null>(null);
 const isAnonymous = ref(false);
 const isModeratedContent = ref(false);
 const isLoading = ref(false);
-const isDraggingOver = ref(false);
-
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
-const fileInputRef = ref<HTMLInputElement | null>(null);
 
-const canSubmit = computed(() => {
-  return textContent.value.trim() !== '' || imageFile.value !== null || videoUrlToSave.value !== null;
-});
+const {
+  imageFile,
+  imagePreviewUrl,
+  videoUrlToSave,
+  embedVideoUrl,
+  isDraggingOver,
+  fileInputRef,
+  removeImage,
+  removeVideo,
+  resetMedia,
+  handlePaste,
+  handleImageFileSelected,
+  handleDragOver,
+  handleDragLeave,
+  handleDrop,
+  canSubmitWith,
+} = useMediaAttachment(textContent);
 
-function processPastedOrDroppedData(data: string | File) {
-  if (typeof data === 'string') {
-    const potentialVideoEmbedUrl = getEmbedVideoUrl(data);
-    if (potentialVideoEmbedUrl) {
-      if (imageFile.value) {
-        toast.warning('Remova a imagem antes de adicionar um vídeo.');
-        return;
-      }
-      embedVideoUrl.value = potentialVideoEmbedUrl;
-      videoUrlToSave.value = data;
-      textContent.value = textContent.value.replace(data, '').trim();
-    } else if (isValidImageUrl(data)) {
-      toast.info('Para adicionar uma imagem de um link, use o botão "Adicionar Imagem" ou arraste e solte o arquivo.');
-    }
-  } else {
-    if (videoUrlToSave.value) {
-      toast.warning('Remova o vídeo antes de adicionar uma imagem.');
-      return;
-    }
-    imageFile.value = data;
-    imagePreviewUrl.value = URL.createObjectURL(data);
-  }
-}
-
-function handlePaste(event: ClipboardEvent) {
-  const pastedData = event.clipboardData?.getData('text');
-  if (pastedData) {
-    setTimeout(() => {
-      processPastedOrDroppedData(pastedData);
-    }, 0);
-  }
-  const items = event.clipboardData?.items;
-  if (items) {
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].type.indexOf('image') !== -1) {
-        const blob = items[i].getAsFile();
-        if (blob) {
-          if (videoUrlToSave.value) {
-            toast.warning('Remova o vídeo antes de colar uma imagem.');
-            return;
-          }
-          imageFile.value = blob;
-          imagePreviewUrl.value = URL.createObjectURL(blob);
-          event.preventDefault();
-          break;
-        }
-      }
-    }
-  }
-}
-
-function handleImageFileSelected(event: Event) {
-  const target = event.target as HTMLInputElement;
-  if (target.files && target.files[0]) {
-    processPastedOrDroppedData(target.files[0]);
-  }
-}
-
-function handleDragOver() { isDraggingOver.value = true; }
-function handleDragLeave() { isDraggingOver.value = false; }
-function handleDrop(event: DragEvent) {
-  isDraggingOver.value = false;
-  if (event.dataTransfer?.files && event.dataTransfer.files[0]) {
-    if (event.dataTransfer.files[0].type.startsWith('image/')) {
-      processPastedOrDroppedData(event.dataTransfer.files[0]);
-    } else {
-      toast.error('Apenas arquivos de imagem podem ser arrastados.');
-    }
-  }
-}
-
-function removeImage() {
-  imageFile.value = null;
-  imagePreviewUrl.value = null;
-  if (fileInputRef.value) fileInputRef.value.value = ''; // Limpar o input de arquivo
-}
-function removeVideo() {
-  embedVideoUrl.value = null;
-  videoUrlToSave.value = null;
-}
+const canSubmit = computed(() => canSubmitWith());
 
 function resetForm() {
   textContent.value = '';
-  removeImage();
-  removeVideo();
+  resetMedia();
   isAnonymous.value = false;
   isModeratedContent.value = false;
 }
@@ -200,8 +126,7 @@ async function submitPost() {
     return;
   }
 
-  if (!textContent.value.trim()) return;
-  if (imageFile.value && videoUrlToSave.value) return;
+  if (!textContent.value.trim() && !imageFile.value && !videoUrlToSave.value) return;
 
   isLoading.value = true;
   let imagePathToSave: string | null = null;
@@ -215,7 +140,7 @@ async function submitPost() {
 
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('post-media')
-        .upload(filePath, file, { upsert: false }); // upsert: false para evitar sobrescrever
+        .upload(filePath, file, { upsert: false });
 
       if (uploadError) throw uploadError;
       if (uploadData) imagePathToSave = uploadData.path;
@@ -327,6 +252,18 @@ textarea.drag-over {
   line-height: 1;
   box-sizing: border-box;
   cursor: pointer;
+}
+.submit-post-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.25rem;
+  padding: 0 0.9em;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1;
+  box-sizing: border-box;
 }
 .form-actions { display: flex; justify-content: flex-end; margin-top: 1rem; }
 

@@ -3,24 +3,59 @@
     <div class="comment-main-content">
       <img :src="authorAvatarUrl" alt="Avatar" class="author-avatar-small" />
       <div class="comment-body">
-        <AuthorPopover
-          :author-id="comment.author_id"
-          :context-group-id="postOwnerGroupId"
-          :hide-trigger-arrow="true"
-          v-if="comment.author_id && !comment.is_anonymous"
-        >
-          <div class="comment-author-line">
+        <div class="comment-top-row">
+          <AuthorPopover
+            :author-id="comment.author_id"
+            :context-group-id="postOwnerGroupId"
+            :hide-trigger-arrow="true"
+            v-if="comment.author_id && !comment.is_anonymous"
+          >
+            <div class="comment-author-line">
+              <span class="comment-author-name">
+                {{ comment.is_anonymous ? 'Anônimo' : (comment.author_username || 'Usuário') }}
+              </span>
+              <span v-if="comment.created_at" class="comment-timestamp">
+                {{ timeAgo(comment.created_at) }}
+                <template v-if="localIsEdited">
+                  ·
+                  <EditedHistoryLink
+                    v-if="comment.id"
+                    target-type="comment"
+                    :target-id="comment.id"
+                    media-bucket="comment-media"
+                  />
+                </template>
+              </span>
+              <span v-else class="comment-timestamp">Data indisponível</span>
+            </div>
+          </AuthorPopover>
+          <div v-else class="comment-author-line">
             <span class="comment-author-name">
               {{ comment.is_anonymous ? 'Anônimo' : (comment.author_username || 'Usuário') }}
             </span>
             <span v-if="comment.created_at" class="comment-timestamp">
-              {{ timeAgo(comment.created_at) }} <span v-if="comment.is_edited">(editado)</span>
-            </span>
-            <span v-else class="comment-timestamp">
-              Data indisponível
+              {{ timeAgo(comment.created_at) }}
+              <template v-if="localIsEdited">
+                ·
+                <EditedHistoryLink
+                  v-if="comment.id"
+                  target-type="comment"
+                  :target-id="comment.id"
+                  media-bucket="comment-media"
+                />
+              </template>
             </span>
           </div>
-        </AuthorPopover>
+
+          <ContentOptionsMenu
+            v-if="comment.id && isAuthor"
+            :can-edit="isAuthor"
+            :can-delete="isAuthor"
+            :disabled="isBusy"
+            @edit="startEdit"
+            @delete="confirmDelete"
+          />
+        </div>
 
         <div v-if="comment.reply_to && repliedToUsername" class="reply-info">
           Em resposta a
@@ -29,13 +64,63 @@
           </a>
         </div>
 
-        <div v-if="comment.text_content" class="comment-text" v-html="formatTextToHtml(comment.text_content)"></div>
-        <div v-if="comment.image_path" class="comment-media">
-          <img :src="commentImageUrl" alt="Imagem do comentário" />
-        </div>
-        <div v-if="comment.video_url && commentEmbedVideoUrl" class="comment-media">
-          <iframe :src="commentEmbedVideoUrl || undefined" frameborder="0" allowfullscreen></iframe>
-        </div>
+        <form v-if="isEditing" class="edit-form" @submit.prevent="saveEdit">
+          <textarea
+            v-model="editText"
+            rows="3"
+            class="edit-textarea"
+            maxlength="5000"
+            placeholder="Edite o texto. Cole um link de YouTube/Vimeo ou uma imagem para substituir a mídia."
+            @paste="handlePaste"
+            @dragover.prevent="handleDragOver"
+            @dragleave.prevent="handleDragLeave"
+            @drop.prevent="handleDrop"
+            :class="{ 'drag-over': isDraggingOver }"
+          ></textarea>
+
+          <div v-if="imagePreviewUrl || editEmbedVideoUrl" class="media-preview-container">
+            <div v-if="imagePreviewUrl" class="image-preview">
+              <img :src="imagePreviewUrl" alt="Pré-visualização da imagem" />
+              <button type="button" class="remove-media-btn" @click="removeImage">×</button>
+            </div>
+            <div v-if="editEmbedVideoUrl" class="video-preview">
+              <iframe :src="editEmbedVideoUrl" frameborder="0" allowfullscreen></iframe>
+              <button type="button" class="remove-media-btn" @click="removeVideo">×</button>
+            </div>
+          </div>
+
+          <div class="edit-actions">
+            <label class="button-secondary toolbar-action-btn add-image-btn" title="Adicionar ou substituir imagem">
+              <Icon name="lucide:image" :size="16" />
+              Imagem
+              <input
+                type="file"
+                accept="image/*"
+                style="display: none"
+                ref="fileInputRef"
+                @change="handleImageFileSelected"
+              />
+            </label>
+            <div class="edit-actions-right">
+              <button type="button" class="button-secondary" :disabled="isBusy" @click="cancelEdit">
+                Cancelar
+              </button>
+              <button type="submit" class="button-primary" :disabled="isBusy || !canSaveEdit">
+                <LoadingMessage v-if="isBusy" message="Salvando..." :icon-size="14" />
+                <template v-else>Salvar</template>
+              </button>
+            </div>
+          </div>
+        </form>
+        <template v-else>
+          <div v-if="localTextContent" class="comment-text" v-html="formatTextToHtml(localTextContent)"></div>
+          <div v-if="localImagePath" class="comment-media">
+            <img :src="commentImageUrl" alt="Imagem do comentário" />
+          </div>
+          <div v-if="localVideoUrl && commentEmbedVideoUrl" class="comment-media">
+            <iframe :src="commentEmbedVideoUrl || undefined" frameborder="0" allowfullscreen></iframe>
+          </div>
+        </template>
 
         <footer class="comment-footer">
           <button @click="handleVote(1)" class="action-btn" :class="{ 'active': currentUserVote === 1 }" title="Gostei">
@@ -53,6 +138,16 @@
         </footer>
       </div>
     </div>
+
+    <ConfirmDialog
+      v-model:open="showDeleteConfirm"
+      title="Excluir comentário"
+      message="Excluir este comentário? Esta ação não pode ser desfeita."
+      confirm-label="Excluir"
+      busy-label="Excluindo..."
+      :busy="isBusy"
+      @confirm="executeDelete"
+    />
   </div>
 </template>
 
@@ -60,6 +155,7 @@
 import type { Database } from '~/types/supabase';
 import type { CommentWithAuthor } from '~/types/app';
 import { useToast } from 'vue-toastification';
+import { formatTextToHtml, getEmbedVideoUrl, timeAgo } from '~/utils/formatters';
 
 const props = defineProps<{
   comment: CommentWithAuthor;
@@ -68,14 +164,24 @@ const props = defineProps<{
   postOwnerGroupId: string;
 }>();
 
+export type CommentUpdatedPayload = {
+  id: string;
+  text_content: string | null;
+  image_path: string | null;
+  video_url: string | null;
+  is_edited: boolean;
+  updated_at: string;
+};
+
 const emit = defineEmits<{
   (e: 'request-reply', payload: { commentId: string; username: string | null }): void;
   (e: 'scroll-to-comment', commentId: string): void;
   (e: 'vote-updated', payload: { commentId: string, likes: number, dislikes: number, userVote: number | null }): void;
+  (e: 'deleted', commentId: string): void;
+  (e: 'updated', payload: CommentUpdatedPayload): void;
 }>();
 
 const supabase = useSupabaseClient<Database>();
-const user = useSupabaseUser();
 const authUserId = useAuthUserId();
 const toast = useToast();
 
@@ -84,6 +190,41 @@ const defaultUserAvatar = '/images/default-avatar.png';
 const currentUserVote = ref<number | null>(null);
 const localLikesCount = ref(props.comment.likes_count || 0);
 const localDislikesCount = ref(props.comment.dislikes_count || 0);
+const localTextContent = ref(props.comment.text_content);
+const localImagePath = ref(props.comment.image_path);
+const localVideoUrl = ref(props.comment.video_url);
+const localIsEdited = ref(!!props.comment.is_edited);
+
+const isEditing = ref(false);
+const editText = ref('');
+const isBusy = ref(false);
+const showDeleteConfirm = ref(false);
+
+const {
+  imageFile,
+  imagePreviewUrl,
+  videoUrlToSave,
+  embedVideoUrl: editEmbedVideoUrl,
+  isDraggingOver,
+  fileInputRef,
+  removeImage,
+  removeVideo,
+  resetMedia,
+  initMedia,
+  handlePaste,
+  handleImageFileSelected,
+  handleDragOver,
+  handleDragLeave,
+  handleDrop,
+  resolveImagePath,
+  canSubmitWith,
+} = useMediaAttachment(editText);
+
+const canSaveEdit = computed(() => canSubmitWith());
+
+const isAuthor = computed(() => {
+  return !!authUserId.value && !!props.comment.author_id && authUserId.value === props.comment.author_id;
+});
 
 const authorAvatarUrl = computed(() => {
   return props.comment.author_avatar_path
@@ -92,13 +233,13 @@ const authorAvatarUrl = computed(() => {
 });
 
 const commentImageUrl = computed(() => {
-  if (props.comment.image_path) {
-    return `https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/comment-media/${props.comment.image_path}`; // Assumindo bucket 'comment-media'
+  if (localImagePath.value) {
+    return `https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/comment-media/${localImagePath.value}`;
   }
   return '';
 });
 
-const commentEmbedVideoUrl = computed(() => getEmbedVideoUrl(props.comment.video_url));
+const commentEmbedVideoUrl = computed(() => getEmbedVideoUrl(localVideoUrl.value));
 
 async function fetchCurrentUserVoteForComment() {
   if (!authUserId.value || !props.comment.id) {
@@ -117,13 +258,17 @@ async function fetchCurrentUserVoteForComment() {
     if (error) throw error;
     currentUserVote.value = data ? data.vote_type : null;
   } catch (e: any) {
-    console.error("Erro ao buscar voto do usuário no comentário:", e.message);
+    console.error('Erro ao buscar voto do usuário no comentário:', e.message);
   }
 }
 
 watchEffect(() => {
   localLikesCount.value = props.comment.likes_count || 0;
   localDislikesCount.value = props.comment.dislikes_count || 0;
+  localTextContent.value = props.comment.text_content;
+  localImagePath.value = props.comment.image_path;
+  localVideoUrl.value = props.comment.video_url;
+  localIsEdited.value = !!props.comment.is_edited;
 });
 
 onMounted(() => {
@@ -143,11 +288,11 @@ async function handleVote(newVoteType: 1 | -1) {
   let optimisticLikes = localLikesCount.value;
   let optimisticDislikes = localDislikesCount.value;
 
-  if (oldVote === newVoteType) { // Desfazendo o voto
+  if (oldVote === newVoteType) {
     currentUserVote.value = null;
     if (newVoteType === 1) optimisticLikes = Math.max(0, optimisticLikes - 1);
     else optimisticDislikes = Math.max(0, optimisticDislikes - 1);
-  } else { // Novo voto ou mudando
+  } else {
     if (oldVote === 1) optimisticLikes = Math.max(0, optimisticLikes - 1);
     else if (oldVote === -1) optimisticDislikes = Math.max(0, optimisticDislikes - 1);
 
@@ -157,9 +302,9 @@ async function handleVote(newVoteType: 1 | -1) {
   }
   localLikesCount.value = optimisticLikes;
   localDislikesCount.value = optimisticDislikes;
-  
+
   try {
-    if (oldVote === newVoteType ) {
+    if (oldVote === newVoteType) {
       await supabase.from('votes').delete().match({ user_id: authUserId.value, target_id: props.comment.id, target_type: 'comment' });
     } else if (oldVote !== null) {
       await supabase.from('votes').update({ vote_type: newVoteType }).match({ user_id: authUserId.value, target_id: props.comment.id, target_type: 'comment' });
@@ -170,12 +315,100 @@ async function handleVote(newVoteType: 1 | -1) {
   } catch (e: any) {
     console.error('Erro ao votar no comentário:', e);
     toast.error(e.message || 'Falha ao registrar voto.');
-    // Reverter UI otimista
     currentUserVote.value = oldVote;
-    // Para reverter contagens, precisaríamos das contagens originais do props.comment
     localLikesCount.value = props.comment.likes_count || 0;
     localDislikesCount.value = props.comment.dislikes_count || 0;
-    fetchCurrentUserVoteForComment(); // Re-sincroniza o estado do voto do usuário
+    fetchCurrentUserVoteForComment();
+  }
+}
+
+function startEdit() {
+  if (!isAuthor.value) return;
+  editText.value = localTextContent.value || '';
+  initMedia({
+    imagePath: localImagePath.value,
+    imagePublicUrl: localImagePath.value
+      ? `https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/comment-media/${localImagePath.value}`
+      : null,
+    videoUrl: localVideoUrl.value,
+  });
+  isEditing.value = true;
+}
+
+function cancelEdit() {
+  isEditing.value = false;
+  editText.value = '';
+  resetMedia();
+}
+
+async function saveEdit() {
+  if (!props.comment.id || !canSaveEdit.value) return;
+  isBusy.value = true;
+  try {
+    let uploadedPath: string | null = null;
+    if (imageFile.value && authUserId.value) {
+      const file = imageFile.value;
+      const fileExt = file.name.split('.').pop()?.toLowerCase() || 'png';
+      const fileName = `${authUserId.value}_${Date.now()}.${fileExt}`;
+      const filePath = `${props.comment.post_id}/${fileName}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('comment-media')
+        .upload(filePath, file, { upsert: false });
+      if (uploadError) throw uploadError;
+      uploadedPath = uploadData?.path ?? null;
+    }
+
+    const nextImagePath = resolveImagePath(uploadedPath);
+    const nextVideoUrl = videoUrlToSave.value;
+
+    const { data, error } = await supabase.rpc('edit_comment', {
+      p_comment_id: props.comment.id,
+      p_text_content: editText.value.trim(),
+      p_image_path: nextImagePath,
+      p_video_url: nextVideoUrl,
+    });
+    if (error) throw error;
+    const updated = data as Database['public']['Tables']['comments']['Row'] | null;
+    localTextContent.value = updated?.text_content ?? (editText.value.trim() || null);
+    localImagePath.value = updated?.image_path ?? nextImagePath;
+    localVideoUrl.value = updated?.video_url ?? nextVideoUrl;
+    localIsEdited.value = true;
+    isEditing.value = false;
+    resetMedia();
+    toast.success('Comentário atualizado.');
+    emit('updated', {
+      id: props.comment.id,
+      text_content: localTextContent.value,
+      image_path: localImagePath.value,
+      video_url: localVideoUrl.value,
+      is_edited: true,
+      updated_at: updated?.updated_at || new Date().toISOString(),
+    });
+  } catch (e: any) {
+    toast.error(e.message || 'Falha ao editar o comentário.');
+  } finally {
+    isBusy.value = false;
+  }
+}
+
+function confirmDelete() {
+  if (!props.comment.id || !isAuthor.value) return;
+  showDeleteConfirm.value = true;
+}
+
+async function executeDelete() {
+  if (!props.comment.id || !isAuthor.value) return;
+  isBusy.value = true;
+  try {
+    const { error } = await supabase.rpc('soft_delete_comment', { p_comment_id: props.comment.id });
+    if (error) throw error;
+    showDeleteConfirm.value = false;
+    toast.success('Comentário excluído.');
+    emit('deleted', props.comment.id);
+  } catch (e: any) {
+    toast.error(e.message || 'Falha ao excluir o comentário.');
+  } finally {
+    isBusy.value = false;
   }
 }
 
@@ -191,30 +424,45 @@ function emitScrollToReply(commentId: string) {
 
 <style scoped>
 .comment-item {
-  display: flex; /* Para alinhar avatar e corpo do comentário */
+  display: flex;
   gap: 0.75rem;
-  padding: 1rem 0.5rem; /* Ajustado padding */
+  padding: 1rem 0.5rem;
   border-bottom: 1px solid var(--border-color);
   transition: background-color 0.5s ease-out;
 }
 .comment-item:last-child { border-bottom: none; }
 .comment-item.highlighted { background-color: color-mix(in srgb, var(--primary-color) 10%, transparent); }
 
+.comment-main-content {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+}
+
 .author-avatar-small {
-  width: 36px; height: 36px; /* Levemente maior */
+  width: 36px; height: 36px;
   border-radius: 50%; object-fit: cover; background-color: #eee;
-  flex-shrink: 0; /* Para não encolher */
+  flex-shrink: 0;
 }
 
 .comment-body {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
+  min-width: 0;
+}
+
+.comment-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
 }
 
 .comment-author-line {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin-bottom: 0.25rem;
 }
@@ -231,10 +479,107 @@ function emitScrollToReply(commentId: string) {
 }
 .comment-text :deep(a) { color: var(--primary-color); text-decoration: underline; }
 
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+.edit-textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 0.65rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font: inherit;
+  resize: vertical;
+}
+.edit-textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+.edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+.edit-actions-right {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+  align-items: center;
+}
+.edit-actions-right .button-secondary,
+.edit-actions-right .button-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.25rem;
+  padding: 0 0.9em;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1;
+  box-sizing: border-box;
+}
+.add-image-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  height: 2.25rem;
+  padding: 0 0.75em;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+.media-preview-container {
+  border: 1px dashed var(--border-color);
+  padding: 0.75rem;
+  border-radius: 4px;
+  position: relative;
+}
+.image-preview img {
+  max-width: 100%;
+  max-height: 220px;
+  display: block;
+  margin: 0 auto;
+  border-radius: 4px;
+}
+.video-preview iframe {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 4px;
+}
+.remove-media-btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 16px;
+  line-height: 22px;
+  text-align: center;
+  cursor: pointer;
+  padding: 0;
+}
+.edit-textarea.drag-over {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 30%, transparent);
+}
+
 .comment-media { margin-bottom: 0.75rem; }
 .comment-media img { max-width: 100%; max-height: 250px; border-radius: 4px; }
 .comment-media iframe { width: 100%; max-height: 250px; aspect-ratio: 16 / 9; border-radius: 4px; }
-
 
 .comment-footer {
   display: flex;
