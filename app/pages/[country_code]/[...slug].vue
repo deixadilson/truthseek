@@ -111,11 +111,15 @@
               @post-created="handleNewPost"
               class="create-post-component"
             />
+            <PostFiltersPanel
+              :posts="posts"
+              @update:filtered="filteredPosts = $event"
+            />
             <section class="posts-list-section">
               <PostList
-                :posts="posts"
+                :posts="filteredPosts"
                 :is-loading="isLoadingPosts"
-                empty-message="Nenhuma postagem neste grupo ainda. Seja o primeiro!"
+                :empty-message="postsEmptyMessage"
                 @post-deleted="handlePostDeleted"
                 @post-updated="handlePostUpdated"
               />
@@ -170,11 +174,19 @@ const groupData = ref<Group | null>(null);
 const subgroups = ref<Group[]>([]);
 const oppositeGroups = ref<Pick<Group, 'id' | 'name' | 'slug' | 'country_code' | 'flag_path'>[]>([]);
 const posts = ref<PostWithAuthor[]>([]);
+const filteredPosts = ref<PostWithAuthor[]>([]);
 const isLoading = ref(true);
 const isLoadingPosts = ref(false);
 const accessChecked = ref(false);
 const isDeclaringBias = ref(false);
 const userBiasForGroup = ref<Pick<Bias, 'id' | 'group_id' | 'influence_points'> | null>(null);
+
+const postsEmptyMessage = computed(() => {
+  if (posts.value.length === 0) {
+    return 'Nenhuma postagem neste grupo ainda. Seja o primeiro!';
+  }
+  return 'Nenhuma postagem corresponde aos filtros selecionados.';
+});
 
 const canInteractWithPosts = computed(() => {
   if (!groupData.value) return false;
@@ -338,6 +350,7 @@ async function fetchGroupData(country: string, slug: string): Promise<void> {
   subgroups.value = [];
   oppositeGroups.value = [];
   posts.value = [];
+  filteredPosts.value = [];
   userBiasForGroup.value = null;
 
   if (!slug || !country) {
