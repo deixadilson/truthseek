@@ -98,10 +98,27 @@
               type="button"
               :disabled="isNavigatingToProfile"
             >
-              Ver Perfil
+              <Icon name="lucide:user" :size="15" class="action-icon" />
+              <span>Ver Perfil</span>
             </button>
-            <button @click="placeholderAction('Seguir')" class="action-link" type="button">Seguir</button>
-            <button @click="placeholderAction('Bloquear')" class="action-link" type="button">Bloquear</button>
+            <button
+              v-if="user && authUserId !== authorId"
+              @click="handleToggleFollow"
+              class="action-link"
+              type="button"
+              :disabled="isTogglingFollow || followStatus === null"
+            >
+              <Icon
+                :name="followStatus ? 'lucide:user-minus' : 'lucide:user-plus'"
+                :size="15"
+                class="action-icon"
+              />
+              <span>{{ followStatus ? 'Deixar de seguir' : 'Seguir' }}</span>
+            </button>
+            <button @click="placeholderAction('Bloquear')" class="action-link" type="button">
+              <Icon name="lucide:ban" :size="15" class="action-icon" />
+              <span>Bloquear</span>
+            </button>
           </div>
         </div>
       </PopoverPanel>
@@ -126,12 +143,15 @@ const supabase = useSupabaseClient<Database>();
 const user = useSupabaseUser();
 const authUserId = useAuthUserId();
 const toast = useToast();
+const { isFollowing, toggleFollow } = useFollow();
 
 const authorBiases = ref<UserBiasForPopover[]>([]);
 const myBiasGroupIds = ref<Set<string>>(new Set());
 const isLoading = ref(false);
 const isHandlingEndorsement = ref<string | null>(null);
 const isNavigatingToProfile = ref(false);
+const isTogglingFollow = ref(false);
+const followStatus = ref<boolean | null>(null);
 const error = ref<string | null>(null);
 
 const popoverButtonRef = ref<{ $el: HTMLElement } | null>(null);
@@ -169,7 +189,7 @@ async function fetchAuthorBiases() {
   isLoading.value = true;
   error.value = null;
   try {
-    await fetchMyBiasGroupIds();
+    await Promise.all([fetchMyBiasGroupIds(), refreshFollowStatus()]);
     const { data, error: rpcError } = await supabase.rpc('get_user_biases_for_category', {
       p_author_id: props.authorId,
       p_context_group_id: props.contextGroupId,
@@ -183,6 +203,35 @@ async function fetchAuthorBiases() {
     error.value = e.message || "Falha ao carregar vieses.";
   } finally {
     isLoading.value = false;
+  }
+}
+
+async function refreshFollowStatus() {
+  followStatus.value = null;
+  if (!authUserId.value || !props.authorId || authUserId.value === props.authorId) {
+    followStatus.value = false;
+    return;
+  }
+  try {
+    followStatus.value = await isFollowing(props.authorId);
+  } catch (e) {
+    console.error('Erro ao verificar follow:', e);
+    followStatus.value = false;
+  }
+}
+
+async function handleToggleFollow() {
+  if (!authUserId.value || authUserId.value === props.authorId || followStatus.value === null) return;
+  isTogglingFollow.value = true;
+  try {
+    const next = await toggleFollow(props.authorId, followStatus.value);
+    followStatus.value = next;
+    toast.success(next ? 'Agora você segue este usuário.' : 'Você deixou de seguir este usuário.');
+  } catch (e: any) {
+    console.error('Erro ao alternar follow:', e);
+    toast.error(e.message || 'Não foi possível atualizar o follow.');
+  } finally {
+    isTogglingFollow.value = false;
   }
 }
 
@@ -505,13 +554,29 @@ function placeholderAction(action: string) {
 
 .popover-user-actions { display: flex; flex-direction: column; gap: 0.3rem; }
 .action-link {
-  font-size: 0.85rem; color: #444;
-  padding: 0.5rem 0.25rem;
-  border-radius: 3px; text-align: left;
-  background: none; border: none; cursor: pointer; width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #444;
+  padding: 0.5rem 0.35rem;
+  border-radius: 3px;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 100%;
   text-decoration: none;
 }
+.action-icon {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
 .action-link:hover { background-color: #f3f4f6; color: var(--primary-color); }
+.action-link:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 
 .popover-transition-enter-active,
 .popover-transition-leave-active {

@@ -42,6 +42,15 @@
               Membro há {{ formatMembershipDuration(profile.created_at).replace(/^há\s+/i, '') }}
             </span>
           </div>
+          <div class="follow-stats">
+            <span class="follow-stat">
+              <strong>{{ followingCount }}</strong> seguindo
+            </span>
+            <span class="follow-stat">
+              <strong>{{ followersCount }}</strong>
+              {{ followersCount === 1 ? 'seguidor' : 'seguidores' }}
+            </span>
+          </div>
           <NuxtLink
             v-if="isOwnProfile"
             to="/user/profile"
@@ -49,6 +58,22 @@
           >
             Editar meu perfil
           </NuxtLink>
+          <button
+            v-else-if="authUserId"
+            type="button"
+            class="button-secondary edit-profile-link follow-btn"
+            :disabled="isTogglingFollow || followStatus === null"
+            @click="handleToggleFollow"
+          >
+            <LoadingMessage v-if="isTogglingFollow" message="..." :icon-size="14" />
+            <template v-else>
+              <Icon
+                :name="followStatus ? 'lucide:user-minus' : 'lucide:user-plus'"
+                :size="15"
+              />
+              <span>{{ followStatus ? 'Deixar de seguir' : 'Seguir' }}</span>
+            </template>
+          </button>
         </div>
       </header>
 
@@ -119,10 +144,13 @@
 <script setup lang="ts">
 import type { BiasWithDetails, PostWithAuthor, Profile } from '~/types/app';
 import { countryFlagUrl, formatCountryName, formatMembershipDuration } from '~/utils/formatters';
+import { useToast } from 'vue-toastification';
 
 const route = useRoute();
 const supabase = useSupabaseClient();
 const authUserId = useAuthUserId();
+const toast = useToast();
+const { isFollowing, toggleFollow } = useFollow();
 
 const defaultAvatarUrl = '/images/default-avatar.png';
 const avatarBucketPath = 'https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/avatars';
@@ -138,6 +166,11 @@ const isLoadingBiases = ref(false);
 
 const posts = ref<PostWithAuthor[]>([]);
 const isLoadingPosts = ref(false);
+
+const followStatus = ref<boolean | null>(null);
+const isTogglingFollow = ref(false);
+const followersCount = ref(0);
+const followingCount = ref(0);
 
 const isOwnProfile = computed(
   () => !!authUserId.value && !!profile.value && authUserId.value === profile.value.id
@@ -176,6 +209,8 @@ async function fetchProfile() {
   avatarUrl.value = defaultAvatarUrl;
   userBiases.value = [];
   posts.value = [];
+  followersCount.value = 0;
+  followingCount.value = 0;
 
   if (!username) {
     isLoadingProfile.value = false;
@@ -199,13 +234,64 @@ async function fetchProfile() {
     }
 
     if (data) {
-      await Promise.all([fetchBiases(data.id), fetchPosts(data.id, data)]);
+      await Promise.all([
+        fetchBiases(data.id),
+        fetchPosts(data.id, data),
+        refreshFollowStatus(data.id),
+        fetchFollowCounts(data.id),
+      ]);
     }
   } catch (e) {
     console.error('Erro ao carregar perfil público:', e);
     profile.value = null;
   } finally {
     isLoadingProfile.value = false;
+  }
+}
+
+async function fetchFollowCounts(userId: string) {
+  try {
+    const { data, error } = await supabase.rpc('get_follow_counts', {
+      p_user_id: userId,
+    });
+    if (error) throw error;
+    const row = Array.isArray(data) ? data[0] : data;
+    followersCount.value = Number(row?.followers_count ?? 0);
+    followingCount.value = Number(row?.following_count ?? 0);
+  } catch (e) {
+    console.error('Erro ao carregar contadores de follow:', e);
+    followersCount.value = 0;
+    followingCount.value = 0;
+  }
+}
+
+async function refreshFollowStatus(userId: string) {
+  followStatus.value = null;
+  if (!authUserId.value || authUserId.value === userId) {
+    followStatus.value = false;
+    return;
+  }
+  try {
+    followStatus.value = await isFollowing(userId);
+  } catch (e) {
+    console.error('Erro ao verificar follow:', e);
+    followStatus.value = false;
+  }
+}
+
+async function handleToggleFollow() {
+  if (!profile.value || !authUserId.value || isOwnProfile.value || followStatus.value === null) return;
+  isTogglingFollow.value = true;
+  try {
+    const next = await toggleFollow(profile.value.id, followStatus.value);
+    followStatus.value = next;
+    followersCount.value = Math.max(0, followersCount.value + (next ? 1 : -1));
+    toast.success(next ? 'Agora você segue este usuário.' : 'Você deixou de seguir este usuário.');
+  } catch (e: any) {
+    console.error('Erro ao alternar follow:', e);
+    toast.error(e.message || 'Não foi possível atualizar o follow.');
+  } finally {
+    isTogglingFollow.value = false;
   }
 }
 
@@ -307,6 +393,14 @@ function handlePostUpdated(payload: {
 watch(routeUsername, () => {
   fetchProfile();
 }, { immediate: true });
+
+watch(authUserId, (id) => {
+  if (profile.value?.id) {
+    void refreshFollowStatus(profile.value.id);
+  } else if (!id) {
+    followStatus.value = false;
+  }
+});
 </script>
 
 <style scoped>
@@ -384,6 +478,21 @@ watch(routeUsername, () => {
   line-height: 1.2;
 }
 
+.follow-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem 1.1rem;
+  font-size: 0.92rem;
+  color: #555;
+}
+
+.follow-stat strong {
+  color: var(--text-color);
+  font-weight: 700;
+  margin-right: 0.2rem;
+}
+
 .meta-item {
   display: inline-flex;
   align-items: center;
@@ -410,6 +519,7 @@ watch(routeUsername, () => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.4rem;
   align-self: flex-start;
   margin-top: 0.15rem;
   padding: 0.45rem 0.9rem;
@@ -572,7 +682,8 @@ watch(routeUsername, () => {
     text-align: center;
   }
 
-  .profile-meta {
+  .profile-meta,
+  .follow-stats {
     justify-content: center;
   }
 

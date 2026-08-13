@@ -230,6 +230,24 @@ export type Database = {
           },
         ]
       }
+      follows: {
+        Row: {
+          created_at: string
+          follower_id: string
+          following_id: string
+        }
+        Insert: {
+          created_at?: string
+          follower_id: string
+          following_id: string
+        }
+        Update: {
+          created_at?: string
+          follower_id?: string
+          following_id?: string
+        }
+        Relationships: []
+      }
       group_oppositions: {
         Row: {
           group_id_a: string
@@ -846,6 +864,42 @@ export type Database = {
           to: "posts"
           isOneToOne: true
           isSetofReturn: false
+        }
+      }
+      get_follow_counts: {
+        Args: { p_user_id: string }
+        Returns: {
+          followers_count: number
+          following_count: number
+        }[]
+      }
+      get_timeline_posts: {
+        Args: { p_before?: string; p_limit?: number }
+        Returns: {
+          author_avatar_path: string | null
+          author_id: string | null
+          author_username: string | null
+          comments_count: number | null
+          created_at: string | null
+          dislikes_count: number | null
+          id: string | null
+          image_path: string | null
+          is_anonymous: boolean | null
+          is_edited: boolean | null
+          is_moderated: boolean | null
+          likes_count: number | null
+          owner_id: string | null
+          owner_type: string | null
+          report_points: number | null
+          text_content: string | null
+          updated_at: string | null
+          video_url: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "posts_with_author_info"
+          isOneToOne: false
+          isSetofReturn: true
         }
       }
       get_user_biases_for_category: {

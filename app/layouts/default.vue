@@ -8,6 +8,8 @@
       <nav class="main-nav">
         <div class="desktop-nav-items">
           <template v-if="user && userProfile">
+            <NuxtLink to="/" class="nav-link">Início</NuxtLink>
+            <span class="nav-separator">|</span>
             <NuxtLink to="/categories" class="nav-link">Categorias</NuxtLink>
             <span class="nav-separator">|</span>
             <NuxtLink to="/user/profile" class="nav-link user-profile-link">
@@ -49,6 +51,7 @@
             <img :src="userProfile.avatar_path ? `${avatarBucketPath}/${userProfile.avatar_path}` : defaultUserAvatar" alt="Avatar" class="nav-user-avatar-mobile" @error="onNavAvatarError" />
             <span>Meu Perfil</span>
           </NuxtLink>
+          <NuxtLink to="/" @click="closeMobileMenu">Início</NuxtLink>
           <NuxtLink to="/user/notifications" @click="closeMobileMenu">Notificações</NuxtLink>
           <NuxtLink to="/categories" @click="closeMobileMenu">Categorias</NuxtLink>
           <a href="#" @click.prevent="handleLogoutMobile">Sair</a>

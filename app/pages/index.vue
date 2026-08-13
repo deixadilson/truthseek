@@ -1,5 +1,7 @@
 <template>
-  <div class="home-page">
+  <TimelineFeed v-if="user" />
+
+  <div v-else class="home-page">
     <section class="hero-section">
       <div class="container hero-content-wrapper">
         <div class="hero-text">
@@ -42,6 +44,16 @@
     </div>
   </div>
 </template>
+
+<script setup lang="ts">
+const user = useSupabaseUser();
+
+useHead(() => ({
+  title: user.value
+    ? 'Meu feed — TruthSeek Network'
+    : 'TruthSeek Network — Debate estruturado',
+}));
+</script>
 
 <style scoped>
 .hero-section {
@@ -118,7 +130,6 @@
 .user-actions a {
   margin: 0 0.3rem;
 }
-
 
 .features-section {
   background-color: var(--card-bg);

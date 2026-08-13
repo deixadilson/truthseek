@@ -72,7 +72,7 @@ async function handleLogin(): Promise<void> {
 
     if (data.user && data.session) {
       toast.success('Login realizado com sucesso!');
-      router.push('/user/profile');
+      router.push('/');
     } else {
       toast.error('Não foi possível completar o login. Tente novamente.');
     }
