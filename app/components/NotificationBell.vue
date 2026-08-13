@@ -39,18 +39,41 @@
           :key="item.id"
           :class="{ unread: !item.read_at }"
         >
-          <button type="button" class="bell-item" @click="openNotification(item)">
-            <img
-              :src="actorAvatar(item)"
-              alt=""
-              class="bell-avatar"
-              @error="onAvatarError"
-            />
-            <span class="bell-body">
-              <span class="bell-text">{{ notificationMessage(item) }}</span>
-              <span class="bell-time">{{ timeAgo(item.created_at) }}</span>
-            </span>
-          </button>
+          <div class="bell-item-wrap">
+            <button type="button" class="bell-item" @click="openNotification(item)">
+              <img
+                :src="actorAvatar(item)"
+                alt=""
+                class="bell-avatar"
+                @error="onAvatarError"
+              />
+              <span class="bell-body">
+                <span class="bell-text">{{ notificationMessage(item) }}</span>
+                <span class="bell-time">{{ timeAgo(item.created_at) }}</span>
+              </span>
+            </button>
+            <div
+              v-if="item.type === 'follow_request' && item.actor_id"
+              class="bell-follow-actions"
+            >
+              <button
+                type="button"
+                class="bell-accept"
+                :disabled="busyRequestId === item.id"
+                @click.stop="onAcceptRequest(item)"
+              >
+                Aceitar
+              </button>
+              <button
+                type="button"
+                class="bell-reject"
+                :disabled="busyRequestId === item.id"
+                @click.stop="onRejectRequest(item)"
+              >
+                Recusar
+              </button>
+            </div>
+          </div>
         </li>
       </ul>
 
@@ -64,6 +87,7 @@
 <script setup lang="ts">
 import type { AppNotification } from '~/composables/useNotifications';
 import { timeAgo } from '~/utils/formatters';
+import { useToast } from 'vue-toastification';
 
 const {
   notifications,
@@ -72,6 +96,7 @@ const {
   hasLoaded,
   notificationMessage,
   notificationLink,
+  removeNotification,
   fetchNotifications,
   refreshUnreadCount,
   markAllRead,
@@ -79,9 +104,12 @@ const {
   startRealtime,
   stopRealtime,
 } = useNotifications();
+const { acceptFollowRequest, rejectFollowRequest } = useFollow();
+const toast = useToast();
 
 const isOpen = ref(false);
 const rootRef = ref<HTMLElement | null>(null);
+const busyRequestId = ref<string | null>(null);
 const defaultUserAvatar = '/images/default-avatar.png';
 const avatarBucket = 'https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/avatars';
 const authUserId = useAuthUserId();
@@ -108,6 +136,34 @@ async function openNotification(item: AppNotification) {
   isOpen.value = false;
   const link = notificationLink(item);
   if (link) await navigateTo(link);
+}
+
+async function onAcceptRequest(item: AppNotification) {
+  if (!item.actor_id) return;
+  busyRequestId.value = item.id;
+  try {
+    await acceptFollowRequest(item.actor_id);
+    removeNotification(item.id);
+    toast.success('Solicitação aceita.');
+  } catch (e: any) {
+    toast.error(e.message || 'Não foi possível aceitar.');
+  } finally {
+    busyRequestId.value = null;
+  }
+}
+
+async function onRejectRequest(item: AppNotification) {
+  if (!item.actor_id) return;
+  busyRequestId.value = item.id;
+  try {
+    await rejectFollowRequest(item.actor_id);
+    removeNotification(item.id);
+    toast.success('Solicitação recusada.');
+  } catch (e: any) {
+    toast.error(e.message || 'Não foi possível recusar.');
+  } finally {
+    busyRequestId.value = null;
+  }
 }
 
 function onDocumentClick(event: MouseEvent) {
@@ -240,18 +296,59 @@ onBeforeUnmount(() => {
   overflow-y: auto;
 }
 
+.bell-item-wrap {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.bell-list li:last-child .bell-item-wrap {
+  border-bottom: none;
+}
+
 .bell-item {
   width: 100%;
   display: flex;
   gap: 0.65rem;
   align-items: flex-start;
-  padding: 0.7rem 0.9rem;
+  padding: 0.7rem 0.9rem 0.35rem;
   border: none;
-  border-bottom: 1px solid var(--border-color);
   background: transparent;
   text-align: left;
   cursor: pointer;
   color: inherit;
+}
+
+.bell-follow-actions {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0 0.9rem 0.7rem calc(0.9rem + 36px + 0.65rem);
+}
+
+.bell-accept,
+.bell-reject {
+  height: 1.7rem;
+  padding: 0 0.65em;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bell-accept {
+  border: 1px solid var(--primary-color);
+  background: var(--primary-color);
+  color: #fff;
+}
+
+.bell-reject {
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-color);
+}
+
+.bell-accept:disabled,
+.bell-reject:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .bell-list li.unread .bell-item {

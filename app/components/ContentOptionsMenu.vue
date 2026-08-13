@@ -24,6 +24,21 @@
             Editar
           </button>
         </MenuItem>
+        <MenuItem v-if="canToggleNotifications" v-slot="{ active }">
+          <button
+            type="button"
+            class="menu-item"
+            :class="{ active }"
+            :disabled="notificationsBusy"
+            @click="emit('toggle-notifications'); close()"
+          >
+            <Icon
+              :name="isSubscribedToNotifications ? 'lucide:bell-off' : 'lucide:bell'"
+              :size="14"
+            />
+            {{ isSubscribedToNotifications ? 'Parar notificações' : 'Receber notificações' }}
+          </button>
+        </MenuItem>
         <MenuItem v-if="shareUrl" v-slot="{ active }">
           <button
             type="button"
@@ -69,6 +84,9 @@ defineProps<{
   canEdit?: boolean;
   canDelete?: boolean;
   canReport?: boolean;
+  canToggleNotifications?: boolean;
+  isSubscribedToNotifications?: boolean;
+  notificationsBusy?: boolean;
   shareUrl?: string | null;
   disabled?: boolean;
 }>();
@@ -78,6 +96,7 @@ const emit = defineEmits<{
   (e: 'delete'): void;
   (e: 'share'): void;
   (e: 'report'): void;
+  (e: 'toggle-notifications'): void;
 }>();
 </script>
 
@@ -113,7 +132,7 @@ const emit = defineEmits<{
   right: 0;
   top: calc(100% + 4px);
   z-index: 30;
-  min-width: 150px;
+  min-width: 190px;
   background: var(--card-bg);
   border: 1px solid var(--border-color);
   border-radius: 6px;

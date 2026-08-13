@@ -145,6 +145,7 @@ async function handleRegister(): Promise<void> {
       email: email.value,
       password: password.value,
       options: {
+        emailRedirectTo: `${window.location.origin}/user/confirm`,
         data: {
           username: username.value,
           country_code: country.value,

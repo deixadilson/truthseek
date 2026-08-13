@@ -109,11 +109,11 @@
               :disabled="isTogglingFollow || followStatus === null"
             >
               <Icon
-                :name="followStatus ? 'lucide:user-minus' : 'lucide:user-plus'"
+                :name="followStatusDisplayIcon"
                 :size="15"
                 class="action-icon"
               />
-              <span>{{ followStatus ? 'Deixar de seguir' : 'Seguir' }}</span>
+              <span>{{ followActionLabel(followStatus) }}</span>
             </button>
             <button
               v-if="user && authUserId !== authorId"
@@ -149,6 +149,7 @@ import { Popover, PopoverButton, PopoverPanel, TransitionRoot, TransitionChild }
 import type { Database } from '~/types/supabase';
 import type { UserBiasForPopover } from '~/types/app';
 import type { BlockStatus } from '~/composables/useBlock';
+import type { FollowStatus } from '~/composables/useFollow';
 import { useToast } from 'vue-toastification';
 
 const props = defineProps<{
@@ -162,7 +163,12 @@ const supabase = useSupabaseClient<Database>();
 const user = useSupabaseUser();
 const authUserId = useAuthUserId();
 const toast = useToast();
-const { isFollowing, toggleFollow } = useFollow();
+const {
+  getFollowStatus,
+  toggleFollow,
+  followActionLabel,
+  followToastMessage,
+} = useFollow();
 const { getBlockStatus, blockUser, unblockUser } = useBlock();
 
 const authorBiases = ref<UserBiasForPopover[]>([]);
@@ -171,11 +177,17 @@ const isLoading = ref(false);
 const isHandlingEndorsement = ref<string | null>(null);
 const isNavigatingToProfile = ref(false);
 const isTogglingFollow = ref(false);
-const followStatus = ref<boolean | null>(null);
+const followStatus = ref<FollowStatus | null>(null);
 const isTogglingBlock = ref(false);
 const blockStatus = ref<BlockStatus | null>(null);
 const showBlockConfirm = ref(false);
 const error = ref<string | null>(null);
+
+const followStatusDisplayIcon = computed(() => {
+  if (followStatus.value === 'following') return 'lucide:user-check';
+  if (followStatus.value === 'requested') return 'lucide:clock';
+  return 'lucide:user-plus';
+});
 
 const popoverButtonRef = ref<{ $el: HTMLElement } | null>(null);
 const popoverPanelRef = ref<{ $el: HTMLElement } | null>(null);
@@ -232,14 +244,14 @@ async function fetchAuthorBiases() {
 async function refreshFollowStatus() {
   followStatus.value = null;
   if (!authUserId.value || !props.authorId || authUserId.value === props.authorId) {
-    followStatus.value = false;
+    followStatus.value = 'none';
     return;
   }
   try {
-    followStatus.value = await isFollowing(props.authorId);
+    followStatus.value = await getFollowStatus(props.authorId);
   } catch (e) {
     console.error('Erro ao verificar follow:', e);
-    followStatus.value = false;
+    followStatus.value = 'none';
   }
 }
 
@@ -267,7 +279,7 @@ async function handleToggleFollow() {
   try {
     const next = await toggleFollow(props.authorId, followStatus.value);
     followStatus.value = next;
-    toast.success(next ? 'Agora você segue este usuário.' : 'Você deixou de seguir este usuário.');
+    toast.success(followToastMessage(next));
   } catch (e: any) {
     console.error('Erro ao alternar follow:', e);
     toast.error(e.message || 'Não foi possível atualizar o follow.');
@@ -305,7 +317,7 @@ async function confirmBlock() {
   try {
     await blockUser(props.authorId);
     blockStatus.value = 'blocking';
-    followStatus.value = false;
+    followStatus.value = 'none';
     showBlockConfirm.value = false;
     isOpenForUI.value = false;
     toast.success('Usuário bloqueado.');

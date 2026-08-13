@@ -115,7 +115,14 @@
                   <span class="points">{{ bias.influence_points }}</span>
                   <span class="title">{{ bias.title }}</span>
                 </div>
-                <button  v-if="bias.id" @click="removeBias(bias.id)" class="remove-bias-btn" title="Remover Viés">
+                <button
+                  v-if="bias.id"
+                  type="button"
+                  class="remove-bias-btn"
+                  title="Remover Viés"
+                  :disabled="isRemovingBias"
+                  @click="askRemoveBias(bias)"
+                >
                   ×
                 </button>
               </li>
@@ -130,6 +137,17 @@
         </div>
       </section>
     </div>
+
+    <ConfirmDialog
+      v-model:open="showRemoveBiasConfirm"
+      title="Remover viés"
+      :message="removeBiasMessage"
+      confirm-label="Remover"
+      busy-label="Removendo..."
+      :busy="isRemovingBias"
+      @confirm="executeRemoveBias"
+      @cancel="cancelRemoveBias"
+    />
   </div>
 </template>
 
@@ -158,6 +176,16 @@ let currentSelectedFileForUpload: File | null = null;
 
 const userBiases = ref<BiasWithDetails[]>([]);
 const isLoadingBiases = ref(false);
+const showRemoveBiasConfirm = ref(false);
+const biasIdPendingRemoval = ref<string | null>(null);
+const biasNamePendingRemoval = ref<string | null>(null);
+const isRemovingBias = ref(false);
+
+const removeBiasMessage = computed(() => {
+  const name = biasNamePendingRemoval.value;
+  const target = name ? ` o viés “${name}”` : ' este viés';
+  return `Tem certeza que deseja remover${target}? Você perderá sua influência acumulada.`;
+});
 
 const groupedBiases = computed(() => {
   const groups: Record<string, { categoryName: string; biases: BiasWithDetails[] }> = {};
@@ -288,15 +316,37 @@ async function uploadAvatar(fileToUpload: File) {
   }
 }
 
-async function removeBias(biasId: string) {
-  if (!confirm("Tem certeza que deseja remover este viés? Você perderá sua influência acumulada.")) return;
+function askRemoveBias(bias: BiasWithDetails) {
+  if (!bias.id || isRemovingBias.value) return;
+  biasIdPendingRemoval.value = bias.id;
+  biasNamePendingRemoval.value = bias.group_name || null;
+  showRemoveBiasConfirm.value = true;
+}
+
+function cancelRemoveBias() {
+  if (isRemovingBias.value) return;
+  showRemoveBiasConfirm.value = false;
+  biasIdPendingRemoval.value = null;
+  biasNamePendingRemoval.value = null;
+}
+
+async function executeRemoveBias() {
+  const biasId = biasIdPendingRemoval.value;
+  if (!biasId || isRemovingBias.value) return;
+
+  isRemovingBias.value = true;
   try {
     const { error } = await supabase.from('biases').delete().eq('id', biasId);
     if (error) throw error;
-    toast.success("Viés removido.");
-    fetchUserBiases();
-  } catch (e:any) {
-    toast.error("Erro ao remover viés: " + e.message);
+    toast.success('Viés removido.');
+    showRemoveBiasConfirm.value = false;
+    biasIdPendingRemoval.value = null;
+    biasNamePendingRemoval.value = null;
+    await fetchUserBiases();
+  } catch (e: any) {
+    toast.error('Erro ao remover viés: ' + e.message);
+  } finally {
+    isRemovingBias.value = false;
   }
 }
 

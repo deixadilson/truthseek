@@ -49,13 +49,21 @@
             </span>
           </div>
           <div v-if="blockStatus !== 'blocking'" class="follow-stats">
-            <span class="follow-stat">
+            <button
+              type="button"
+              class="follow-stat follow-stat-btn"
+              @click="openFollowList('followers')"
+            >
               <strong>{{ followersCount }}</strong>
               {{ followersCount === 1 ? 'seguidor' : 'seguidores' }}
-            </span>
-            <span class="follow-stat">
+            </button>
+            <button
+              type="button"
+              class="follow-stat follow-stat-btn"
+              @click="openFollowList('following')"
+            >
               <strong>{{ followingCount }}</strong> seguindo
-            </span>
+            </button>
           </div>
           <p v-if="blockStatus === 'blocking'" class="blocked-banner">
             Você bloqueou este usuário. Postagens e interações ficam ocultas.
@@ -68,36 +76,50 @@
             >
               Editar meu perfil
             </NuxtLink>
-            <button
-              v-else-if="authUserId && blockStatus === 'none'"
-              type="button"
-              class="button-secondary edit-profile-link follow-btn"
-              :disabled="isTogglingFollow || followStatus === null"
-              @click="handleToggleFollow"
-            >
-              <LoadingMessage v-if="isTogglingFollow" message="..." :icon-size="14" />
-              <template v-else>
-                <Icon
-                  :name="followStatus ? 'lucide:user-minus' : 'lucide:user-plus'"
-                  :size="15"
-                />
-                <span>{{ followStatus ? 'Deixar de seguir' : 'Seguir' }}</span>
-              </template>
-            </button>
-            <button
-              v-if="authUserId && !isOwnProfile"
-              type="button"
-              class="button-secondary edit-profile-link block-btn"
-              :class="{ danger: blockStatus !== 'blocking' }"
-              :disabled="isTogglingBlock || blockStatus === null"
-              @click="handleBlockClick"
-            >
-              <LoadingMessage v-if="isTogglingBlock" message="..." :icon-size="14" />
-              <template v-else>
-                <Icon name="lucide:ban" :size="15" />
-                <span>{{ blockStatus === 'blocking' ? 'Desbloquear' : 'Bloquear' }}</span>
-              </template>
-            </button>
+
+            <template v-else-if="authUserId && blockStatus === 'blocking'">
+              <button
+                type="button"
+                class="button-secondary edit-profile-link"
+                :disabled="isTogglingBlock"
+                @click="confirmUnblock"
+              >
+                <LoadingMessage v-if="isTogglingBlock" message="..." :icon-size="14" />
+                <template v-else>
+                  <Icon name="lucide:ban" :size="15" />
+                  <span>Desbloquear</span>
+                </template>
+              </button>
+            </template>
+
+            <template v-else-if="authUserId && blockStatus === 'none'">
+              <button
+                type="button"
+                class="follow-status-btn"
+                :class="{
+                  interactive: followStatus === 'none',
+                  static: followStatus === 'following' || followStatus === 'requested',
+                }"
+                :disabled="followStatus !== 'none' || isTogglingFollow || followStatus === null"
+                @click="handleRequestFollow"
+              >
+                <LoadingMessage v-if="isTogglingFollow" message="..." :icon-size="14" />
+                <template v-else>
+                  <Icon :name="followStatusDisplayIcon" :size="15" />
+                  <span>{{ followStatusDisplayLabel }}</span>
+                </template>
+              </button>
+
+              <FollowDestructiveMenu
+                :show-unfollow="followStatus === 'following'"
+                :show-cancel-request="followStatus === 'requested'"
+                :disabled="isTogglingFollow || isTogglingBlock"
+                :size="18"
+                @unfollow="handleUnfollow"
+                @cancel-request="handleCancelRequest"
+                @block="showBlockConfirm = true"
+              />
+            </template>
           </div>
         </div>
       </header>
@@ -177,12 +199,23 @@
       @confirm="confirmBlock"
       @update:open="showBlockConfirm = $event"
     />
+
+    <FollowListDialog
+      v-if="profile"
+      :open="followListOpen"
+      :mode="followListMode"
+      :user-id="profile.id"
+      :username="profile.username"
+      @close="followListOpen = false"
+      @changed="onFollowListChanged"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import type { BiasWithDetails, PostWithAuthor, Profile } from '~/types/app';
 import type { BlockStatus } from '~/composables/useBlock';
+import type { FollowStatus } from '~/composables/useFollow';
 import { countryFlagUrl, formatCountryName, formatMembershipDuration } from '~/utils/formatters';
 import { parseProfileVisibility } from '~/utils/profileVisibility';
 import { useToast } from 'vue-toastification';
@@ -191,7 +224,14 @@ const route = useRoute();
 const supabase = useSupabaseClient();
 const authUserId = useAuthUserId();
 const toast = useToast();
-const { isFollowing, toggleFollow } = useFollow();
+const {
+  isFollowing,
+  getFollowStatus,
+  requestFollow,
+  unfollow,
+  cancelFollowRequest,
+  followToastMessage,
+} = useFollow();
 const { getBlockStatus, blockUser, unblockUser } = useBlock();
 
 const defaultAvatarUrl = '/images/default-avatar.png';
@@ -214,10 +254,12 @@ const profileAuthor = ref<Pick<Profile, 'username' | 'avatar_path'> | null>(null
 
 const POSTS_PAGE_SIZE = 20;
 
-const followStatus = ref<boolean | null>(null);
+const followStatus = ref<FollowStatus | null>(null);
 const isTogglingFollow = ref(false);
 const followersCount = ref(0);
 const followingCount = ref(0);
+const followListOpen = ref(false);
+const followListMode = ref<'followers' | 'following'>('followers');
 const blockStatus = ref<BlockStatus | null>(null);
 const isTogglingBlock = ref(false);
 const showBlockConfirm = ref(false);
@@ -336,7 +378,7 @@ async function fetchProfile() {
         tasks.push(fetchPosts(data.id, profileAuthor.value));
         tasks.push(refreshFollowStatus(data.id));
       } else {
-        followStatus.value = false;
+        followStatus.value = 'none';
       }
       await Promise.all(tasks);
     }
@@ -367,44 +409,90 @@ async function fetchFollowCounts(userId: string) {
 async function refreshFollowStatus(userId: string) {
   followStatus.value = null;
   if (!authUserId.value || authUserId.value === userId) {
-    followStatus.value = false;
+    followStatus.value = 'none';
     return;
   }
   try {
-    followStatus.value = await isFollowing(userId);
+    followStatus.value = await getFollowStatus(userId);
   } catch (e) {
     console.error('Erro ao verificar follow:', e);
-    followStatus.value = false;
+    followStatus.value = 'none';
   }
 }
 
-async function handleToggleFollow() {
-  if (!profile.value || !authUserId.value || isOwnProfile.value || followStatus.value === null) return;
-  if (blockStatus.value && blockStatus.value !== 'none') {
-    toast.info('Não é possível seguir um usuário bloqueado.');
-    return;
-  }
+const followStatusDisplayLabel = computed(() => {
+  if (followStatus.value === 'following') return 'Seguindo';
+  if (followStatus.value === 'requested') return 'Solicitado';
+  return 'Seguir';
+});
+
+const followStatusDisplayIcon = computed(() => {
+  if (followStatus.value === 'following') return 'lucide:user-check';
+  if (followStatus.value === 'requested') return 'lucide:clock';
+  return 'lucide:user-plus';
+});
+
+async function handleRequestFollow() {
+  if (!profile.value || !authUserId.value || isOwnProfile.value || followStatus.value !== 'none') return;
   isTogglingFollow.value = true;
   try {
-    const next = await toggleFollow(profile.value.id, followStatus.value);
+    const next = await requestFollow(profile.value.id);
     followStatus.value = next;
-    followersCount.value = Math.max(0, followersCount.value + (next ? 1 : -1));
-    toast.success(next ? 'Agora você segue este usuário.' : 'Você deixou de seguir este usuário.');
+    if (next === 'following') {
+      followersCount.value += 1;
+    }
+    toast.success(followToastMessage(next));
   } catch (e: any) {
-    console.error('Erro ao alternar follow:', e);
-    toast.error(e.message || 'Não foi possível atualizar o follow.');
+    console.error('Erro ao seguir:', e);
+    toast.error(e.message || 'Não foi possível enviar a solicitação.');
   } finally {
     isTogglingFollow.value = false;
   }
 }
 
-function handleBlockClick() {
-  if (!profile.value || !authUserId.value || isOwnProfile.value || blockStatus.value === null) return;
-  if (blockStatus.value === 'blocking') {
-    void confirmUnblock();
-    return;
+async function handleUnfollow() {
+  if (!profile.value || followStatus.value !== 'following') return;
+  isTogglingFollow.value = true;
+  try {
+    await unfollow(profile.value.id);
+    followStatus.value = 'none';
+    followersCount.value = Math.max(0, followersCount.value - 1);
+    toast.success(followToastMessage('none'));
+  } catch (e: any) {
+    console.error('Erro ao deixar de seguir:', e);
+    toast.error(e.message || 'Não foi possível deixar de seguir.');
+  } finally {
+    isTogglingFollow.value = false;
   }
-  showBlockConfirm.value = true;
+}
+
+async function handleCancelRequest() {
+  if (!profile.value || followStatus.value !== 'requested') return;
+  isTogglingFollow.value = true;
+  try {
+    await cancelFollowRequest(profile.value.id);
+    followStatus.value = 'none';
+    toast.success('Solicitação cancelada.');
+  } catch (e: any) {
+    console.error('Erro ao cancelar solicitação:', e);
+    toast.error(e.message || 'Não foi possível cancelar a solicitação.');
+  } finally {
+    isTogglingFollow.value = false;
+  }
+}
+
+function openFollowList(mode: 'followers' | 'following') {
+  if (!profile.value || blockStatus.value === 'blocking') return;
+  followListMode.value = mode;
+  followListOpen.value = true;
+}
+
+async function onFollowListChanged() {
+  if (!profile.value) return;
+  await fetchFollowCounts(profile.value.id);
+  if (authUserId.value && authUserId.value !== profile.value.id) {
+    await refreshFollowStatus(profile.value.id);
+  }
 }
 
 async function confirmUnblock() {
@@ -438,7 +526,7 @@ async function confirmBlock() {
   try {
     await blockUser(profile.value.id);
     blockStatus.value = 'blocking';
-    followStatus.value = false;
+    followStatus.value = 'none';
     posts.value = [];
     userBiases.value = [];
     hasMorePosts.value = false;
@@ -686,6 +774,21 @@ watch(authUserId, () => {
   margin-right: 0.2rem;
 }
 
+.follow-stat-btn {
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.follow-stat-btn:hover strong,
+.follow-stat-btn:hover {
+  color: var(--primary-color);
+}
+
 .meta-item {
   display: inline-flex;
   align-items: center;
@@ -724,8 +827,45 @@ watch(authUserId, () => {
 .profile-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 0.25rem;
   margin-top: 0.15rem;
+}
+
+.follow-status-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  height: 2.15rem;
+  min-width: 7.5rem;
+  padding: 0 0.7rem;
+  border: 1px solid #c5c9ce;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.follow-status-btn.static,
+.follow-status-btn:disabled {
+  opacity: 1;
+  cursor: default;
+  color: #6b7280;
+  background: transparent;
+  border-color: #c5c9ce;
+}
+
+.follow-status-btn.interactive:not(:disabled) {
+  cursor: pointer;
+  color: #6b7280;
+  border-color: #c5c9ce;
+}
+
+.follow-status-btn.interactive:not(:disabled):hover {
+  color: #4b5563;
+  border-color: #9ca3af;
 }
 
 .blocked-banner {
@@ -737,11 +877,6 @@ watch(authUserId, () => {
   background: #fff6e8;
   border: 1px solid #f0d3a8;
   border-radius: 6px;
-}
-
-.block-btn.danger {
-  color: #b91c1c;
-  border-color: #f0c4c4;
 }
 
 .profile-body {

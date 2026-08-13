@@ -88,7 +88,7 @@
                 type="button"
                 class="button-primary"
                 :disabled="isDeclaringBias"
-                @click="declareBiasForCurrentGroup"
+                @click="openDeclareBiasDialog"
               >
                 <LoadingMessage
                   v-if="isDeclaringBias"
@@ -170,6 +170,15 @@
         </aside>
       </div>
     </div>
+
+    <DeclareBiasPremisesDialog
+      :open="declareBiasDialogOpen"
+      :group-id="groupData?.id ?? null"
+      :group-name="groupData?.name"
+      :busy="isDeclaringBias"
+      @close="closeDeclareBiasDialog"
+      @confirm="confirmDeclareBias"
+    />
   </div>
 </template>
 
@@ -194,6 +203,7 @@ const isLoadingMorePosts = ref(false);
 const hasMorePosts = ref(false);
 const accessChecked = ref(false);
 const isDeclaringBias = ref(false);
+const declareBiasDialogOpen = ref(false);
 const userBiasForGroup = ref<Pick<Bias, 'id' | 'group_id' | 'influence_points'> | null>(null);
 
 const POSTS_PAGE_SIZE = 20;
@@ -300,7 +310,17 @@ async function resolveGroupAccess(groupId: string, isOpen: boolean) {
   }
 }
 
-async function declareBiasForCurrentGroup() {
+function openDeclareBiasDialog() {
+  if (!authUserId.value || !groupData.value || isDeclaringBias.value) return;
+  declareBiasDialogOpen.value = true;
+}
+
+function closeDeclareBiasDialog() {
+  if (isDeclaringBias.value) return;
+  declareBiasDialogOpen.value = false;
+}
+
+async function confirmDeclareBias() {
   if (!authUserId.value || !groupData.value || isDeclaringBias.value) return;
 
   isDeclaringBias.value = true;
@@ -332,6 +352,7 @@ async function declareBiasForCurrentGroup() {
       if (error.message?.includes('unique constraint') || error.code === '23505') {
         toast.info('Você já declarou este viés.');
         await resolveGroupAccess(groupData.value.id, !!groupData.value.is_open);
+        declareBiasDialogOpen.value = false;
       } else {
         throw error;
       }
@@ -341,6 +362,7 @@ async function declareBiasForCurrentGroup() {
     if (data) {
       userBiasForGroup.value = data;
       toast.success('Viés declarado com sucesso!');
+      declareBiasDialogOpen.value = false;
     }
   } catch (e: any) {
     toast.error('Erro ao declarar viés: ' + e.message);

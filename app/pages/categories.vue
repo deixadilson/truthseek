@@ -75,7 +75,7 @@
             <template v-if="!group.is_open">
               <button
                 v-if="!isBiasDeclared(group.id)"
-                @click.stop="declareBias(group.id)"
+                @click.stop="openDeclareBiasDialog(group)"
                 class="button-primary action-button"
                 :disabled="isDeclaringBiasFor === group.id"
               >
@@ -103,6 +103,15 @@
         Voltar
       </button>
     </div>
+
+    <DeclareBiasPremisesDialog
+      :open="declareBiasDialogOpen"
+      :group-id="pendingDeclareGroupId"
+      :group-name="pendingDeclareGroupName"
+      :busy="!!isDeclaringBiasFor"
+      @close="closeDeclareBiasDialog"
+      @confirm="confirmDeclareBias"
+    />
   </div>
 </template>
 
@@ -133,6 +142,9 @@ const breadcrumbs = ref<BreadcrumbItem[]>([]);
 
 const userBiases = ref<Bias[]>([]);
 const isDeclaringBiasFor = ref<string | null>(null);
+const declareBiasDialogOpen = ref(false);
+const pendingDeclareGroupId = ref<string | null>(null);
+const pendingDeclareGroupName = ref<string | null>(null);
 
 const bucket = 'https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public';
 
@@ -161,17 +173,32 @@ function isBiasDeclared(groupId: string): boolean {
   return userBiases.value.some(bias => bias.group_id === groupId);
 }
 
-async function declareBias(groupId: string) {
+async function openDeclareBiasDialog(group: Group) {
   if (!authUserId.value) {
     toast.info('É necessário criar uma conta para defender um viés. Cadastre-se ou faça login.');
     await navigateTo('/user/register');
     return;
   }
 
+  pendingDeclareGroupId.value = group.id;
+  pendingDeclareGroupName.value = group.name;
+  declareBiasDialogOpen.value = true;
+}
+
+function closeDeclareBiasDialog() {
+  if (isDeclaringBiasFor.value) return;
+  declareBiasDialogOpen.value = false;
+  pendingDeclareGroupId.value = null;
+  pendingDeclareGroupName.value = null;
+}
+
+async function confirmDeclareBias() {
+  const groupId = pendingDeclareGroupId.value;
+  if (!authUserId.value || !groupId || isDeclaringBiasFor.value) return;
+
   isDeclaringBiasFor.value = groupId;
 
   try {
-    // Verifica se o usuário pode declarar viés para este grupo
     const { data: checkData, error: checkError } = await supabase.rpc('can_declare_bias', {
       p_user_id: authUserId.value,
       p_group_id_to_declare: groupId,
@@ -183,11 +210,9 @@ async function declareBias(groupId: string) {
 
     if (result && !result.can_declare) {
       toast.error(result.reason || "Não foi possível declarar este viés.");
-      isDeclaringBiasFor.value = null;
       return;
     }
 
-    // Tenta inserir o viés
     const { data, error } = await supabase
       .from('biases')
       .insert({ user_id: authUserId.value, group_id: groupId, influence_points: 10 })
@@ -197,13 +222,16 @@ async function declareBias(groupId: string) {
     if (error) {
       if (error.message?.includes('unique constraint') || error.code === '23505') {
         toast.info('Você já declarou este viés.');
-        if (!isBiasDeclared(groupId)) fetchUserBiases(); // sincronizar o estado local se ele estiver incorreto
+        if (!isBiasDeclared(groupId)) fetchUserBiases();
       } else {
         throw error;
       }
     } else if (data) {
       toast.success('Viés declarado com sucesso!');
       userBiases.value.push(data as Bias);
+      declareBiasDialogOpen.value = false;
+      pendingDeclareGroupId.value = null;
+      pendingDeclareGroupName.value = null;
     }
   } catch (e: any) {
     toast.error("Erro ao declarar viés: " + e.message);
@@ -433,6 +461,7 @@ watch(breadcrumbs, (newCrumbs) => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  isolation: isolate;
 }
 .category-card.clickable { cursor: pointer; }
 .category-card.clickable:hover {
@@ -444,6 +473,8 @@ watch(breadcrumbs, (newCrumbs) => {
   width: 100%;
   height: 200px;
   background-color: var(--primary-color-light);
+  position: relative;
+  z-index: 0;
 }
 .card-image-container::after {
   content: '';

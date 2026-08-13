@@ -38,10 +38,16 @@ export function useNotifications() {
           : `${actor} curtiu sua postagem`;
       case 'comment':
         return `${actor} comentou na sua postagem`;
+      case 'post_activity':
+        return `${actor} comentou em uma postagem que você acompanha`;
       case 'reply':
         return `${actor} respondeu ao seu comentário`;
       case 'endorse':
         return `${actor} endossou seu viés`;
+      case 'follow_request':
+        return `${actor} pediu para te seguir`;
+      case 'follow_accepted':
+        return `${actor} aceitou sua solicitação de seguir`;
       default:
         return `${actor} interagiu com você`;
     }
@@ -49,17 +55,28 @@ export function useNotifications() {
 
   function notificationLink(n: AppNotification): string | null {
     if (n.type === 'endorse') return '/user/profile';
+    if (n.type === 'follow_request' || n.type === 'follow_accepted') {
+      return n.actor_username ? `/user/${n.actor_username}` : null;
+    }
     if (n.post_id) {
       if (n.type === 'reply' || (n.type === 'like' && n.target_type === 'comment')) {
         return `/post/${n.post_id}#comment-${n.target_id}`;
       }
-      if (n.type === 'comment') {
+      if (n.type === 'comment' || n.type === 'post_activity') {
         return `/post/${n.post_id}`;
       }
       return `/post/${n.post_id}`;
     }
     if (n.target_type === 'post') return `/post/${n.target_id}`;
     return null;
+  }
+
+  function removeNotification(id: string) {
+    const item = notifications.value.find((n) => n.id === id);
+    notifications.value = notifications.value.filter((n) => n.id !== id);
+    if (item && !item.read_at) {
+      unreadCount.value = Math.max(0, unreadCount.value - 1);
+    }
   }
 
   async function refreshUnreadCount() {
@@ -225,6 +242,28 @@ export function useNotifications() {
           handleRealtimeUpdate(payload.new as NotificationRow);
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          const old = payload.old as { id?: string; read_at?: string | null };
+          if (!old?.id) return;
+          const existing = notifications.value.find((n) => n.id === old.id);
+          if (!existing) {
+            refreshUnreadCount();
+            return;
+          }
+          notifications.value = notifications.value.filter((n) => n.id !== old.id);
+          if (!existing.read_at) {
+            unreadCount.value = Math.max(0, unreadCount.value - 1);
+          }
+        }
+      )
       .subscribe((status) => {
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           console.warn('Realtime de notificações falhou; usando contagem sob demanda.');
@@ -270,6 +309,7 @@ export function useNotifications() {
     hasLoaded,
     notificationMessage,
     notificationLink,
+    removeNotification,
     refreshUnreadCount,
     fetchNotifications,
     markAllRead,

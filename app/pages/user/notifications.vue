@@ -25,19 +25,53 @@
         :key="item.id"
         :class="{ unread: !item.read_at }"
       >
-        <button type="button" class="notification-row" @click="openItem(item)">
-          <img
-            :src="actorAvatar(item)"
-            alt=""
-            class="avatar"
-            @error="onAvatarError"
-          />
-          <div class="body">
-            <p class="text">{{ notificationMessage(item) }}</p>
-            <span class="time">{{ timeAgo(item.created_at) }}</span>
+        <div class="notification-row">
+          <button type="button" class="notification-main" @click="openItem(item)">
+            <img
+              :src="actorAvatar(item)"
+              alt=""
+              class="avatar"
+              @error="onAvatarError"
+            />
+            <div class="body">
+              <p class="text">{{ notificationMessage(item) }}</p>
+              <span class="time">{{ timeAgo(item.created_at) }}</span>
+            </div>
+            <span v-if="!item.read_at" class="unread-dot" aria-hidden="true" />
+          </button>
+
+          <div
+            v-if="item.type === 'follow_request' && item.actor_id"
+            class="follow-request-actions"
+          >
+            <button
+              type="button"
+              class="button-primary request-btn"
+              :disabled="busyRequestId === item.id"
+              @click.stop="onAcceptRequest(item)"
+            >
+              <LoadingMessage
+                v-if="busyRequestId === item.id && busyAction === 'accept'"
+                message="..."
+                :icon-size="14"
+              />
+              <template v-else>Aceitar</template>
+            </button>
+            <button
+              type="button"
+              class="button-secondary request-btn"
+              :disabled="busyRequestId === item.id"
+              @click.stop="onRejectRequest(item)"
+            >
+              <LoadingMessage
+                v-if="busyRequestId === item.id && busyAction === 'reject'"
+                message="..."
+                :icon-size="14"
+              />
+              <template v-else>Recusar</template>
+            </button>
           </div>
-          <span v-if="!item.read_at" class="unread-dot" aria-hidden="true" />
-        </button>
+        </div>
       </li>
     </ul>
 
@@ -58,6 +92,7 @@
 <script setup lang="ts">
 import type { AppNotification } from '~/composables/useNotifications';
 import { timeAgo } from '~/utils/formatters';
+import { useToast } from 'vue-toastification';
 
 definePageMeta({
   middleware: 'auth',
@@ -70,15 +105,20 @@ const {
   hasLoaded,
   notificationMessage,
   notificationLink,
+  removeNotification,
   fetchNotifications,
   markAllRead,
   markOneRead,
 } = useNotifications();
+const { acceptFollowRequest, rejectFollowRequest } = useFollow();
+const toast = useToast();
 
 const PAGE_SIZE = 30;
 const isBusy = ref(false);
 const isLoadingMore = ref(false);
 const hasMore = ref(false);
+const busyRequestId = ref<string | null>(null);
+const busyAction = ref<'accept' | 'reject' | null>(null);
 const defaultUserAvatar = '/images/default-avatar.png';
 const avatarBucket = 'https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/avatars';
 
@@ -107,6 +147,38 @@ async function openItem(item: AppNotification) {
   await markOneRead(item.id);
   const link = notificationLink(item);
   if (link) await navigateTo(link);
+}
+
+async function onAcceptRequest(item: AppNotification) {
+  if (!item.actor_id) return;
+  busyRequestId.value = item.id;
+  busyAction.value = 'accept';
+  try {
+    await acceptFollowRequest(item.actor_id);
+    removeNotification(item.id);
+    toast.success('Solicitação aceita.');
+  } catch (e: any) {
+    toast.error(e.message || 'Não foi possível aceitar a solicitação.');
+  } finally {
+    busyRequestId.value = null;
+    busyAction.value = null;
+  }
+}
+
+async function onRejectRequest(item: AppNotification) {
+  if (!item.actor_id) return;
+  busyRequestId.value = item.id;
+  busyAction.value = 'reject';
+  try {
+    await rejectFollowRequest(item.actor_id);
+    removeNotification(item.id);
+    toast.success('Solicitação recusada.');
+  } catch (e: any) {
+    toast.error(e.message || 'Não foi possível recusar a solicitação.');
+  } finally {
+    busyRequestId.value = null;
+    busyAction.value = null;
+  }
 }
 
 async function loadInitial() {
@@ -177,17 +249,11 @@ onMounted(() => {
 }
 
 .notification-row {
-  width: 100%;
   display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
+  flex-direction: column;
+  gap: 0.55rem;
   padding: 0.9rem 1rem;
-  border: none;
   border-bottom: 1px solid var(--border-color);
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-  color: inherit;
 }
 
 .notifications-list li:last-child .notification-row {
@@ -198,8 +264,35 @@ onMounted(() => {
   background: color-mix(in srgb, var(--primary-color-light) 40%, transparent);
 }
 
-.notification-row:hover {
-  background: var(--primary-color-light);
+.notification-main {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.notification-main:hover .text {
+  color: var(--primary-color);
+}
+
+.follow-request-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-left: calc(40px + 0.75rem);
+}
+
+.request-btn {
+  height: 2rem;
+  padding: 0 0.9em;
+  font-size: 0.85rem;
+  min-width: 5.5rem;
 }
 
 .avatar {

@@ -59,12 +59,16 @@
         :can-edit="isAuthor"
         :can-delete="isAuthor"
         :can-report="canReport"
+        :can-toggle-notifications="canToggleNotifications"
+        :is-subscribed-to-notifications="isSubscribedToNotifications"
+        :notifications-busy="isTogglingNotifications"
         :share-url="shareUrl"
         :disabled="isBusy"
         @edit="startEdit"
         @delete="confirmDelete"
         @share="sharePost"
         @report="openReportDialog"
+        @toggle-notifications="togglePostNotifications"
       />
     </header>
 
@@ -226,6 +230,9 @@ const editText = ref('');
 const isBusy = ref(false);
 const showDeleteConfirm = ref(false);
 const showReportDialog = ref(false);
+const isSubscribedToNotifications = ref(false);
+const isTogglingNotifications = ref(false);
+const subscriptionLoaded = ref(false);
 
 const {
   imageFile,
@@ -351,13 +358,17 @@ const canReport = computed(() => {
   return !isAuthor.value;
 });
 
+const canToggleNotifications = computed(() => {
+  return !!authUserId.value && !!props.post.id && subscriptionLoaded.value;
+});
+
 const shareUrl = computed(() => {
   if (!props.post.id || !import.meta.client) return `/post/${props.post.id}`;
   return `${window.location.origin}/post/${props.post.id}`;
 });
 
 const showOptionsMenu = computed(() => {
-  return isAuthor.value || canReport.value || !!shareUrl.value;
+  return isAuthor.value || canReport.value || canToggleNotifications.value || !!shareUrl.value;
 });
 
 const authorAvatarUrl = computed(() => {
@@ -552,6 +563,65 @@ async function executeDelete() {
   }
 }
 
+async function fetchSubscriptionStatus() {
+  subscriptionLoaded.value = false;
+  isSubscribedToNotifications.value = false;
+  if (!authUserId.value || !props.post.id) {
+    subscriptionLoaded.value = true;
+    return;
+  }
+  try {
+    const { data, error } = await supabase
+      .from('post_subscriptions')
+      .select('post_id')
+      .eq('user_id', authUserId.value)
+      .eq('post_id', props.post.id)
+      .maybeSingle();
+    if (error) throw error;
+    isSubscribedToNotifications.value = !!data;
+  } catch (e) {
+    console.error('Erro ao verificar assinatura do post:', e);
+    isSubscribedToNotifications.value = false;
+  } finally {
+    subscriptionLoaded.value = true;
+  }
+}
+
+async function togglePostNotifications() {
+  if (!authUserId.value || !props.post.id || isTogglingNotifications.value) return;
+  if (!subscriptionLoaded.value) {
+    await fetchSubscriptionStatus();
+  }
+
+  isTogglingNotifications.value = true;
+  const next = !isSubscribedToNotifications.value;
+  try {
+    if (next) {
+      const { error } = await supabase.from('post_subscriptions').insert({
+        user_id: authUserId.value,
+        post_id: props.post.id,
+      });
+      if (error) throw error;
+      isSubscribedToNotifications.value = true;
+      toast.success('Você receberá notificações desta postagem.');
+    } else {
+      const { error } = await supabase
+        .from('post_subscriptions')
+        .delete()
+        .eq('user_id', authUserId.value)
+        .eq('post_id', props.post.id);
+      if (error) throw error;
+      isSubscribedToNotifications.value = false;
+      toast.success('Você deixou de receber notificações desta postagem.');
+    }
+  } catch (e: any) {
+    console.error('Erro ao alternar notificações do post:', e);
+    toast.error(e.message || 'Não foi possível atualizar as notificações.');
+  } finally {
+    isTogglingNotifications.value = false;
+  }
+}
+
 async function sharePost() {
   const url = shareUrl.value;
   try {
@@ -583,11 +653,20 @@ watchEffect(() => {
 
 onMounted(() => {
   fetchCurrentUserVote();
+  void fetchSubscriptionStatus();
 });
 
-watch(user, () => {
+watch(authUserId, () => {
   fetchCurrentUserVote();
+  void fetchSubscriptionStatus();
 });
+
+watch(
+  () => props.post.id,
+  () => {
+    void fetchSubscriptionStatus();
+  }
+);
 </script>
 
 <style scoped>

@@ -325,6 +325,77 @@ export type Database = {
           },
         ]
       }
+      premises: {
+        Row: {
+          axis_key: string | null
+          created_at: string
+          description: string
+          group_id: string
+          id: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          axis_key?: string | null
+          created_at?: string
+          description: string
+          group_id: string
+          id?: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          axis_key?: string | null
+          created_at?: string
+          description?: string
+          group_id?: string
+          id?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "premises_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      premise_oppositions: {
+        Row: {
+          created_at: string
+          premise_id_a: string
+          premise_id_b: string
+        }
+        Insert: {
+          created_at?: string
+          premise_id_a: string
+          premise_id_b: string
+        }
+        Update: {
+          created_at?: string
+          premise_id_a?: string
+          premise_id_b?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "premise_oppositions_premise_id_a_fkey"
+            columns: ["premise_id_a"]
+            isOneToOne: false
+            referencedRelation: "premises"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "premise_oppositions_premise_id_b_fkey"
+            columns: ["premise_id_b"]
+            isOneToOne: false
+            referencedRelation: "premises"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       groups: {
         Row: {
           category_group_id: string | null
@@ -458,6 +529,46 @@ export type Database = {
         }
         Relationships: []
       }
+      post_subscriptions: {
+        Row: {
+          created_at: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_subscriptions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_subscriptions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts_with_author_info"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       posts: {
         Row: {
           author_id: string | null
@@ -518,8 +629,42 @@ export type Database = {
         }
         Relationships: []
       }
+      follow_requests: {
+        Row: {
+          created_at: string
+          requester_id: string
+          target_id: string
+        }
+        Insert: {
+          created_at?: string
+          requester_id: string
+          target_id: string
+        }
+        Update: {
+          created_at?: string
+          requester_id?: string
+          target_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follow_requests_requester_id_fkey"
+            columns: ["requester_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_requests_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
+          auto_accept_follow_requests: boolean
           avatar_path: string | null
           birth_date: string
           country_code: string | null
@@ -536,6 +681,7 @@ export type Database = {
           username: string
         }
         Insert: {
+          auto_accept_follow_requests?: boolean
           avatar_path?: string | null
           birth_date: string
           country_code?: string | null
@@ -552,6 +698,7 @@ export type Database = {
           username: string
         }
         Update: {
+          auto_accept_follow_requests?: boolean
           avatar_path?: string | null
           birth_date?: string
           country_code?: string | null
@@ -922,6 +1069,8 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      accept_follow_request: { Args: { p_requester_id: string }; Returns: undefined }
+      cancel_follow_request: { Args: { p_target_id: string }; Returns: undefined }
       get_block_status: { Args: { p_other_id: string }; Returns: string }
       get_follow_counts: {
         Args: { p_user_id: string }
@@ -930,6 +1079,29 @@ export type Database = {
           following_count: number
         }[]
       }
+      get_follow_status: { Args: { p_other_id: string }; Returns: string }
+      list_followers: {
+        Args: { p_before?: string; p_limit?: number; p_user_id: string }
+        Returns: {
+          avatar_path: string
+          followed_at: string
+          follow_status: string
+          id: string
+          username: string
+        }[]
+      }
+      list_following: {
+        Args: { p_before?: string; p_limit?: number; p_user_id: string }
+        Returns: {
+          avatar_path: string
+          followed_at: string
+          follow_status: string
+          id: string
+          username: string
+        }[]
+      }
+      reject_follow_request: { Args: { p_requester_id: string }; Returns: undefined }
+      request_follow: { Args: { p_target_id: string }; Returns: string }
       get_timeline_posts: {
         Args: { p_before?: string; p_limit?: number }
         Returns: {

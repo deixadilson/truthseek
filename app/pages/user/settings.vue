@@ -20,7 +20,23 @@
           />
           <span>
             <strong>Enviar post moderado por padrão</strong>
-            <small>Novas postagens já nascem marcadas como conteúdo moderado. Você ainda pode desmarcar na hora de postar.</small>
+            <small>Novas postagens são marcadas como conteúdo moderado por padrão. Você ainda pode desmarcar na hora de postar.</small>
+          </span>
+        </label>
+      </section>
+
+      <section class="settings-section">
+        <h2>Seguidores</h2>
+        <label class="setting-row">
+          <input
+            type="checkbox"
+            :checked="autoAcceptFollowRequests"
+            :disabled="isSaving"
+            @change="toggleAutoAcceptFollow(($event.target as HTMLInputElement).checked)"
+          />
+          <span>
+            <strong>Aceitar automaticamente solicitações de seguir</strong>
+            <small>Se ligado, qualquer pessoa pode lhe seguir sem necessidade de aprovação.</small>
           </span>
         </label>
       </section>
@@ -28,7 +44,7 @@
       <section class="settings-section">
         <h2>Quem pode ver meu perfil</h2>
         <p class="section-hint">
-          Controla quem abre sua página pública. Seu nome e avatar continuam visíveis nas postagens.
+          Controla quem pode acessar sua página pública. Seu nome e avatar continuam visíveis nas postagens.
         </p>
         <div class="radio-list">
           <label
@@ -54,7 +70,7 @@
 
       <section class="settings-section">
         <h2>Notificações por email</h2>
-        <p class="section-hint">Escolha quais eventos também devem ser enviados para o seu email.</p>
+        <p class="section-hint">Escolha quais eventos devem ser enviados para o seu email.</p>
         <label
           v-for="item in emailOptions"
           :key="item.key"
@@ -99,7 +115,7 @@
             </button>
           </li>
         </ul>
-        <p v-else class="empty-message">Você não bloqueou nenhum usuário.</p>
+        <p v-else class="empty-message">Nenhum usuário bloqueado.</p>
       </section>
     </div>
   </div>
@@ -136,6 +152,7 @@ const emailOptions = [
 
 const isSaving = ref(false);
 const defaultModeratedPosts = ref(false);
+const autoAcceptFollowRequests = ref(false);
 const profileVisibility = ref<ProfileVisibility>('public');
 const emailPrefs = reactive({
   email_notify_like: true,
@@ -150,6 +167,7 @@ const unblockingId = ref<string | null>(null);
 
 function applyFromProfile(profile: Profile) {
   defaultModeratedPosts.value = !!profile.default_moderated_posts;
+  autoAcceptFollowRequests.value = !!profile.auto_accept_follow_requests;
   profileVisibility.value = parseProfileVisibility(profile.profile_visibility);
   emailPrefs.email_notify_like = profile.email_notify_like !== false;
   emailPrefs.email_notify_comment = profile.email_notify_comment !== false;
@@ -184,6 +202,11 @@ async function persist(patch: Partial<Profile>) {
 async function toggleDefaultModerated(value: boolean) {
   defaultModeratedPosts.value = value;
   await persist({ default_moderated_posts: value });
+}
+
+async function toggleAutoAcceptFollow(value: boolean) {
+  autoAcceptFollowRequests.value = value;
+  await persist({ auto_accept_follow_requests: value });
 }
 
 async function saveVisibility(value: ProfileVisibility) {
