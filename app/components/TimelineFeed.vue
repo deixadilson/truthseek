@@ -15,22 +15,13 @@
       <PostList
         :posts="posts"
         :is-loading="false"
+        :has-more="hasMore"
+        :is-loading-more="isLoadingMore"
         empty-message="Seu feed está vazio. Declare vieses em grupos ou siga outros usuários para ver posts aqui."
         @post-deleted="handlePostDeleted"
         @post-updated="handlePostUpdated"
+        @load-more="loadMore"
       />
-
-      <div v-if="hasMore" class="load-more-wrap">
-        <button
-          type="button"
-          class="button-secondary"
-          :disabled="isLoadingMore"
-          @click="loadMore"
-        >
-          <LoadingMessage v-if="isLoadingMore" message="Carregando..." :icon-size="16" />
-          <template v-else>Carregar mais</template>
-        </button>
-      </div>
     </template>
   </div>
 </template>
@@ -38,6 +29,7 @@
 <script setup lang="ts">
 import type { PostWithAuthor } from '~/types/app';
 import type { Database } from '~/types/supabase';
+import { enrichPostsWithOwnerGroups } from '~/utils/enrichPostsWithOwnerGroups';
 
 const supabase = useSupabaseClient<Database>();
 const PAGE_SIZE = 20;
@@ -54,7 +46,10 @@ async function fetchPage(before?: string | null, append = false) {
   });
   if (error) throw error;
 
-  const rows = (data || []) as PostWithAuthor[];
+  const rows = await enrichPostsWithOwnerGroups(
+    supabase,
+    (data || []) as PostWithAuthor[]
+  );
   if (append) {
     const existing = new Set(posts.value.map((p) => p.id));
     posts.value = [...posts.value, ...rows.filter((p) => p.id && !existing.has(p.id))];
@@ -142,19 +137,5 @@ onMounted(loadInitial);
   display: flex;
   justify-content: center;
   padding: 2.5rem 1rem;
-}
-
-.load-more-wrap {
-  display: flex;
-  justify-content: center;
-  margin-top: 1.25rem;
-}
-
-.load-more-wrap .button-secondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.5rem 1.1rem;
-  text-decoration: none;
 }
 </style>

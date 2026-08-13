@@ -10,13 +10,14 @@
     <div v-else-if="post" class="post-and-comments">
       <PostItem
         :post="post"
+        :show-group-context="true"
         class="main-post-item"
         @deleted="handlePostDeleted"
         @updated="handlePostUpdated"
       />
 
       <section class="comments-section card-style">
-        <h3>Comentários ({{ comments.length }})</h3>
+        <h3>Comentários ({{ commentTotalLabel }})</h3>
         <CreateCommentForm
           v-if="user && post && post.id"
           :post-id="post.id"
@@ -33,14 +34,13 @@
           </p>
         </div>
 
-        <!-- Lista de Comentários -->
-        <div v-if="isLoadingComments" class="loading-spinner">
+        <div v-if="isLoadingComments && comments.length === 0" class="loading-spinner">
           <LoadingMessage message="Carregando comentários..." />
         </div>
         <div v-else-if="commentsError" class="error-message">{{ commentsError }}</div>
-        <div v-else-if="comments.length > 0" class="comments-list">
+        <div v-else-if="visibleComments.length > 0" class="comments-list">
           <CommentItem
-            v-for="comment in comments"
+            v-for="comment in visibleComments"
             :key="`${comment.id}`"
             :comment="comment"
             :post-owner-group-id="post.owner_id"
@@ -53,6 +53,17 @@
             @deleted="handleCommentDeleted"
             @updated="handleCommentUpdated"
           />
+          <div v-if="hasMoreComments" class="load-more-wrap">
+            <button
+              type="button"
+              class="button-secondary"
+              :disabled="isLoadingMoreComments"
+              @click="loadMoreComments"
+            >
+              <LoadingMessage v-if="isLoadingMoreComments" message="Carregando..." :icon-size="16" />
+              <template v-else>Carregar mais</template>
+            </button>
+          </div>
         </div>
         <div v-else class="no-comments">
           <p>Nenhum comentário ainda. Seja o primeiro!</p>
@@ -85,6 +96,7 @@ const supabase = useSupabaseClient<Database>();
 const user = useSupabaseUser();
 const authUserId = useAuthUserId();
 const toast = useToast();
+const { isAuthorHidden, blockedIds } = useBlock();
 
 const postId = route.params.id as string;
 const post = ref<PostWithAuthor | null>(null);
@@ -93,7 +105,21 @@ const comments = ref<CommentWithAuthor[]>([]);
 const isLoadingPost = ref(true);
 const postError = ref<string | null>(null);
 const isLoadingComments = ref(false);
+const isLoadingMoreComments = ref(false);
+const hasMoreComments = ref(false);
 const commentsError = ref<string | null>(null);
+
+const COMMENTS_PAGE_SIZE = 20;
+
+const visibleComments = computed(() =>
+  comments.value.filter((comment) => !isAuthorHidden(comment.author_id))
+);
+
+const commentTotalLabel = computed(() => {
+  const total = post.value?.comments_count;
+  if (typeof total === 'number') return total;
+  return comments.value.length;
+});
 
 const replyingToCommentId = ref<string | null>(null);
 const highlightedCommentId = ref<string | null>(null);
@@ -145,7 +171,27 @@ async function fetchPostDetails() {
       throw error;
     }
     if (data) {
-      const postData = data as PostWithAuthor;
+      let postData = data as PostWithAuthor;
+
+      // Resolve group name/slug directly (do not rely on view cache for these fields)
+      if (postData.owner_id) {
+        const { data: group, error: groupError } = await supabase
+          .from('groups')
+          .select('name, slug, country_code')
+          .eq('id', postData.owner_id)
+          .maybeSingle();
+        if (groupError) {
+          console.error('Erro ao buscar grupo do post:', groupError);
+        } else if (group) {
+          postData = {
+            ...postData,
+            owner_group_name: group.name,
+            owner_group_slug: group.slug,
+            owner_group_country_code: group.country_code,
+          };
+        }
+      }
+
       const allowed = await canViewPost(postData);
       if (!allowed) {
         post.value = null;
@@ -168,25 +214,56 @@ async function fetchPostDetails() {
   }
 }
 
-async function fetchComments() {
+async function fetchComments(after?: string | null, append = false) {
   if (!post.value || !post.value.id) return;
-  isLoadingComments.value = true; commentsError.value = null;
+  if (append) {
+    isLoadingMoreComments.value = true;
+  } else {
+    isLoadingComments.value = true;
+  }
+  commentsError.value = null;
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('comments_with_author_info')
       .select('*')
       .eq('post_id', post.value.id)
-      .order('created_at', { ascending: true }); // Comentários mais antigos primeiro
+      .order('created_at', { ascending: true })
+      .limit(COMMENTS_PAGE_SIZE);
 
+    if (after) {
+      query = query.gt('created_at', after);
+    }
+
+    const { data, error } = await query;
     if (error) throw error;
-    comments.value = data as CommentWithAuthor[] || [];
+
+    const rows = (data || []) as CommentWithAuthor[];
+    if (append) {
+      const existing = new Set(comments.value.map((c) => c.id));
+      comments.value = [...comments.value, ...rows.filter((c) => c.id && !existing.has(c.id))];
+    } else {
+      comments.value = rows;
+    }
+    hasMoreComments.value = rows.length >= COMMENTS_PAGE_SIZE;
   } catch (e: any) {
     console.error("Erro ao buscar comentários:", e);
     commentsError.value = e.message || 'Falha ao carregar comentários.';
     toast.error(commentsError.value);
+    if (!append) {
+      comments.value = [];
+      hasMoreComments.value = false;
+    }
   } finally {
     isLoadingComments.value = false;
+    isLoadingMoreComments.value = false;
   }
+}
+
+async function loadMoreComments() {
+  if (isLoadingMoreComments.value || !hasMoreComments.value || comments.value.length === 0) return;
+  const last = comments.value[comments.value.length - 1];
+  if (!last?.created_at) return;
+  await fetchComments(last.created_at, true);
 }
 
 function handleNewComment(newComment: CommentWithAuthor) {
@@ -280,6 +357,14 @@ useHead({
   title: 'Post - TruthSeek Network'
 });
 
+watch(blockedIds, () => {
+  if (post.value?.author_id && isAuthorHidden(post.value.author_id)) {
+    post.value = null;
+    comments.value = [];
+    postError.value = 'Este post não está disponível.';
+  }
+});
+
 onMounted(() => {
   if (postId) {
     fetchPostDetails();
@@ -320,4 +405,14 @@ onMounted(() => {
   font-size: 1.1rem;
 }
 .error-message { color: #dc3545; }
+
+.load-more-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.25rem;
+}
+
+.load-more-wrap .button-secondary {
+  min-width: 10rem;
+}
 </style>

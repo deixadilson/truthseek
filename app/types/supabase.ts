@@ -62,6 +62,39 @@ export type Database = {
           },
         ]
       }
+      blocks: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blocks_blocked_id_fkey"
+            columns: ["blocked_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blocks_blocker_id_fkey"
+            columns: ["blocker_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comments: {
         Row: {
           author_id: string | null
@@ -491,8 +524,14 @@ export type Database = {
           birth_date: string
           country_code: string | null
           created_at: string
+          default_moderated_posts: boolean
+          email_notify_comment: boolean
+          email_notify_endorse: boolean
+          email_notify_like: boolean
+          email_notify_reply: boolean
           gender: string
           id: string
+          profile_visibility: string
           updated_at: string | null
           username: string
         }
@@ -501,8 +540,14 @@ export type Database = {
           birth_date: string
           country_code?: string | null
           created_at?: string
+          default_moderated_posts?: boolean
+          email_notify_comment?: boolean
+          email_notify_endorse?: boolean
+          email_notify_like?: boolean
+          email_notify_reply?: boolean
           gender: string
           id?: string
+          profile_visibility?: string
           updated_at?: string | null
           username: string
         }
@@ -511,8 +556,14 @@ export type Database = {
           birth_date?: string
           country_code?: string | null
           created_at?: string
+          default_moderated_posts?: boolean
+          email_notify_comment?: boolean
+          email_notify_endorse?: boolean
+          email_notify_like?: boolean
+          email_notify_reply?: boolean
           gender?: string
           id?: string
+          profile_visibility?: string
           updated_at?: string | null
           username?: string
         }
@@ -745,6 +796,9 @@ export type Database = {
           is_edited: boolean | null
           is_moderated: boolean | null
           likes_count: number | null
+          owner_group_country_code: string | null
+          owner_group_name: string | null
+          owner_group_slug: string | null
           owner_id: string | null
           owner_type: string | null
           report_points: number | null
@@ -756,6 +810,8 @@ export type Database = {
       }
     }
     Functions: {
+      block_user: { Args: { p_blocked_id: string }; Returns: boolean }
+      blocked_pair_ids: { Args: never; Returns: string[] }
       can_declare_bias: {
         Args: { p_group_id_to_declare: string; p_user_id: string }
         Returns: {
@@ -866,6 +922,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      get_block_status: { Args: { p_other_id: string }; Returns: string }
       get_follow_counts: {
         Args: { p_user_id: string }
         Returns: {
@@ -888,6 +945,9 @@ export type Database = {
           is_edited: boolean | null
           is_moderated: boolean | null
           likes_count: number | null
+          owner_group_country_code: string | null
+          owner_group_name: string | null
+          owner_group_slug: string | null
           owner_id: string | null
           owner_type: string | null
           report_points: number | null
@@ -935,6 +995,11 @@ export type Database = {
       }
       soft_delete_comment: { Args: { p_comment_id: string }; Returns: boolean }
       soft_delete_post: { Args: { p_post_id: string }; Returns: boolean }
+      unblock_user: { Args: { p_blocked_id: string }; Returns: boolean }
+      users_are_blocked: {
+        Args: { p_a: string; p_b: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

@@ -80,27 +80,50 @@ export function useNotifications() {
     }
   }
 
-  async function fetchNotifications(limit = 30) {
+  async function fetchNotifications(limit = 30, before?: string | null, append = false) {
     if (!authUserId.value) {
       notifications.value = [];
       unreadCount.value = 0;
       hasLoaded.value = false;
-      return;
+      return false;
     }
-    isLoading.value = true;
+    if (!append) {
+      isLoading.value = true;
+    }
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('notifications_with_actor')
         .select('*')
         .eq('user_id', authUserId.value)
         .order('created_at', { ascending: false })
         .limit(limit);
+
+      if (before) {
+        query = query.lt('created_at', before);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
-      notifications.value = (data || []) as AppNotification[];
+
+      const rows = (data || []) as AppNotification[];
+      if (append) {
+        const existing = new Set(notifications.value.map((n) => n.id));
+        notifications.value = [
+          ...notifications.value,
+          ...rows.filter((n) => n.id && !existing.has(n.id)),
+        ];
+      } else {
+        notifications.value = rows;
+      }
       unreadCount.value = notifications.value.filter((n) => !n.read_at).length;
       hasLoaded.value = true;
+      return rows.length >= limit;
     } catch (e) {
       console.error('Erro ao buscar notificações:', e);
+      if (!append) {
+        notifications.value = [];
+      }
+      return false;
     } finally {
       isLoading.value = false;
     }
@@ -127,6 +150,7 @@ export function useNotifications() {
 
   async function handleRealtimeInsert(row: NotificationRow) {
     if (!authUserId.value || row.user_id !== authUserId.value) return;
+    if (row.actor_id && useBlock().isAuthorHidden(row.actor_id)) return;
     if (notifications.value.some((n) => n.id === row.id)) return;
 
     unreadCount.value += 1;

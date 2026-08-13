@@ -65,7 +65,7 @@
                     <span class="influence">{{ bias.influence_points }} {{ bias.title }}</span>
                   </div>
                 </div>
-                <div v-if="user && authUserId !== authorId && canEndorseBias(bias)" class="endorse-actions">
+                <div v-if="user && authUserId !== authorId && blockStatus === 'none' && canEndorseBias(bias)" class="endorse-actions">
                   <button
                     @click="toggleEndorsement(bias, 1)"
                     class="endorse-btn up"
@@ -102,7 +102,7 @@
               <span>Ver Perfil</span>
             </button>
             <button
-              v-if="user && authUserId !== authorId"
+              v-if="user && authUserId !== authorId && blockStatus === 'none'"
               @click="handleToggleFollow"
               class="action-link"
               type="button"
@@ -115,21 +115,40 @@
               />
               <span>{{ followStatus ? 'Deixar de seguir' : 'Seguir' }}</span>
             </button>
-            <button @click="placeholderAction('Bloquear')" class="action-link" type="button">
+            <button
+              v-if="user && authUserId !== authorId"
+              class="action-link"
+              :class="{ danger: blockStatus !== 'blocking' }"
+              type="button"
+              :disabled="isTogglingBlock || blockStatus === null"
+              @click="handleBlockClick"
+            >
               <Icon name="lucide:ban" :size="15" class="action-icon" />
-              <span>Bloquear</span>
+              <span>{{ blockStatus === 'blocking' ? 'Desbloquear' : 'Bloquear' }}</span>
             </button>
           </div>
         </div>
       </PopoverPanel>
     </transition>
   </Popover>
+
+  <ConfirmDialog
+    :open="showBlockConfirm"
+    title="Bloquear usuário"
+    message="Você deixa de seguir esta pessoa, não verá as postagens dela e ela não poderá interagir com você. Deseja bloquear?"
+    confirm-label="Bloquear"
+    busy-label="Bloqueando..."
+    :busy="isTogglingBlock"
+    @confirm="confirmBlock"
+    @update:open="showBlockConfirm = $event"
+  />
 </template>
 
 <script setup lang="ts">
 import { Popover, PopoverButton, PopoverPanel, TransitionRoot, TransitionChild } from '@headlessui/vue';
 import type { Database } from '~/types/supabase';
-import type { UserBiasForPopover } from '~/types/app'
+import type { UserBiasForPopover } from '~/types/app';
+import type { BlockStatus } from '~/composables/useBlock';
 import { useToast } from 'vue-toastification';
 
 const props = defineProps<{
@@ -144,6 +163,7 @@ const user = useSupabaseUser();
 const authUserId = useAuthUserId();
 const toast = useToast();
 const { isFollowing, toggleFollow } = useFollow();
+const { getBlockStatus, blockUser, unblockUser } = useBlock();
 
 const authorBiases = ref<UserBiasForPopover[]>([]);
 const myBiasGroupIds = ref<Set<string>>(new Set());
@@ -152,6 +172,9 @@ const isHandlingEndorsement = ref<string | null>(null);
 const isNavigatingToProfile = ref(false);
 const isTogglingFollow = ref(false);
 const followStatus = ref<boolean | null>(null);
+const isTogglingBlock = ref(false);
+const blockStatus = ref<BlockStatus | null>(null);
+const showBlockConfirm = ref(false);
 const error = ref<string | null>(null);
 
 const popoverButtonRef = ref<{ $el: HTMLElement } | null>(null);
@@ -189,7 +212,7 @@ async function fetchAuthorBiases() {
   isLoading.value = true;
   error.value = null;
   try {
-    await Promise.all([fetchMyBiasGroupIds(), refreshFollowStatus()]);
+    await Promise.all([fetchMyBiasGroupIds(), refreshFollowStatus(), refreshBlockStatus()]);
     const { data, error: rpcError } = await supabase.rpc('get_user_biases_for_category', {
       p_author_id: props.authorId,
       p_context_group_id: props.contextGroupId,
@@ -220,8 +243,26 @@ async function refreshFollowStatus() {
   }
 }
 
+async function refreshBlockStatus() {
+  blockStatus.value = null;
+  if (!authUserId.value || !props.authorId || authUserId.value === props.authorId) {
+    blockStatus.value = 'none';
+    return;
+  }
+  try {
+    blockStatus.value = await getBlockStatus(props.authorId);
+  } catch (e) {
+    console.error('Erro ao verificar bloqueio:', e);
+    blockStatus.value = 'none';
+  }
+}
+
 async function handleToggleFollow() {
   if (!authUserId.value || authUserId.value === props.authorId || followStatus.value === null) return;
+  if (blockStatus.value && blockStatus.value !== 'none') {
+    toast.info('Não é possível seguir um usuário bloqueado.');
+    return;
+  }
   isTogglingFollow.value = true;
   try {
     const next = await toggleFollow(props.authorId, followStatus.value);
@@ -232,6 +273,47 @@ async function handleToggleFollow() {
     toast.error(e.message || 'Não foi possível atualizar o follow.');
   } finally {
     isTogglingFollow.value = false;
+  }
+}
+
+function handleBlockClick() {
+  if (!authUserId.value || authUserId.value === props.authorId || blockStatus.value === null) return;
+  if (blockStatus.value === 'blocking') {
+    void confirmUnblock();
+    return;
+  }
+  showBlockConfirm.value = true;
+}
+
+async function confirmUnblock() {
+  isTogglingBlock.value = true;
+  try {
+    await unblockUser(props.authorId);
+    blockStatus.value = await getBlockStatus(props.authorId);
+    toast.success('Usuário desbloqueado.');
+    isOpenForUI.value = false;
+  } catch (e: any) {
+    console.error('Erro ao desbloquear:', e);
+    toast.error(e.message || 'Não foi possível desbloquear.');
+  } finally {
+    isTogglingBlock.value = false;
+  }
+}
+
+async function confirmBlock() {
+  isTogglingBlock.value = true;
+  try {
+    await blockUser(props.authorId);
+    blockStatus.value = 'blocking';
+    followStatus.value = false;
+    showBlockConfirm.value = false;
+    isOpenForUI.value = false;
+    toast.success('Usuário bloqueado.');
+  } catch (e: any) {
+    console.error('Erro ao bloquear:', e);
+    toast.error(e.message || 'Não foi possível bloquear.');
+  } finally {
+    isTogglingBlock.value = false;
   }
 }
 
@@ -382,9 +464,6 @@ async function goToPublicProfile() {
   }
 }
 
-function placeholderAction(action: string) {
-  toast.info(`Funcionalidade "${action}" em desenvolvimento.`);
-}
 </script>
 
 <style scoped>
@@ -510,7 +589,7 @@ function placeholderAction(action: string) {
   display: block;
 }
 .bias-name:hover {
-  text-decoration: underline;
+  color: var(--primary-color-hover);
 }
 
 .influence {
@@ -573,6 +652,7 @@ function placeholderAction(action: string) {
   opacity: 0.85;
 }
 .action-link:hover { background-color: #f3f4f6; color: var(--primary-color); }
+.action-link.danger:hover { color: #b91c1c; }
 .action-link:disabled {
   opacity: 0.55;
   cursor: not-allowed;

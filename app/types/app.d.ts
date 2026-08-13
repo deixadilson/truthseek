@@ -12,3 +12,4 @@ export type ContentRevision = Database['public']['Tables']['content_revisions'][
 export type BiasWithDetails = Database['public']['Views']['biases_with_details']['Row'];
 export type UserBiasForPopover = Database['public']['Functions']['get_user_biases_for_category']['Returns'][number];
 export type HandleEndorsementResponse = Database['public']['Functions']['handle_endorsement']['Returns'][number];
+export type ProfileVisibility = 'public' | 'registered' | 'followers' | 'private';

@@ -275,9 +275,13 @@ async function handleRegister(): Promise<void> {
   font-size: 0.85rem;
   font-weight: normal;
 }
- .form-group.terms label a {
-  text-decoration: underline;
- }
+.form-group.terms label a {
+  text-decoration: none;
+  font-weight: 500;
+}
+.form-group.terms label a:hover {
+  color: var(--primary-color-hover);
+}
 
 .register-button {
   width: 100%;

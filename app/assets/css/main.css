@@ -2,6 +2,7 @@
   --primary-color: #008fa1;
   --primary-color-hover: #00bcd4;
   --primary-color-light: #b2ebf2;
+  --primary-color-dark: #006d7a;
 
   --text-on-primary: #fff;
   --text-color: #333333;
@@ -41,9 +42,16 @@ h1, h2, h3, h4, h5, h6 {
 a {
   color: var(--link-color);
   text-decoration: none;
+  transition: color 0.15s ease, opacity 0.15s ease;
 }
 a:hover {
-  text-decoration: underline;
+  color: var(--primary-color-hover);
+  text-decoration: none;
+  opacity: 0.92;
+}
+a:active {
+  color: var(--primary-color);
+  opacity: 1;
 }
 
 button {
@@ -67,8 +75,18 @@ button {
   text-align: center;
 }
 
-.button-primary:hover {
+.button-primary:hover,
+.button-primary:focus,
+a.button-primary:hover,
+a.button-primary:focus,
+a.button-primary:visited {
+  color: var(--text-on-primary);
   text-decoration: none;
+  opacity: 1;
+}
+
+.button-primary:hover,
+a.button-primary:hover {
   background-color: var(--primary-color-hover);
   border-color: var(--primary-color-hover);
   box-shadow: 0 5px 15px var(--button-shadow-color),
@@ -76,9 +94,12 @@ button {
   transform: translateY(-2px);
 }
 
-.button-primary:active {
+.button-primary:active,
+a.button-primary:active {
+  color: var(--text-on-primary);
   transform: translateY(0px);
   box-shadow: 0 2px 5px var(--button-shadow-color);
+  opacity: 1;
 }
 
 .button-secondary {
@@ -89,10 +110,14 @@ button {
 }
 
 .button-secondary:hover,
-.button-secondary:focus {
+.button-secondary:focus,
+a.button-secondary:hover,
+a.button-secondary:focus,
+a.button-secondary:visited {
   color: var(--primary-color-dark);
   border-color: var(--primary-color);
   text-decoration: none;
+  opacity: 1;
 }
 
 .button-tertiary {
@@ -104,11 +129,13 @@ button {
 }
 
 .button-tertiary:hover,
-.button-tertiary:focus {
+.button-tertiary:focus,
+a.button-tertiary:hover,
+a.button-tertiary:focus {
   background-color: var(--primary-color-light);
   color: var(--primary-color-dark);
   text-decoration: none;
-  /* border-color: var(--primary-color-light); // Borda sutil no hover, opcional */
+  opacity: 1;
 }
 
 a.button-tertiary {

@@ -11,6 +11,15 @@
     <div v-else-if="groupData" class="group-content">
       <header class="group-header">
         <div class="header-background-image" :style="headerBackgroundStyle"></div>
+        <nav v-if="breadcrumbs.length > 0" aria-label="breadcrumb" class="breadcrumb-nav container">
+          <ol>
+            <li v-for="(crumb, index) in breadcrumbs" :key="crumb.key">
+              <span v-if="index === breadcrumbs.length - 1" class="active">{{ crumb.name }}</span>
+              <NuxtLink v-else-if="crumb.to" :to="crumb.to">{{ crumb.name }}</NuxtLink>
+              <span v-else>{{ crumb.name }}</span>
+            </li>
+          </ol>
+        </nav>
         <div class="header-content container">
           <div class="group-flag-container">
             <img
@@ -118,10 +127,14 @@
             <section class="posts-list-section">
               <PostList
                 :posts="filteredPosts"
-                :is-loading="isLoadingPosts"
+                :is-loading="isLoadingPosts && posts.length === 0"
+                :has-more="hasMorePosts"
+                :is-loading-more="isLoadingMorePosts"
                 :empty-message="postsEmptyMessage"
+                :show-group-context="false"
                 @post-deleted="handlePostDeleted"
                 @post-updated="handlePostUpdated"
+                @load-more="loadMorePosts"
               />
             </section>
           </template>
@@ -177,9 +190,52 @@ const posts = ref<PostWithAuthor[]>([]);
 const filteredPosts = ref<PostWithAuthor[]>([]);
 const isLoading = ref(true);
 const isLoadingPosts = ref(false);
+const isLoadingMorePosts = ref(false);
+const hasMorePosts = ref(false);
 const accessChecked = ref(false);
 const isDeclaringBias = ref(false);
 const userBiasForGroup = ref<Pick<Bias, 'id' | 'group_id' | 'influence_points'> | null>(null);
+
+const POSTS_PAGE_SIZE = 20;
+
+type GroupBreadcrumb = {
+  key: string;
+  name: string;
+  to: string | null;
+};
+
+const breadcrumbs = ref<GroupBreadcrumb[]>([]);
+
+/** Walk parent_group_id chain (depth is typically 1–4). PK lookups only — cheap. */
+async function buildBreadcrumbs(group: Group) {
+  const ancestors: GroupBreadcrumb[] = [];
+  let parentId = group.parent_group_id;
+  let guard = 0;
+
+  while (parentId && guard < 8) {
+    guard += 1;
+    const { data, error } = await supabase
+      .from('groups')
+      .select('id, name, slug, country_code, parent_group_id')
+      .eq('id', parentId)
+      .maybeSingle();
+
+    if (error || !data) break;
+
+    ancestors.unshift({
+      key: data.id,
+      name: data.name,
+      to: `/${data.country_code}/${data.slug}`,
+    });
+    parentId = data.parent_group_id;
+  }
+
+  breadcrumbs.value = [
+    { key: 'categories-root', name: 'Categorias', to: '/categories' },
+    ...ancestors,
+    { key: group.id, name: group.name, to: null },
+  ];
+}
 
 const postsEmptyMessage = computed(() => {
   if (posts.value.length === 0) {
@@ -322,35 +378,66 @@ async function fetchOppositeGroups(groupId: string) {
   }
 }
 
-async function fetchPostsForGroup(groupId: string) {
-  isLoadingPosts.value = true;
+async function fetchPostsForGroup(groupId: string, before?: string | null, append = false) {
+  if (append) {
+    isLoadingMorePosts.value = true;
+  } else {
+    isLoadingPosts.value = true;
+  }
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('posts_with_author_info')
-      .select(`*`)
+      .select('*')
       .eq('owner_id', groupId)
       .eq('owner_type', 'group')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(POSTS_PAGE_SIZE);
 
+    if (before) {
+      query = query.lt('created_at', before);
+    }
+
+    const { data, error } = await query;
     if (error) throw error;
 
-    if (data) posts.value = data as PostWithAuthor[];
+    const rows = (data || []) as PostWithAuthor[];
+    if (append) {
+      const existing = new Set(posts.value.map((p) => p.id));
+      posts.value = [...posts.value, ...rows.filter((p) => p.id && !existing.has(p.id))];
+    } else {
+      posts.value = rows;
+    }
+    hasMorePosts.value = rows.length >= POSTS_PAGE_SIZE;
   } catch (e: any) {
     console.error('Erro ao buscar posts:', e);
     toast.error(e.message || 'Falha ao carregar posts.');
+    if (!append) {
+      posts.value = [];
+      hasMorePosts.value = false;
+    }
   } finally {
     isLoadingPosts.value = false;
+    isLoadingMorePosts.value = false;
   }
+}
+
+async function loadMorePosts() {
+  if (!groupData.value || isLoadingMorePosts.value || !hasMorePosts.value) return;
+  const last = posts.value[posts.value.length - 1];
+  if (!last?.created_at) return;
+  await fetchPostsForGroup(groupData.value.id, last.created_at, true);
 }
 
 async function fetchGroupData(country: string, slug: string): Promise<void> {
   isLoading.value = true;
   accessChecked.value = false;
   groupData.value = null;
+  breadcrumbs.value = [];
   subgroups.value = [];
   oppositeGroups.value = [];
   posts.value = [];
   filteredPosts.value = [];
+  hasMorePosts.value = false;
   userBiasForGroup.value = null;
 
   if (!slug || !country) {
@@ -381,8 +468,11 @@ async function fetchGroupData(country: string, slug: string): Promise<void> {
     if (data) {
       groupData.value = data as Group;
 
-      await resolveGroupAccess(groupData.value.id, !!groupData.value.is_open);
-      await fetchOppositeGroups(groupData.value.id);
+      await Promise.all([
+        buildBreadcrumbs(groupData.value),
+        resolveGroupAccess(groupData.value.id, !!groupData.value.is_open),
+        fetchOppositeGroups(groupData.value.id),
+      ]);
 
       if (groupData.value.has_subgroups) {
         const { data: subData, error: subError } = await supabase
@@ -472,6 +562,48 @@ watch(authUserId, () => {
 </script>
 
 <style scoped>
+.breadcrumb-nav {
+  position: relative;
+  z-index: 2;
+  margin: 0 auto;
+  padding: 0.85rem 15px 0;
+  font-size: 0.9rem;
+  background: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+.breadcrumb-nav ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+  align-items: center;
+}
+.breadcrumb-nav li:not(:last-child)::after {
+  content: '›';
+  margin-left: 0.5rem;
+  color: var(--header-text);
+  opacity: 0.85;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+  display: inline-block;
+}
+.breadcrumb-nav a,
+.breadcrumb-nav li span {
+  color: var(--header-text);
+  text-decoration: none;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+}
+.breadcrumb-nav a:hover {
+  opacity: 0.85;
+  text-decoration: none;
+}
+.breadcrumb-nav li span.active {
+  font-weight: 500;
+  opacity: 0.95;
+}
+
 .group-header {
   color: var(--header-text); /* Assumindo texto claro no header do grupo */
   position: relative;
@@ -499,11 +631,12 @@ watch(authUserId, () => {
 .header-content {
   position: relative;
   z-index: 2;
-  padding-top: 100px; /* Espaço para a imagem de capa não sobrepor o conteúdo inicial */
+  padding-top: 1.25rem;
   padding-bottom: 1.5rem;
   display: flex;
   align-items: flex-end; /* Alinha flag e título na base */
   gap: 1.5rem;
+  min-height: calc(250px - 2.5rem);
 }
 
 .group-flag-container {

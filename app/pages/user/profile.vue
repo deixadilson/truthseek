@@ -25,14 +25,22 @@
           :disabled="isUploadingAvatar"
         >
           <LoadingMessage v-if="isUploadingAvatar" message="Enviando..." :icon-size="16" />
-          <template v-else>Alterar Avatar</template>
+          <template v-else>
+            <Icon name="lucide:camera" :size="16" />
+            Alterar Avatar
+          </template>
         </button>
         <NuxtLink
           v-if="userProfile?.username"
           :to="`/user/${userProfile.username}`"
           class="public-profile-link"
         >
+          <Icon name="lucide:user" :size="16" />
           Ver perfil público
+        </NuxtLink>
+        <NuxtLink to="/user/settings" class="public-profile-link">
+          <Icon name="lucide:settings" :size="16" />
+          Configurações
         </NuxtLink>
       </div>
       <div class="profile-info">
@@ -352,17 +360,24 @@ watch(userProfile, (newProfileData) => {
 }
 
 .upload-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   font-size: 0.9em;
 }
 
 .public-profile-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   font-size: 0.88rem;
   color: var(--primary-color);
-  text-decoration: underline;
+  text-decoration: none;
+  font-weight: 500;
 }
 
 .public-profile-link:hover {
-  color: var(--primary-color-dark, var(--primary-color));
+  color: var(--primary-color-hover);
 }
 
 .profile-info {

@@ -1,50 +1,58 @@
 <template>
   <article class="post-item card-style">
     <header class="post-header">
-      <AuthorPopover
-        :author-id="post.author_id"
-        :context-group-id="post.owner_id"
-        :author-username="post.author_username"
-        :hide-trigger-arrow="true"
-        v-if="post.author_id && post.owner_id && !post.is_anonymous"
-      >
-        <div class="author-info">
+      <div class="author-info">
+        <AuthorPopover
+          :author-id="post.author_id"
+          :context-group-id="post.owner_id"
+          :author-username="post.author_username"
+          :hide-trigger-arrow="true"
+          v-if="post.author_id && post.owner_id && !post.is_anonymous"
+        >
           <img :src="authorAvatarUrl" alt="Avatar do autor" class="author-avatar"/>
-          <div>
-            <span class="author-name">{{ post.author_username || (post.is_anonymous ? 'Anônimo' : 'Usuário Desconhecido') }}</span>
-            <span v-if="post.created_at" class="post-timestamp">
-              {{ timeAgo(post.created_at) }}
-              <template v-if="localIsEdited">
-                ·
-                <EditedHistoryLink
-                  v-if="post.id"
-                  target-type="post"
-                  :target-id="post.id"
-                  media-bucket="post-media"
-                />
-              </template>
-            </span>
-            <span v-else class="post-timestamp">Data indisponível</span>
+        </AuthorPopover>
+        <img
+          v-else
+          :src="authorAvatarUrl"
+          alt="Avatar"
+          class="author-avatar"
+        />
+        <div class="author-text">
+          <div class="author-line">
+            <NuxtLink
+              v-if="authorProfilePath"
+              :to="authorProfilePath"
+              class="author-name"
+            >
+              {{ authorDisplayName }}
+            </NuxtLink>
+            <span v-else class="author-name">{{ authorDisplayName }}</span>
+            <template v-if="showGroupContext && ownerGroupName">
+              <span class="posted-in">postou em</span>
+              <NuxtLink
+                v-if="ownerGroupPath"
+                :to="ownerGroupPath"
+                class="group-context-link"
+              >
+                {{ ownerGroupName }}
+              </NuxtLink>
+              <span v-else class="group-context-link">{{ ownerGroupName }}</span>
+            </template>
           </div>
+          <span v-if="post.created_at" class="post-timestamp">
+            {{ timeAgo(post.created_at) }}
+            <template v-if="localIsEdited">
+              ·
+              <EditedHistoryLink
+                v-if="post.id"
+                target-type="post"
+                :target-id="post.id"
+                media-bucket="post-media"
+              />
+            </template>
+          </span>
+          <span v-else class="post-timestamp">Data indisponível</span>
         </div>
-      </AuthorPopover>
-      <div v-else class="author-info">
-         <img :src="authorAvatarUrl" alt="Avatar" class="author-avatar"/>
-          <div>
-            <span class="author-name">{{ post.is_anonymous ? 'Anônimo' : (post.author_username || 'Usuário Desconhecido') }}</span>
-            <span v-if="post.created_at" class="post-timestamp">
-              {{ timeAgo(post.created_at) }}
-              <template v-if="localIsEdited">
-                ·
-                <EditedHistoryLink
-                  v-if="post.id"
-                  target-type="post"
-                  :target-id="post.id"
-                  media-bucket="post-media"
-                />
-              </template>
-            </span>
-          </div>
       </div>
       <ContentOptionsMenu
         v-if="post.id && showOptionsMenu"
@@ -180,7 +188,11 @@ import { formatTextToHtml, getEmbedVideoUrl, timeAgo } from '~/utils/formatters'
 
 const props = defineProps<{
   post: PostWithAuthor;
+  /** When true (default), shows "usuário postou em grupo" outside group pages. */
+  showGroupContext?: boolean;
 }>();
+
+const showGroupContext = computed(() => props.showGroupContext !== false);
 
 export type PostUpdatedPayload = {
   id: string;
@@ -238,6 +250,98 @@ const {
 const canSaveEdit = computed(() => canSubmitWith());
 
 const defaultUserAvatar = '/images/default-avatar.png';
+
+const authorDisplayName = computed(() => {
+  if (props.post.is_anonymous) return 'Anônimo';
+  return props.post.author_username || 'Usuário Desconhecido';
+});
+
+const authorProfilePath = computed(() => {
+  if (props.post.is_anonymous || !props.post.author_username) return null;
+  return `/user/${props.post.author_username}`;
+});
+
+const resolvedGroup = ref<{ name: string; slug: string; country_code: string } | null>(null);
+
+const ownerGroupName = computed(() => resolvedGroup.value?.name || props.post.owner_group_name || null);
+
+const ownerGroupPath = computed(() => {
+  const code = resolvedGroup.value?.country_code || props.post.owner_group_country_code;
+  const slug = resolvedGroup.value?.slug || props.post.owner_group_slug;
+  if (!code || !slug) return null;
+  return `/${code}/${slug}`;
+});
+
+async function ensureOwnerGroup() {
+  if (!showGroupContext.value) {
+    resolvedGroup.value = null;
+    return;
+  }
+  if (!props.post.owner_id) {
+    resolvedGroup.value = null;
+    return;
+  }
+
+  // Prefer fields already on the post when complete
+  if (props.post.owner_group_name && props.post.owner_group_slug && props.post.owner_group_country_code) {
+    resolvedGroup.value = {
+      name: props.post.owner_group_name,
+      slug: props.post.owner_group_slug,
+      country_code: props.post.owner_group_country_code,
+    };
+    return;
+  }
+
+  // Always resolve from groups table when view/API omitted the fields
+  try {
+    const { data, error } = await supabase
+      .from('groups')
+      .select('name, slug, country_code')
+      .eq('id', props.post.owner_id)
+      .maybeSingle();
+    if (error) throw error;
+    if (data?.name) {
+      resolvedGroup.value = {
+        name: data.name,
+        slug: data.slug,
+        country_code: data.country_code,
+      };
+    } else {
+      resolvedGroup.value = props.post.owner_group_name
+        ? {
+            name: props.post.owner_group_name,
+            slug: props.post.owner_group_slug || '',
+            country_code: props.post.owner_group_country_code || '',
+          }
+        : null;
+    }
+  } catch (e) {
+    console.error('Erro ao carregar grupo do post:', e);
+    resolvedGroup.value = props.post.owner_group_name
+      ? {
+          name: props.post.owner_group_name,
+          slug: props.post.owner_group_slug || '',
+          country_code: props.post.owner_group_country_code || '',
+        }
+      : null;
+  }
+}
+
+watch(
+  () =>
+    [
+      props.post.id,
+      props.post.owner_id,
+      props.post.owner_group_name,
+      props.post.owner_group_slug,
+      props.post.owner_group_country_code,
+      showGroupContext.value,
+    ] as const,
+  () => {
+    void ensureOwnerGroup();
+  },
+  { immediate: true }
+);
 
 const isAuthor = computed(() => {
   return !!authUserId.value && !!props.post.author_id && authUserId.value === props.post.author_id;
@@ -504,22 +608,60 @@ watch(user, () => {
   align-items: center;
   gap: 0.75rem;
   min-width: 0;
+  flex: 1;
 }
 .author-avatar {
-  width: 40px;
-  height: 40px;
+  width: 2.75rem;
+  height: 2.75rem;
   border-radius: 50%;
   object-fit: cover;
   background-color: #eee;
+  flex-shrink: 0;
+  display: block;
+}
+.author-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.12rem;
+  min-width: 0;
+  flex: 1;
+}
+.author-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.35rem;
+  min-width: 0;
+  line-height: 1.3;
 }
 .author-name {
   font-weight: 600;
   color: var(--text-color);
-  display: block;
+  display: inline;
+  text-decoration: none;
+}
+a.author-name:hover {
+  color: var(--primary-color-hover);
+}
+.posted-in {
+  color: #666;
+  font-weight: 400;
+  font-size: 0.9rem;
+}
+.group-context-link {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--primary-color);
+  text-decoration: none;
+}
+.group-context-link:hover {
+  color: var(--primary-color-hover);
 }
 .post-timestamp {
   font-size: 0.8rem;
   color: #777;
+  line-height: 1.3;
 }
 
 .post-content {
@@ -533,7 +675,10 @@ watch(user, () => {
 }
 .text-content :deep(a) {
   color: var(--primary-color);
-  text-decoration: underline;
+  text-decoration: none;
+}
+.text-content :deep(a:hover) {
+  color: var(--primary-color-hover);
 }
 
 .edit-form {

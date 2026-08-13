@@ -89,20 +89,25 @@ const supabase = useSupabaseClient();
 const userProfile = useProfile();
 const router = useRouter();
 const toast = useToast();
+const { refreshBlockedIds, blockedIds } = useBlock();
 
 const isMobileMenuOpen = ref(false);
 const defaultUserAvatar = '/images/default-avatar.png';
 const avatarBucketPath = 'https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/avatars';
 
 async function fetchAndSetUserProfile(userId: string) {
-  if (userProfile.value && userProfile.value.id === userId) {
+  if (
+    userProfile.value
+    && userProfile.value.id === userId
+    && userProfile.value.profile_visibility != null
+  ) {
     return;
   }
 
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, username, avatar_path, country_code, gender, birth_date, created_at')
+      .select('id, username, avatar_path, country_code, gender, birth_date, created_at, default_moderated_posts, profile_visibility, email_notify_like, email_notify_comment, email_notify_reply, email_notify_endorse')
       .eq('id', userId)
       .single();
 
@@ -142,8 +147,10 @@ function onNavAvatarError(event: Event) {
 watch(authUserId, (userId) => {
   if (userId) {
     fetchAndSetUserProfile(userId);
+    void refreshBlockedIds();
   } else {
     userProfile.value = null;
+    blockedIds.value = [];
   }
 }, { immediate: true });
 </script>
@@ -283,10 +290,12 @@ watch(authUserId, (userId) => {
 }
 .footer-link {
   color: var(--primary-color-light);
-  text-decoration: underline;
+  text-decoration: none;
   margin: 0 0.5rem;
+  transition: color 0.15s ease, opacity 0.15s ease;
 }
 .footer-link:hover {
   color: #fff;
+  opacity: 0.95;
 }
 </style>

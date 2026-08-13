@@ -189,10 +189,7 @@
                 <td>5% mais influente</td>
                 <td>Perito</td>
                 <td>7</td>
-                <td>
-                  Banir membros com menos de 50 pontos de influência<br />
-                  Excluir postagens
-                </td>
+                <td>Silenciar temporariamente membros do grupo</td>
               </tr>
               <tr>
                 <td>10</td>
@@ -206,7 +203,10 @@
                 <td>Top 25 mais influentes</td>
                 <td>Mestre</td>
                 <td>12</td>
-                <td>Silenciar temporariamente membros do grupo</td>
+                <td>
+                  Banir membros com menos de 50 pontos de influência<br />
+                  Excluir postagens
+                </td>
               </tr>
               <tr>
                 <td>12</td>
@@ -275,12 +275,12 @@
           </li>
           <li>
             <strong>Filtro de conteúdo moderado:</strong> se você deseja
-            participar apenas de debates de alto nível e respeitosos, nos
-            filtros do grupo selecione ver apenas conteúdo moderado. A
+            participar apenas de debates respeitosos e de alto nível,
+            selecione ver apenas conteúdo moderado nos filtros do grupo. A
             preferência permanece salva até você desmarcá-la.
           </li>
           <li>
-            <strong>Desendossamento:</strong> se um líder abusar do poder, a
+            <strong>Desendossamento:</strong> se um líder abusar dos poderes, a
             comunidade pode retirar endossos — um “impeachment orgânico” que
             reduz influência e privilégios.
           </li>

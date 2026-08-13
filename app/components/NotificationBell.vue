@@ -218,7 +218,11 @@ onBeforeUnmount(() => {
   font-size: 0.75rem;
   color: var(--primary-color);
   cursor: pointer;
-  text-decoration: underline;
+  text-decoration: none;
+  font-weight: 500;
+}
+.mark-all-btn:hover {
+  color: var(--primary-color-hover);
 }
 
 .bell-status {

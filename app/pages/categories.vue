@@ -384,7 +384,7 @@ watch(breadcrumbs, (newCrumbs) => {
   display: inline-block;
 }
 .breadcrumb-nav a { color: var(--primary-color); text-decoration: none; }
-.breadcrumb-nav a:hover { text-decoration: underline; }
+.breadcrumb-nav a:hover { color: var(--primary-color-hover); opacity: 0.9; }
 .breadcrumb-nav li span.active { color: var(--text-color); font-weight: 500; }
 
 .page-header {

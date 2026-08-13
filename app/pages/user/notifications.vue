@@ -40,6 +40,18 @@
         </button>
       </li>
     </ul>
+
+    <div v-if="hasMore && notifications.length > 0" class="load-more-wrap">
+      <button
+        type="button"
+        class="button-secondary"
+        :disabled="isLoadingMore"
+        @click="loadMore"
+      >
+        <LoadingMessage v-if="isLoadingMore" message="Carregando..." :icon-size="16" />
+        <template v-else>Carregar mais</template>
+      </button>
+    </div>
   </div>
 </template>
 
@@ -63,7 +75,10 @@ const {
   markOneRead,
 } = useNotifications();
 
+const PAGE_SIZE = 30;
 const isBusy = ref(false);
+const isLoadingMore = ref(false);
+const hasMore = ref(false);
 const defaultUserAvatar = '/images/default-avatar.png';
 const avatarBucket = 'https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/avatars';
 
@@ -94,8 +109,24 @@ async function openItem(item: AppNotification) {
   if (link) await navigateTo(link);
 }
 
+async function loadInitial() {
+  hasMore.value = !!(await fetchNotifications(PAGE_SIZE));
+}
+
+async function loadMore() {
+  if (isLoadingMore.value || !hasMore.value || notifications.value.length === 0) return;
+  const last = notifications.value[notifications.value.length - 1];
+  if (!last?.created_at) return;
+  isLoadingMore.value = true;
+  try {
+    hasMore.value = !!(await fetchNotifications(PAGE_SIZE, last.created_at, true));
+  } finally {
+    isLoadingMore.value = false;
+  }
+}
+
 onMounted(() => {
-  fetchNotifications(50);
+  loadInitial();
 });
 </script>
 
@@ -202,5 +233,15 @@ onMounted(() => {
   border-radius: 50%;
   background: var(--primary-color);
   flex-shrink: 0;
+}
+
+.load-more-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.25rem;
+}
+
+.load-more-wrap .button-secondary {
+  min-width: 10rem;
 }
 </style>

@@ -165,8 +165,9 @@ function closeHistory() {
   font: inherit;
   font-size: inherit;
   color: var(--primary-color);
-  text-decoration: underline;
+  text-decoration: none;
   cursor: pointer;
+  font-weight: 500;
 }
 
 .edited-link:hover {

@@ -10,6 +10,12 @@
       <NuxtLink to="/categories" class="button-primary">Explorar categorias</NuxtLink>
     </div>
 
+    <div v-else-if="isUnavailable" class="not-found card-style">
+      <h2>Este perfil não está disponível</h2>
+      <p>Você não pode ver este perfil.</p>
+      <NuxtLink to="/categories" class="button-primary">Explorar categorias</NuxtLink>
+    </div>
+
     <template v-else>
       <header class="profile-header card-style">
         <img
@@ -42,42 +48,61 @@
               Membro há {{ formatMembershipDuration(profile.created_at).replace(/^há\s+/i, '') }}
             </span>
           </div>
-          <div class="follow-stats">
-            <span class="follow-stat">
-              <strong>{{ followingCount }}</strong> seguindo
-            </span>
+          <div v-if="blockStatus !== 'blocking'" class="follow-stats">
             <span class="follow-stat">
               <strong>{{ followersCount }}</strong>
               {{ followersCount === 1 ? 'seguidor' : 'seguidores' }}
             </span>
+            <span class="follow-stat">
+              <strong>{{ followingCount }}</strong> seguindo
+            </span>
           </div>
-          <NuxtLink
-            v-if="isOwnProfile"
-            to="/user/profile"
-            class="button-secondary edit-profile-link"
-          >
-            Editar meu perfil
-          </NuxtLink>
-          <button
-            v-else-if="authUserId"
-            type="button"
-            class="button-secondary edit-profile-link follow-btn"
-            :disabled="isTogglingFollow || followStatus === null"
-            @click="handleToggleFollow"
-          >
-            <LoadingMessage v-if="isTogglingFollow" message="..." :icon-size="14" />
-            <template v-else>
-              <Icon
-                :name="followStatus ? 'lucide:user-minus' : 'lucide:user-plus'"
-                :size="15"
-              />
-              <span>{{ followStatus ? 'Deixar de seguir' : 'Seguir' }}</span>
-            </template>
-          </button>
+          <p v-if="blockStatus === 'blocking'" class="blocked-banner">
+            Você bloqueou este usuário. Postagens e interações ficam ocultas.
+          </p>
+          <div class="profile-actions">
+            <NuxtLink
+              v-if="isOwnProfile"
+              to="/user/profile"
+              class="button-secondary edit-profile-link"
+            >
+              Editar meu perfil
+            </NuxtLink>
+            <button
+              v-else-if="authUserId && blockStatus === 'none'"
+              type="button"
+              class="button-secondary edit-profile-link follow-btn"
+              :disabled="isTogglingFollow || followStatus === null"
+              @click="handleToggleFollow"
+            >
+              <LoadingMessage v-if="isTogglingFollow" message="..." :icon-size="14" />
+              <template v-else>
+                <Icon
+                  :name="followStatus ? 'lucide:user-minus' : 'lucide:user-plus'"
+                  :size="15"
+                />
+                <span>{{ followStatus ? 'Deixar de seguir' : 'Seguir' }}</span>
+              </template>
+            </button>
+            <button
+              v-if="authUserId && !isOwnProfile"
+              type="button"
+              class="button-secondary edit-profile-link block-btn"
+              :class="{ danger: blockStatus !== 'blocking' }"
+              :disabled="isTogglingBlock || blockStatus === null"
+              @click="handleBlockClick"
+            >
+              <LoadingMessage v-if="isTogglingBlock" message="..." :icon-size="14" />
+              <template v-else>
+                <Icon name="lucide:ban" :size="15" />
+                <span>{{ blockStatus === 'blocking' ? 'Desbloquear' : 'Bloquear' }}</span>
+              </template>
+            </button>
+          </div>
         </div>
       </header>
 
-      <div class="profile-body">
+      <div v-if="blockStatus !== 'blocking'" class="profile-body">
         <aside class="profile-sidebar">
           <section class="profile-section card-style">
             <h2>Vieses declarados</h2>
@@ -130,20 +155,36 @@
           <h2>Postagens</h2>
           <PostList
             :posts="posts"
-            :is-loading="isLoadingPosts"
+            :is-loading="isLoadingPosts && posts.length === 0"
+            :has-more="hasMorePosts"
+            :is-loading-more="isLoadingMorePosts"
             empty-message="Nenhuma postagem pública ainda."
             @post-deleted="handlePostDeleted"
             @post-updated="handlePostUpdated"
+            @load-more="loadMorePosts"
           />
         </section>
       </div>
     </template>
+
+    <ConfirmDialog
+      :open="showBlockConfirm"
+      title="Bloquear usuário"
+      message="Você deixa de seguir esta pessoa, não verá as postagens dela e ela não poderá interagir com você. Deseja bloquear?"
+      confirm-label="Bloquear"
+      busy-label="Bloqueando..."
+      :busy="isTogglingBlock"
+      @confirm="confirmBlock"
+      @update:open="showBlockConfirm = $event"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import type { BiasWithDetails, PostWithAuthor, Profile } from '~/types/app';
+import type { BlockStatus } from '~/composables/useBlock';
 import { countryFlagUrl, formatCountryName, formatMembershipDuration } from '~/utils/formatters';
+import { parseProfileVisibility } from '~/utils/profileVisibility';
 import { useToast } from 'vue-toastification';
 
 const route = useRoute();
@@ -151,13 +192,14 @@ const supabase = useSupabaseClient();
 const authUserId = useAuthUserId();
 const toast = useToast();
 const { isFollowing, toggleFollow } = useFollow();
+const { getBlockStatus, blockUser, unblockUser } = useBlock();
 
 const defaultAvatarUrl = '/images/default-avatar.png';
 const avatarBucketPath = 'https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/avatars';
 
 const routeUsername = computed(() => String(route.params.username || '').trim());
 
-const profile = ref<Pick<Profile, 'id' | 'username' | 'avatar_path' | 'country_code' | 'created_at'> | null>(null);
+const profile = ref<Pick<Profile, 'id' | 'username' | 'avatar_path' | 'country_code' | 'created_at' | 'profile_visibility'> | null>(null);
 const avatarUrl = ref(defaultAvatarUrl);
 const isLoadingProfile = ref(true);
 
@@ -166,15 +208,25 @@ const isLoadingBiases = ref(false);
 
 const posts = ref<PostWithAuthor[]>([]);
 const isLoadingPosts = ref(false);
+const isLoadingMorePosts = ref(false);
+const hasMorePosts = ref(false);
+const profileAuthor = ref<Pick<Profile, 'username' | 'avatar_path'> | null>(null);
+
+const POSTS_PAGE_SIZE = 20;
 
 const followStatus = ref<boolean | null>(null);
 const isTogglingFollow = ref(false);
 const followersCount = ref(0);
 const followingCount = ref(0);
+const blockStatus = ref<BlockStatus | null>(null);
+const isTogglingBlock = ref(false);
+const showBlockConfirm = ref(false);
+const isProfileHidden = ref(false);
 
 const isOwnProfile = computed(
   () => !!authUserId.value && !!profile.value && authUserId.value === profile.value.id
 );
+const isUnavailable = computed(() => blockStatus.value === 'blocked' || isProfileHidden.value);
 
 const countryFlag = computed(() => countryFlagUrl(profile.value?.country_code));
 
@@ -203,14 +255,27 @@ function onAvatarError() {
   }
 }
 
+async function canViewerAccessProfile(ownerId: string, visibility: ReturnType<typeof parseProfileVisibility>) {
+  if (authUserId.value === ownerId) return true;
+  if (visibility === 'public') return true;
+  if (visibility === 'private') return false;
+  if (!authUserId.value) return false;
+  if (visibility === 'registered') return true;
+  return isFollowing(ownerId);
+}
+
 async function fetchProfile() {
   const username = routeUsername.value;
   profile.value = null;
   avatarUrl.value = defaultAvatarUrl;
   userBiases.value = [];
   posts.value = [];
+  hasMorePosts.value = false;
+  profileAuthor.value = null;
   followersCount.value = 0;
   followingCount.value = 0;
+  blockStatus.value = null;
+  isProfileHidden.value = false;
 
   if (!username) {
     isLoadingProfile.value = false;
@@ -221,7 +286,7 @@ async function fetchProfile() {
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, username, avatar_path, country_code, created_at')
+      .select('id, username, avatar_path, country_code, created_at, profile_visibility')
       .ilike('username', username)
       .limit(1)
       .maybeSingle();
@@ -234,12 +299,46 @@ async function fetchProfile() {
     }
 
     if (data) {
-      await Promise.all([
+      profileAuthor.value = {
+        username: data.username,
+        avatar_path: data.avatar_path,
+      };
+
+      if (authUserId.value && authUserId.value !== data.id) {
+        try {
+          blockStatus.value = await getBlockStatus(data.id);
+        } catch (e) {
+          console.error('Erro ao verificar bloqueio:', e);
+          blockStatus.value = 'none';
+        }
+      } else {
+        blockStatus.value = 'none';
+      }
+
+      if (blockStatus.value === 'blocked') {
+        return;
+      }
+
+      if (blockStatus.value !== 'blocking') {
+        const visibility = parseProfileVisibility(data.profile_visibility);
+        const canView = await canViewerAccessProfile(data.id, visibility);
+        if (!canView) {
+          isProfileHidden.value = true;
+          return;
+        }
+      }
+
+      const tasks: Promise<unknown>[] = [
         fetchBiases(data.id),
-        fetchPosts(data.id, data),
-        refreshFollowStatus(data.id),
         fetchFollowCounts(data.id),
-      ]);
+      ];
+      if (blockStatus.value !== 'blocking') {
+        tasks.push(fetchPosts(data.id, profileAuthor.value));
+        tasks.push(refreshFollowStatus(data.id));
+      } else {
+        followStatus.value = false;
+      }
+      await Promise.all(tasks);
     }
   } catch (e) {
     console.error('Erro ao carregar perfil público:', e);
@@ -281,6 +380,10 @@ async function refreshFollowStatus(userId: string) {
 
 async function handleToggleFollow() {
   if (!profile.value || !authUserId.value || isOwnProfile.value || followStatus.value === null) return;
+  if (blockStatus.value && blockStatus.value !== 'none') {
+    toast.info('Não é possível seguir um usuário bloqueado.');
+    return;
+  }
   isTogglingFollow.value = true;
   try {
     const next = await toggleFollow(profile.value.id, followStatus.value);
@@ -292,6 +395,60 @@ async function handleToggleFollow() {
     toast.error(e.message || 'Não foi possível atualizar o follow.');
   } finally {
     isTogglingFollow.value = false;
+  }
+}
+
+function handleBlockClick() {
+  if (!profile.value || !authUserId.value || isOwnProfile.value || blockStatus.value === null) return;
+  if (blockStatus.value === 'blocking') {
+    void confirmUnblock();
+    return;
+  }
+  showBlockConfirm.value = true;
+}
+
+async function confirmUnblock() {
+  if (!profile.value) return;
+  isTogglingBlock.value = true;
+  try {
+    await unblockUser(profile.value.id);
+    blockStatus.value = await getBlockStatus(profile.value.id);
+    toast.success('Usuário desbloqueado.');
+    if (blockStatus.value === 'blocked' || blockStatus.value === 'blocking') return;
+    await Promise.all([
+      fetchBiases(profile.value.id),
+      fetchPosts(profile.value.id, profileAuthor.value || {
+        username: profile.value.username,
+        avatar_path: profile.value.avatar_path,
+      }),
+      refreshFollowStatus(profile.value.id),
+      fetchFollowCounts(profile.value.id),
+    ]);
+  } catch (e: any) {
+    console.error('Erro ao desbloquear:', e);
+    toast.error(e.message || 'Não foi possível desbloquear.');
+  } finally {
+    isTogglingBlock.value = false;
+  }
+}
+
+async function confirmBlock() {
+  if (!profile.value) return;
+  isTogglingBlock.value = true;
+  try {
+    await blockUser(profile.value.id);
+    blockStatus.value = 'blocking';
+    followStatus.value = false;
+    posts.value = [];
+    userBiases.value = [];
+    hasMorePosts.value = false;
+    showBlockConfirm.value = false;
+    toast.success('Usuário bloqueado.');
+  } catch (e: any) {
+    console.error('Erro ao bloquear:', e);
+    toast.error(e.message || 'Não foi possível bloquear.');
+  } finally {
+    isTogglingBlock.value = false;
   }
 }
 
@@ -316,18 +473,29 @@ async function fetchBiases(userId: string) {
 
 async function fetchPosts(
   userId: string,
-  author: Pick<Profile, 'username' | 'avatar_path'>
+  author: Pick<Profile, 'username' | 'avatar_path'>,
+  before?: string | null,
+  append = false
 ) {
-  isLoadingPosts.value = true;
+  if (append) {
+    isLoadingMorePosts.value = true;
+  } else {
+    isLoadingPosts.value = true;
+  }
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('posts_with_author_info')
       .select('*')
       .eq('author_id', userId)
       .eq('is_anonymous', false)
       .order('created_at', { ascending: false })
-      .limit(40);
+      .limit(POSTS_PAGE_SIZE);
 
+    if (before) {
+      query = query.lt('created_at', before);
+    }
+
+    const { data, error } = await query;
     if (error) throw error;
 
     const rows = (data || []) as PostWithAuthor[];
@@ -343,16 +511,26 @@ async function fetchPosts(
     if (groupIds.length > 0) {
       const { data: groupsData, error: groupsError } = await supabase
         .from('groups')
-        .select('id, is_open')
+        .select('id, is_open, name, slug, country_code')
         .in('id', groupIds);
 
       if (groupsError) throw groupsError;
       openGroupIds = new Set(
         (groupsData || []).filter((g) => g.is_open).map((g) => g.id)
       );
+
+      const byId = new Map((groupsData || []).map((g) => [g.id, g]));
+      for (const row of rows) {
+        if (row.owner_type !== 'group' || !row.owner_id) continue;
+        const group = byId.get(row.owner_id);
+        if (!group) continue;
+        row.owner_group_name = row.owner_group_name || group.name;
+        row.owner_group_slug = row.owner_group_slug || group.slug;
+        row.owner_group_country_code = row.owner_group_country_code || group.country_code;
+      }
     }
 
-    posts.value = rows
+    const visible = rows
       .filter((p) => {
         if (p.owner_type !== 'group' || !p.owner_id) return true;
         return openGroupIds.has(p.owner_id);
@@ -362,12 +540,31 @@ async function fetchPosts(
         author_username: p.author_username || author.username,
         author_avatar_path: p.author_avatar_path || author.avatar_path,
       }));
+
+    if (append) {
+      const existing = new Set(posts.value.map((p) => p.id));
+      posts.value = [...posts.value, ...visible.filter((p) => p.id && !existing.has(p.id))];
+    } else {
+      posts.value = visible;
+    }
+    hasMorePosts.value = rows.length >= POSTS_PAGE_SIZE;
   } catch (e) {
     console.error('Erro ao carregar postagens do perfil:', e);
-    posts.value = [];
+    if (!append) {
+      posts.value = [];
+      hasMorePosts.value = false;
+    }
   } finally {
     isLoadingPosts.value = false;
+    isLoadingMorePosts.value = false;
   }
+}
+
+async function loadMorePosts() {
+  if (!profile.value || !profileAuthor.value || isLoadingMorePosts.value || !hasMorePosts.value) return;
+  const last = posts.value[posts.value.length - 1];
+  if (!last?.created_at) return;
+  await fetchPosts(profile.value.id, profileAuthor.value, last.created_at, true);
 }
 
 function handlePostDeleted(postId: string) {
@@ -394,12 +591,8 @@ watch(routeUsername, () => {
   fetchProfile();
 }, { immediate: true });
 
-watch(authUserId, (id) => {
-  if (profile.value?.id) {
-    void refreshFollowStatus(profile.value.id);
-  } else if (!id) {
-    followStatus.value = false;
-  }
+watch(authUserId, () => {
+  if (routeUsername.value) void fetchProfile();
 });
 </script>
 
@@ -526,6 +719,29 @@ watch(authUserId, (id) => {
   font-size: 0.88rem;
   line-height: 1.2;
   text-decoration: none;
+}
+
+.profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.15rem;
+}
+
+.blocked-banner {
+  margin: 0.15rem 0 0;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  color: #7a3b00;
+  background: #fff6e8;
+  border: 1px solid #f0d3a8;
+  border-radius: 6px;
+}
+
+.block-btn.danger {
+  color: #b91c1c;
+  border-color: #f0c4c4;
 }
 
 .profile-body {

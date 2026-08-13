@@ -19,6 +19,10 @@ export function useFollow() {
   async function follow(userId: string): Promise<void> {
     if (!authUserId.value) throw new Error('Faça login para seguir usuários.');
     if (authUserId.value === userId) throw new Error('Você não pode seguir a si mesmo.');
+    const { isAuthorHidden, getBlockStatus } = useBlock();
+    if (isAuthorHidden(userId) || (await getBlockStatus(userId)) !== 'none') {
+      throw new Error('Não é possível seguir este usuário.');
+    }
     const { error } = await supabase.from('follows').insert({
       follower_id: authUserId.value,
       following_id: userId,

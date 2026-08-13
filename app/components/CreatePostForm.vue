@@ -86,7 +86,7 @@ const toast = useToast();
 
 const textContent = ref('');
 const isAnonymous = ref(false);
-const isModeratedContent = ref(false);
+const isModeratedContent = ref(!!userProfile.value?.default_moderated_posts);
 const isLoading = ref(false);
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
 
@@ -114,8 +114,15 @@ function resetForm() {
   textContent.value = '';
   resetMedia();
   isAnonymous.value = false;
-  isModeratedContent.value = false;
+  isModeratedContent.value = !!userProfile.value?.default_moderated_posts;
 }
+
+watch(
+  () => userProfile.value?.default_moderated_posts,
+  (value) => {
+    isModeratedContent.value = !!value;
+  }
+);
 
 async function submitPost() {
   if (!canSubmit.value) return;

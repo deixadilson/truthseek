@@ -498,13 +498,14 @@ function emitScrollToReply(commentId: string) {
 
 .reply-info { font-size: 0.8rem; color: #666; margin-bottom: 0.3rem; }
 .reply-info a { color: var(--primary-color); cursor: pointer; text-decoration: none; }
-.reply-info a:hover { text-decoration: underline; }
+.reply-info a:hover { color: var(--primary-color-hover); }
 
 .comment-text {
   font-size: 0.95rem; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word;
   margin-bottom: 0.75rem;
 }
-.comment-text :deep(a) { color: var(--primary-color); text-decoration: underline; }
+.comment-text :deep(a) { color: var(--primary-color); text-decoration: none; }
+.comment-text :deep(a:hover) { color: var(--primary-color-hover); }
 
 .edit-form {
   display: flex;
