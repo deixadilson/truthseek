@@ -263,6 +263,39 @@ export type Database = {
           },
         ]
       }
+      follow_requests: {
+        Row: {
+          created_at: string
+          requester_id: string
+          target_id: string
+        }
+        Insert: {
+          created_at?: string
+          requester_id: string
+          target_id: string
+        }
+        Update: {
+          created_at?: string
+          requester_id?: string
+          target_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follow_requests_requester_id_fkey"
+            columns: ["requester_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_requests_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       follows: {
         Row: {
           created_at: string
@@ -321,77 +354,6 @@ export type Database = {
             columns: ["group_id_b"]
             isOneToOne: false
             referencedRelation: "groups"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      premises: {
-        Row: {
-          axis_key: string | null
-          created_at: string
-          description: string
-          group_id: string
-          id: string
-          name: string
-          sort_order: number
-        }
-        Insert: {
-          axis_key?: string | null
-          created_at?: string
-          description: string
-          group_id: string
-          id?: string
-          name: string
-          sort_order?: number
-        }
-        Update: {
-          axis_key?: string | null
-          created_at?: string
-          description?: string
-          group_id?: string
-          id?: string
-          name?: string
-          sort_order?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "premises_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "groups"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      premise_oppositions: {
-        Row: {
-          created_at: string
-          premise_id_a: string
-          premise_id_b: string
-        }
-        Insert: {
-          created_at?: string
-          premise_id_a: string
-          premise_id_b: string
-        }
-        Update: {
-          created_at?: string
-          premise_id_a?: string
-          premise_id_b?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "premise_oppositions_premise_id_a_fkey"
-            columns: ["premise_id_a"]
-            isOneToOne: false
-            referencedRelation: "premises"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "premise_oppositions_premise_id_b_fkey"
-            columns: ["premise_id_b"]
-            isOneToOne: false
-            referencedRelation: "premises"
             referencedColumns: ["id"]
           },
         ]
@@ -493,6 +455,61 @@ export type Database = {
           },
         ]
       }
+      issues: {
+        Row: {
+          created_at: string
+          description: string | null
+          group_id: string
+          id: string
+          name: string
+          parent_issue_id: string | null
+          slug: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          group_id: string
+          id?: string
+          name: string
+          parent_issue_id?: string | null
+          slug: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          group_id?: string
+          id?: string
+          name?: string
+          parent_issue_id?: string | null
+          slug?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "issues_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "biases_with_details"
+            referencedColumns: ["category_id"]
+          },
+          {
+            foreignKeyName: "issues_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "issues_parent_issue_id_fkey"
+            columns: ["parent_issue_id"]
+            isOneToOne: false
+            referencedRelation: "issues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           actor_id: string | null
@@ -528,6 +545,46 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      post_issues: {
+        Row: {
+          created_at: string
+          issue_id: string
+          post_id: string
+        }
+        Insert: {
+          created_at?: string
+          issue_id: string
+          post_id: string
+        }
+        Update: {
+          created_at?: string
+          issue_id?: string
+          post_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_issues_issue_id_fkey"
+            columns: ["issue_id"]
+            isOneToOne: false
+            referencedRelation: "issues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_issues_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_issues_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts_with_author_info"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       post_subscriptions: {
         Row: {
@@ -629,35 +686,80 @@ export type Database = {
         }
         Relationships: []
       }
-      follow_requests: {
+      premise_oppositions: {
         Row: {
           created_at: string
-          requester_id: string
-          target_id: string
+          premise_id_a: string
+          premise_id_b: string
         }
         Insert: {
           created_at?: string
-          requester_id: string
-          target_id: string
+          premise_id_a: string
+          premise_id_b: string
         }
         Update: {
           created_at?: string
-          requester_id?: string
-          target_id?: string
+          premise_id_a?: string
+          premise_id_b?: string
         }
         Relationships: [
           {
-            foreignKeyName: "follow_requests_requester_id_fkey"
-            columns: ["requester_id"]
+            foreignKeyName: "premise_oppositions_premise_id_a_fkey"
+            columns: ["premise_id_a"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "premises"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "follow_requests_target_id_fkey"
-            columns: ["target_id"]
+            foreignKeyName: "premise_oppositions_premise_id_b_fkey"
+            columns: ["premise_id_b"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "premises"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      premises: {
+        Row: {
+          axis_key: string | null
+          created_at: string
+          description: string
+          group_id: string
+          id: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          axis_key?: string | null
+          created_at?: string
+          description: string
+          group_id: string
+          id?: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          axis_key?: string | null
+          created_at?: string
+          description?: string
+          group_id?: string
+          id?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "premises_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "biases_with_details"
+            referencedColumns: ["category_id"]
+          },
+          {
+            foreignKeyName: "premises_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
             referencedColumns: ["id"]
           },
         ]
@@ -953,10 +1055,22 @@ export type Database = {
           updated_at: string | null
           video_url: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "groups_country_code_fkey"
+            columns: ["owner_group_country_code"]
+            isOneToOne: false
+            referencedRelation: "countries"
+            referencedColumns: ["code"]
+          },
+        ]
       }
     }
     Functions: {
+      accept_follow_request: {
+        Args: { p_requester_id: string }
+        Returns: undefined
+      }
       block_user: { Args: { p_blocked_id: string }; Returns: boolean }
       blocked_pair_ids: { Args: never; Returns: string[] }
       can_declare_bias: {
@@ -965,6 +1079,10 @@ export type Database = {
           can_declare: boolean
           reason: string
         }[]
+      }
+      cancel_follow_request: {
+        Args: { p_target_id: string }
+        Returns: undefined
       }
       create_notification: {
         Args: {
@@ -1069,8 +1187,6 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      accept_follow_request: { Args: { p_requester_id: string }; Returns: undefined }
-      cancel_follow_request: { Args: { p_target_id: string }; Returns: undefined }
       get_block_status: { Args: { p_other_id: string }; Returns: string }
       get_follow_counts: {
         Args: { p_user_id: string }
@@ -1080,28 +1196,25 @@ export type Database = {
         }[]
       }
       get_follow_status: { Args: { p_other_id: string }; Returns: string }
-      list_followers: {
-        Args: { p_before?: string; p_limit?: number; p_user_id: string }
+      get_issues_for_group: {
+        Args: { p_group_id: string }
         Returns: {
-          avatar_path: string
-          followed_at: string
-          follow_status: string
+          created_at: string
+          description: string | null
+          group_id: string
           id: string
-          username: string
+          name: string
+          parent_issue_id: string | null
+          slug: string
+          sort_order: number
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "issues"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
-      list_following: {
-        Args: { p_before?: string; p_limit?: number; p_user_id: string }
-        Returns: {
-          avatar_path: string
-          followed_at: string
-          follow_status: string
-          id: string
-          username: string
-        }[]
-      }
-      reject_follow_request: { Args: { p_requester_id: string }; Returns: undefined }
-      request_follow: { Args: { p_target_id: string }; Returns: string }
       get_timeline_posts: {
         Args: { p_before?: string; p_limit?: number }
         Returns: {
@@ -1161,10 +1274,39 @@ export type Database = {
           success: boolean
         }[]
       }
+      issue_is_available_for_group: {
+        Args: { p_issue_group_id: string; p_target_group_id: string }
+        Returns: boolean
+      }
+      list_followers: {
+        Args: { p_before?: string; p_limit?: number; p_user_id: string }
+        Returns: {
+          avatar_path: string
+          follow_status: string
+          followed_at: string
+          id: string
+          username: string
+        }[]
+      }
+      list_following: {
+        Args: { p_before?: string; p_limit?: number; p_user_id: string }
+        Returns: {
+          avatar_path: string
+          follow_status: string
+          followed_at: string
+          id: string
+          username: string
+        }[]
+      }
       mark_notifications_read: {
         Args: { p_notification_ids?: string[] }
         Returns: number
       }
+      reject_follow_request: {
+        Args: { p_requester_id: string }
+        Returns: undefined
+      }
+      request_follow: { Args: { p_target_id: string }; Returns: string }
       soft_delete_comment: { Args: { p_comment_id: string }; Returns: boolean }
       soft_delete_post: { Args: { p_post_id: string }; Returns: boolean }
       unblock_user: { Args: { p_blocked_id: string }; Returns: boolean }

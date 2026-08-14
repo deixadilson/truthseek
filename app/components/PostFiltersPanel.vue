@@ -68,6 +68,31 @@
         </p>
       </div>
 
+      <div v-if="availableIssues.length > 0" class="filter-group filter-group-issues">
+        <span class="filter-group-label">Issue Tags</span>
+        <div class="issue-filter-controls">
+          <IssueSelector
+            v-model="selectedIssueIds"
+            :issues="availableIssues"
+            :max-selected="10"
+            label="Filtrar tags"
+          />
+          <div v-if="selectedIssueChips.length > 0" class="issue-filter-chips">
+            <button
+              v-for="issue in selectedIssueChips"
+              :key="issue.id"
+              type="button"
+              class="issue-filter-chip"
+              :title="`Remover filtro ${issue.name}`"
+              @click="removeIssueFilter(issue.id)"
+            >
+              <span>{{ issue.name }}</span>
+              <Icon name="lucide:x" :size="12" />
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div v-if="hasActiveFilters" class="filter-group filter-group-reset">
         <span class="filter-group-label filter-group-label-spacer" aria-hidden="true">&nbsp;</span>
         <button
@@ -83,11 +108,14 @@
 </template>
 
 <script setup lang="ts">
-import type { PostWithAuthor } from '~/types/app';
+import type { Issue, PostWithAuthor } from '~/types/app';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   posts: PostWithAuthor[];
-}>();
+  availableIssues?: Issue[];
+}>(), {
+  availableIssues: () => [],
+});
 
 const emit = defineEmits<{
   (e: 'update:filtered', posts: PostWithAuthor[]): void;
@@ -101,11 +129,23 @@ const showImage = ref(true);
 const showVideo = ref(true);
 const showModerated = ref(true);
 const showUnmoderated = ref(true);
+const selectedIssueIds = ref<string[]>([]);
 const searchDraft = ref('');
 const searchQuery = ref('');
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
 let syncingFromPreference = false;
+
+const selectedIssueChips = computed(() => {
+  const byId = new Map(props.availableIssues.map((issue) => [issue.id, issue]));
+  return selectedIssueIds.value
+    .map((id) => byId.get(id))
+    .filter((issue): issue is Issue => !!issue);
+});
+
+function removeIssueFilter(issueId: string) {
+  selectedIssueIds.value = selectedIssueIds.value.filter((id) => id !== issueId);
+}
 
 onMounted(() => {
   applyModeratedPreference(preferModeratedOnly.value);
@@ -127,18 +167,19 @@ function applyModeratedPreference(value: boolean) {
 
 watch([showModerated, showUnmoderated], ([moderated, unmoderated]) => {
   if (syncingFromPreference) return;
-  // "Apenas moderados" = moderado ligado e não moderado desligado
   preferModeratedOnly.value = moderated && !unmoderated;
 });
 
 const hasActiveFilters = computed(() => {
   const mediaRestricted = !showText.value || !showImage.value || !showVideo.value;
   const modRestricted = !showModerated.value || !showUnmoderated.value;
-  return mediaRestricted || modRestricted || !!searchQuery.value.trim();
+  const issueRestricted = selectedIssueIds.value.length > 0;
+  return mediaRestricted || modRestricted || issueRestricted || !!searchQuery.value.trim();
 });
 
 const filteredPosts = computed(() => {
   const q = searchQuery.value.trim().toLowerCase();
+  const issueFilters = selectedIssueIds.value;
 
   return props.posts.filter((post) => {
     const hasText = !!(post.text_content && post.text_content.trim());
@@ -163,6 +204,12 @@ const filteredPosts = computed(() => {
       const isMod = !!post.is_moderated;
       if (isMod && !showModerated.value) return false;
       if (!isMod && !showUnmoderated.value) return false;
+    }
+
+    if (issueFilters.length > 0) {
+      const postIssueIds = post.issue_ids || [];
+      const matchesIssue = issueFilters.some((id) => postIssueIds.includes(id));
+      if (!matchesIssue) return false;
     }
 
     if (q) {
@@ -198,6 +245,7 @@ function resetFilters() {
   showVideo.value = true;
   showModerated.value = true;
   showUnmoderated.value = true;
+  selectedIssueIds.value = [];
   preferModeratedOnly.value = false;
   clearSearch();
 }
@@ -321,6 +369,16 @@ onBeforeUnmount(() => {
   }
 }
 
+@media (min-width: 1024px) {
+  .filters-panel {
+    flex-wrap: nowrap;
+  }
+
+  .filter-group-reset {
+    margin-left: auto;
+  }
+}
+
 .filter-group-label {
   display: block;
   margin-bottom: 0.45rem;
@@ -342,6 +400,40 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
+}
+
+.issue-filter-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.issue-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.issue-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  height: 1.6rem;
+  padding: 0 0.55rem;
+  border: 1px solid var(--primary-color-light);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary-color) 8%, white);
+  color: var(--primary-color-dark);
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.issue-filter-chip:hover {
+  background: color-mix(in srgb, var(--primary-color) 16%, white);
+  border-color: var(--primary-color);
 }
 
 .filter-preference-hint {

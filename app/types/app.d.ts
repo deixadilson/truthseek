@@ -6,7 +6,11 @@ export type Group = Database['public']['Tables']['groups']['Row'];
 export type Post = Database['public']['Tables']['posts']['Row'];
 export type Comment = Database['public']['Tables']['comments']['Row'];
 export type Bias = Database['public']['Tables']['biases']['Row'];
-export type PostWithAuthor = Database['public']['Views']['posts_with_author_info']['Row'];
+export type Issue = Database['public']['Tables']['issues']['Row'];
+export type PostIssue = Database['public']['Tables']['post_issues']['Row'];
+export type PostWithAuthor = Database['public']['Views']['posts_with_author_info']['Row'] & {
+  issue_ids?: string[] | null;
+};
 export type CommentWithAuthor = Database['public']['Views']['comments_with_author_info']['Row'];
 export type ContentRevision = Database['public']['Tables']['content_revisions']['Row'];
 export type BiasWithDetails = Database['public']['Views']['biases_with_details']['Row'];

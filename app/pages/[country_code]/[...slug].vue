@@ -122,6 +122,7 @@
             />
             <PostFiltersPanel
               :posts="posts"
+              :available-issues="groupIssues"
               @update:filtered="filteredPosts = $event"
             />
             <section class="posts-list-section">
@@ -183,7 +184,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Bias, Group, PostWithAuthor } from '~/types/app';
+import type { Bias, Group, Issue, PostWithAuthor } from '~/types/app';
 import { useToast } from 'vue-toastification';
 import { MIN_INFLUENCE_TO_ENTER_GROUP, countryFlagUrl, formatCountryName } from '~/utils/formatters';
 
@@ -197,6 +198,7 @@ const subgroups = ref<Group[]>([]);
 const oppositeGroups = ref<Pick<Group, 'id' | 'name' | 'slug' | 'country_code' | 'flag_path'>[]>([]);
 const posts = ref<PostWithAuthor[]>([]);
 const filteredPosts = ref<PostWithAuthor[]>([]);
+const groupIssues = ref<Issue[]>([]);
 const isLoading = ref(true);
 const isLoadingPosts = ref(false);
 const isLoadingMorePosts = ref(false);
@@ -400,6 +402,48 @@ async function fetchOppositeGroups(groupId: string) {
   }
 }
 
+async function attachIssueIdsToPosts(rows: PostWithAuthor[]): Promise<PostWithAuthor[]> {
+  const ids = rows.map((p) => p.id).filter((id): id is string => !!id);
+  if (ids.length === 0) return rows.map((p) => ({ ...p, issue_ids: p.issue_ids || [] }));
+
+  try {
+    const { data, error } = await supabase
+      .from('post_issues')
+      .select('post_id, issue_id')
+      .in('post_id', ids);
+
+    if (error) throw error;
+
+    const byPost = new Map<string, string[]>();
+    for (const row of data || []) {
+      const list = byPost.get(row.post_id) || [];
+      list.push(row.issue_id);
+      byPost.set(row.post_id, list);
+    }
+
+    return rows.map((post) => ({
+      ...post,
+      issue_ids: post.id ? (byPost.get(post.id) || []) : [],
+    }));
+  } catch (e) {
+    console.error('Erro ao carregar issues dos posts:', e);
+    return rows.map((p) => ({ ...p, issue_ids: p.issue_ids || [] }));
+  }
+}
+
+async function loadGroupIssues(groupId: string) {
+  try {
+    const { data, error } = await supabase.rpc('get_issues_for_group', {
+      p_group_id: groupId,
+    });
+    if (error) throw error;
+    groupIssues.value = (data || []) as Issue[];
+  } catch (e) {
+    console.error('Erro ao carregar issues do grupo:', e);
+    groupIssues.value = [];
+  }
+}
+
 async function fetchPostsForGroup(groupId: string, before?: string | null, append = false) {
   if (append) {
     isLoadingMorePosts.value = true;
@@ -422,7 +466,7 @@ async function fetchPostsForGroup(groupId: string, before?: string | null, appen
     const { data, error } = await query;
     if (error) throw error;
 
-    const rows = (data || []) as PostWithAuthor[];
+    const rows = await attachIssueIdsToPosts((data || []) as PostWithAuthor[]);
     if (append) {
       const existing = new Set(posts.value.map((p) => p.id));
       posts.value = [...posts.value, ...rows.filter((p) => p.id && !existing.has(p.id))];
@@ -459,6 +503,7 @@ async function fetchGroupData(country: string, slug: string): Promise<void> {
   oppositeGroups.value = [];
   posts.value = [];
   filteredPosts.value = [];
+  groupIssues.value = [];
   hasMorePosts.value = false;
   userBiasForGroup.value = null;
 
@@ -494,6 +539,7 @@ async function fetchGroupData(country: string, slug: string): Promise<void> {
         buildBreadcrumbs(groupData.value),
         resolveGroupAccess(groupData.value.id, !!groupData.value.is_open),
         fetchOppositeGroups(groupData.value.id),
+        loadGroupIssues(groupData.value.id),
       ]);
 
       if (groupData.value.has_subgroups) {

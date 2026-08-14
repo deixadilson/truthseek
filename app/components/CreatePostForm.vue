@@ -32,35 +32,61 @@
         </div>
       </div>
 
-      <div class="form-actions-toolbar">
-        <div class="media-and-options">
-          <label for="hidden-file-input" class="toolbar-action-btn button-secondary add-image-btn" title="Adicionar Imagem">
-            <Icon name="lucide:image" :size="16" />
-            <span class="btn-text">Imagem</span>
-          </label>
-          <input
-            type="file" id="hidden-file-input" @change="handleImageFileSelected"
-            accept="image/*" style="display: none" ref="fileInputRef"
-          />
+      <div class="form-actions-block">
+        <div class="form-actions-toolbar">
+          <div class="media-and-options">
+            <label for="hidden-file-input" class="toolbar-action-btn button-secondary add-image-btn" title="Adicionar Imagem">
+              <Icon name="lucide:image" :size="16" />
+              <span class="btn-text">Imagem</span>
+            </label>
+            <input
+              type="file" id="hidden-file-input" @change="handleImageFileSelected"
+              accept="image/*" style="display: none" ref="fileInputRef"
+            />
 
-          <OptionToggle
-            v-model="isAnonymous"
-            label="Anônimo"
-            icon="lucide:hat-glasses"
-            title="Postar anonimamente"
-          />
-          <OptionToggle
-            v-model="isModeratedContent"
-            label="Moderado"
-            icon="lucide:shield-check"
-            title="Conteúdo requer moderação / Respostas moderadas"
-          />
+            <span class="toolbar-separator" aria-hidden="true" />
+
+            <OptionToggle
+              v-model="isAnonymous"
+              label="Anônimo"
+              icon="lucide:hat-glasses"
+              title="Postar anonimamente"
+            />
+            <OptionToggle
+              v-model="isModeratedContent"
+              label="Moderado"
+              icon="lucide:shield-check"
+              title="Conteúdo requer moderação / Respostas moderadas"
+            />
+
+            <template v-if="ownerType === 'group' && availableIssues.length > 0">
+              <span class="toolbar-separator" aria-hidden="true" />
+              <IssueSelector
+                v-model="selectedIssueIds"
+                :issues="availableIssues"
+              />
+            </template>
+          </div>
+
+          <button type="submit" class="button-primary submit-post-btn" :disabled="isLoading || !canSubmit">
+            <LoadingMessage v-if="isLoading" message="Postando..." :icon-size="16" />
+            <template v-else>Postar</template>
+          </button>
         </div>
 
-        <button type="submit" class="button-primary submit-post-btn" :disabled="isLoading || !canSubmit">
-          <LoadingMessage v-if="isLoading" message="Postando..." :icon-size="16" />
-          <template v-else>Postar</template>
-        </button>
+        <div v-if="selectedIssueChips.length > 0" class="issue-chips">
+          <button
+            v-for="issue in selectedIssueChips"
+            :key="issue.id"
+            type="button"
+            class="issue-chip"
+            :title="`Remover ${issue.name}`"
+            @click="removeSelectedIssue(issue.id)"
+          >
+            <span class="issue-chip-label">{{ issue.name }}</span>
+            <Icon name="lucide:x" :size="12" class="issue-chip-x" />
+          </button>
+        </div>
       </div>
     </form>
   </div>
@@ -69,7 +95,9 @@
 <script setup lang="ts">
 import type { Database } from '~/types/supabase';
 import { useToast } from 'vue-toastification';
-import type { PostWithAuthor } from '~/types/app';
+import type { Issue, PostWithAuthor } from '~/types/app';
+
+const MAX_POST_ISSUES = 5;
 
 const props = defineProps<{
   ownerId: string;
@@ -89,6 +117,19 @@ const isAnonymous = ref(false);
 const isModeratedContent = ref(!!userProfile.value?.default_moderated_posts);
 const isLoading = ref(false);
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
+const availableIssues = ref<Issue[]>([]);
+const selectedIssueIds = ref<string[]>([]);
+
+const selectedIssueChips = computed(() => {
+  const byId = new Map(availableIssues.value.map((issue) => [issue.id, issue]));
+  return selectedIssueIds.value
+    .map((id) => byId.get(id))
+    .filter((issue): issue is Issue => !!issue);
+});
+
+function removeSelectedIssue(issueId: string) {
+  selectedIssueIds.value = selectedIssueIds.value.filter((id) => id !== issueId);
+}
 
 const {
   imageFile,
@@ -110,11 +151,30 @@ const {
 
 const canSubmit = computed(() => canSubmitWith());
 
+async function loadGroupIssues() {
+  availableIssues.value = [];
+  selectedIssueIds.value = [];
+
+  if (props.ownerType !== 'group' || !props.ownerId) return;
+
+  try {
+    const { data, error } = await supabase.rpc('get_issues_for_group', {
+      p_group_id: props.ownerId,
+    });
+    if (error) throw error;
+    availableIssues.value = (data || []) as Issue[];
+  } catch (e: any) {
+    console.error('Erro ao carregar issues do grupo:', e);
+    availableIssues.value = [];
+  }
+}
+
 function resetForm() {
   textContent.value = '';
   resetMedia();
   isAnonymous.value = false;
   isModeratedContent.value = !!userProfile.value?.default_moderated_posts;
+  selectedIssueIds.value = [];
 }
 
 watch(
@@ -122,6 +182,14 @@ watch(
   (value) => {
     isModeratedContent.value = !!value;
   }
+);
+
+watch(
+  () => [props.ownerType, props.ownerId] as const,
+  () => {
+    void loadGroupIssues();
+  },
+  { immediate: true },
 );
 
 async function submitPost() {
@@ -171,6 +239,21 @@ async function submitPost() {
     if (postError) throw postError;
 
     if (postData) {
+      const issueIds = selectedIssueIds.value.slice(0, MAX_POST_ISSUES);
+      if (issueIds.length > 0) {
+        const { error: issuesError } = await supabase
+          .from('post_issues')
+          .insert(issueIds.map((issueId) => ({
+            post_id: postData.id,
+            issue_id: issueId,
+          })));
+
+        if (issuesError) {
+          console.error('Erro ao vincular issues ao post:', issuesError);
+          toast.error('Post criado, mas falhou ao salvar as issues: ' + issuesError.message);
+        }
+      }
+
       const emittedPost: PostWithAuthor = {
         ...postData,
         author_username: postData.is_anonymous ? null : (userProfile.value?.username || user.value?.email?.split('@')[0] || 'Usuário'),
@@ -180,6 +263,7 @@ async function submitPost() {
         comments_count: 0,
         owner_id: props.ownerId,
         owner_type: props.ownerType,
+        issue_ids: issueIds,
       };
       emit('post-created', emittedPost);
       resetForm();
@@ -195,8 +279,8 @@ async function submitPost() {
 
 <style scoped>
 .create-post-component { margin-bottom: 1rem; }
-.create-post-form h3 { margin-top: 0; margin-bottom: 1rem; border-bottom: 0; color: var(--primary-color); }
-.form-group { margin-bottom: 1rem; }
+.create-post-form h3 { margin-top: 0; margin-bottom: 0.85rem; border-bottom: 0; color: var(--primary-color); }
+.form-group { margin-bottom: 0.65rem; }
 textarea {
   width: 100%; min-height: 100px; padding: 0.75rem;
   border: 1px solid var(--border-color); border-radius: 4px;
@@ -217,7 +301,8 @@ textarea.drag-over {
   border: 1px dashed var(--border-color);
   padding: 1rem;
   border-radius: 4px;
-  position: relative; /* Para o botão de remover */
+  position: relative;
+  margin-bottom: 0.65rem;
 }
 .image-preview img { max-width: 100%; max-height: 300px; display: block; margin: 0 auto; border-radius: 4px; }
 .video-preview iframe { width: 100%; aspect-ratio: 16 / 9; border-radius: 4px; }
@@ -231,19 +316,70 @@ textarea.drag-over {
   transition: background-color 0.2s;
 }
 .remove-media-btn:hover { background-color: rgba(0,0,0,0.8); }
+.form-actions-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
 .form-actions-toolbar {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
-  padding-top: 0.5rem;
+  gap: 0.75rem 1rem;
+  padding-top: 0.15rem;
 }
 .media-and-options {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.45rem;
   flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+.toolbar-separator {
+  display: inline-block;
+  width: 1px;
+  height: 1.35rem;
+  margin: 0 0.15rem;
+  background: var(--border-color);
+  flex-shrink: 0;
+  align-self: center;
+}
+.issue-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+.issue-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  height: 1.6rem;
+  padding: 0 0.55rem;
+  border: 1px solid var(--primary-color-light);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary-color) 8%, white);
+  color: var(--primary-color-dark);
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.issue-chip-label {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+.issue-chip-x {
+  display: block;
+  flex-shrink: 0;
+}
+.issue-chip:hover {
+  background: color-mix(in srgb, var(--primary-color) 16%, white);
+  border-color: var(--primary-color);
 }
 .media-actions { margin-top: 0.5rem; }
 .toolbar-action-btn.add-image-btn {
@@ -281,7 +417,7 @@ textarea.drag-over {
   }
   .media-and-options {
     justify-content: flex-start;
-    margin-bottom: 1rem;
+    margin-bottom: 0.35rem;
   }
   .submit-post-btn {
     align-self: flex-end;
