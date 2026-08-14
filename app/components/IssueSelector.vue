@@ -11,12 +11,7 @@
       @click="toggleOpen"
     >
       <Icon name="lucide:tags" :size="16" class="option-toggle-icon" />
-      <span class="option-toggle-label">
-        {{ label }}
-        <template v-if="modelValue.length > 0">
-          ({{ modelValue.length }}/{{ maxSelected }})
-        </template>
-      </span>
+      <span class="option-toggle-label">{{ label }}</span>
       <Icon
         :name="isOpen ? 'lucide:chevron-up' : 'lucide:chevron-down'"
         :size="16"

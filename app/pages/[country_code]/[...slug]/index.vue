@@ -149,6 +149,17 @@
               </li>
             </ul>
           </section>
+
+          <div v-if="groupHasQuiz" class="quiz-cta card-style">
+            <div class="quiz-cta-text">
+              <h3>Não sabe qual ideologia defender?</h3>
+              <p>Faça o quiz e veja com quais vieses suas posições mais se alinham.</p>
+            </div>
+            <NuxtLink :to="`/${groupData.country_code}/${groupData.slug}/quiz`" class="button-primary">
+              Fazer o quiz
+            </NuxtLink>
+          </div>
+
           <section class="opposites-sidebar card-style" v-if="oppositeGroups.length > 0">
             <h4>Grupos Opostos</h4>
             <ul>
@@ -199,6 +210,7 @@ const oppositeGroups = ref<Pick<Group, 'id' | 'name' | 'slug' | 'country_code' |
 const posts = ref<PostWithAuthor[]>([]);
 const filteredPosts = ref<PostWithAuthor[]>([]);
 const groupIssues = ref<Issue[]>([]);
+const groupHasQuiz = ref(false);
 const isLoading = ref(true);
 const isLoadingPosts = ref(false);
 const isLoadingMorePosts = ref(false);
@@ -444,6 +456,19 @@ async function loadGroupIssues(groupId: string) {
   }
 }
 
+async function checkHostHasQuiz(groupId: string) {
+  try {
+    const { data, error } = await supabase.rpc('host_group_has_quiz', {
+      p_host_group_id: groupId,
+    });
+    if (error) throw error;
+    groupHasQuiz.value = !!data;
+  } catch (e) {
+    console.error('Erro ao verificar quiz do grupo:', e);
+    groupHasQuiz.value = false;
+  }
+}
+
 async function fetchPostsForGroup(groupId: string, before?: string | null, append = false) {
   if (append) {
     isLoadingMorePosts.value = true;
@@ -504,6 +529,7 @@ async function fetchGroupData(country: string, slug: string): Promise<void> {
   posts.value = [];
   filteredPosts.value = [];
   groupIssues.value = [];
+  groupHasQuiz.value = false;
   hasMorePosts.value = false;
   userBiasForGroup.value = null;
 
@@ -540,6 +566,7 @@ async function fetchGroupData(country: string, slug: string): Promise<void> {
         resolveGroupAccess(groupData.value.id, !!groupData.value.is_open),
         fetchOppositeGroups(groupData.value.id),
         loadGroupIssues(groupData.value.id),
+        checkHostHasQuiz(groupData.value.id),
       ]);
 
       if (groupData.value.has_subgroups) {
@@ -786,6 +813,32 @@ watch(authUserId, () => {
   border-radius: 8px;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
+}
+
+.quiz-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
+  padding: 1rem 1.15rem;
+  margin-bottom: 1rem;
+}
+
+.quiz-cta h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1.05rem;
+  color: var(--primary-color-dark);
+}
+
+.quiz-cta p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.quiz-cta .button-primary {
+  align-self: stretch;
+  text-align: center;
 }
 
 .access-locked h3 {

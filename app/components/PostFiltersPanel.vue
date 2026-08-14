@@ -38,63 +38,63 @@
     </div>
 
     <div v-show="isOpen" class="filters-panel">
-      <div class="filter-group">
-        <span class="filter-group-label">Tipo de conteúdo</span>
-        <div class="filter-toggles">
-          <OptionToggle v-model="showText" label="Texto" icon="lucide:type" title="Mostrar posts com texto" />
-          <OptionToggle v-model="showImage" label="Imagem" icon="lucide:image" title="Mostrar posts com imagem" />
-          <OptionToggle v-model="showVideo" label="Vídeo" icon="lucide:video" title="Mostrar posts com vídeo" />
+      <div class="filters-options-row">
+        <div class="filter-group">
+          <span class="filter-group-label">Tipo de conteúdo</span>
+          <div class="filter-toggles">
+            <OptionToggle v-model="showText" label="Texto" icon="lucide:type" title="Mostrar posts com texto" />
+            <OptionToggle v-model="showImage" label="Imagem" icon="lucide:image" title="Mostrar posts com imagem" />
+            <OptionToggle v-model="showVideo" label="Vídeo" icon="lucide:video" title="Mostrar posts com vídeo" />
+          </div>
         </div>
-      </div>
 
-      <div class="filter-group">
-        <span class="filter-group-label">Moderação</span>
-        <div class="filter-toggles">
-          <OptionToggle
-            v-model="showModerated"
-            label="Moderado"
-            icon="lucide:shield-check"
-            title="Mostrar posts moderados"
-          />
-          <OptionToggle
-            v-model="showUnmoderated"
-            label="Não moderado"
-            icon="lucide:shield-off"
-            title="Mostrar posts não moderados"
-          />
+        <div class="filter-group">
+          <span class="filter-group-label">Moderação</span>
+          <div class="filter-toggles">
+            <OptionToggle
+              v-model="showModerated"
+              label="Moderado"
+              icon="lucide:shield-check"
+              title="Mostrar posts moderados"
+            />
+            <OptionToggle
+              v-model="showUnmoderated"
+              label="Não moderado"
+              icon="lucide:shield-off"
+              title="Mostrar posts não moderados"
+            />
+          </div>
+          <p v-if="preferModeratedOnly" class="filter-preference-hint">
+            Preferência salva: exibindo apenas conteúdo moderado.
+          </p>
         </div>
-        <p v-if="preferModeratedOnly" class="filter-preference-hint">
-          Preferência salva: exibindo apenas conteúdo moderado.
-        </p>
-      </div>
 
-      <div v-if="availableIssues.length > 0" class="filter-group filter-group-issues">
-        <span class="filter-group-label">Issue Tags</span>
-        <div class="issue-filter-controls">
+        <div v-if="availableIssues.length > 0" class="filter-group filter-group-issues">
+          <span class="filter-group-label">Issue Tags</span>
           <IssueSelector
             v-model="selectedIssueIds"
             :issues="availableIssues"
             :max-selected="10"
             label="Filtrar tags"
           />
-          <div v-if="selectedIssueChips.length > 0" class="issue-filter-chips">
-            <button
-              v-for="issue in selectedIssueChips"
-              :key="issue.id"
-              type="button"
-              class="issue-filter-chip"
-              :title="`Remover filtro ${issue.name}`"
-              @click="removeIssueFilter(issue.id)"
-            >
-              <span>{{ issue.name }}</span>
-              <Icon name="lucide:x" :size="12" />
-            </button>
-          </div>
         </div>
       </div>
 
-      <div v-if="hasActiveFilters" class="filter-group filter-group-reset">
-        <span class="filter-group-label filter-group-label-spacer" aria-hidden="true">&nbsp;</span>
+      <div v-if="selectedIssueChips.length > 0" class="issue-filter-chips">
+        <button
+          v-for="issue in selectedIssueChips"
+          :key="issue.id"
+          type="button"
+          class="issue-filter-chip"
+          :title="`Remover filtro ${issue.name}`"
+          @click="removeIssueFilter(issue.id)"
+        >
+          <span>{{ issue.name }}</span>
+          <Icon name="lucide:x" :size="12" />
+        </button>
+      </div>
+
+      <div v-if="hasActiveFilters" class="filters-reset-row">
         <button
           type="button"
           class="button-tertiary reset-filters"
@@ -356,12 +356,18 @@ onBeforeUnmount(() => {
   gap: 0.85rem;
 }
 
+.filters-options-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
 @media (min-width: 768px) {
-  .filters-panel {
+  .filters-options-row {
     flex-direction: row;
     flex-wrap: wrap;
     align-items: flex-start;
-    gap: 1.25rem 1.5rem;
+    gap: 1rem;
   }
 
   .filter-group {
@@ -370,12 +376,8 @@ onBeforeUnmount(() => {
 }
 
 @media (min-width: 1024px) {
-  .filters-panel {
+  .filters-options-row {
     flex-wrap: nowrap;
-  }
-
-  .filter-group-reset {
-    margin-left: auto;
   }
 }
 
@@ -391,28 +393,17 @@ onBeforeUnmount(() => {
   min-height: 1.2em;
 }
 
-.filter-group-label-spacer {
-  visibility: hidden;
-  user-select: none;
-}
-
 .filter-toggles {
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
 }
 
-.issue-filter-controls {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.5rem;
-}
-
 .issue-filter-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
+  width: 100%;
 }
 
 .issue-filter-chip {
@@ -448,11 +439,15 @@ onBeforeUnmount(() => {
   justify-content: center;
   height: 2.25rem;
   margin: 0;
-  padding: 0 0.75em;
+  padding: 0;
   font-size: 0.85rem;
   font-weight: 500;
   line-height: 1;
   box-sizing: border-box;
+}
+.reset-filters:hover {
+  background: none;
+  color: var(--primary-color-dark);
 }
 
 @media (max-width: 560px) {

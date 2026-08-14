@@ -24,85 +24,103 @@
     </div>
     <div v-else-if="errorLoading" class="error-message">{{ errorLoading }}</div>
 
-    <div v-else-if="groupsToRender.length > 0" class="categories-grid">
+    <template v-else>
       <div
-        v-for="group in groupsToRender"
-        :key="group.id"
-        class="category-card"
-        @click="handleCardClick(group)"
-        :class="{ 'clickable': !isSearching && group.has_subgroups }"
+        v-if="currentQuizHost && !isSearching && groupsToRender.length > 0"
+        class="quiz-cta card-style"
       >
-        <div class="card-image-container">
-          <img
-            v-if="group.cover_image_path"
-            :src="`${bucket}/covers/${group.cover_image_path}`"
-            :alt="`Capa ${group.name}`"
-            class="group-cover"
-          />
-          <div v-else class="group-cover-placeholder"></div>
-          <div class="group-flag-container">
+        <div class="quiz-cta-text">
+          <h3>Não sabe qual ideologia defender?</h3>
+          <p>Faça o quiz e veja com quais vieses suas posições mais se alinham.</p>
+        </div>
+        <NuxtLink
+          :to="`/${currentQuizHost.country_code}/${currentQuizHost.slug}/quiz`"
+          class="button-primary"
+        >
+          Fazer o quiz
+        </NuxtLink>
+      </div>
+
+      <div v-if="groupsToRender.length > 0" class="categories-grid">
+        <div
+          v-for="group in groupsToRender"
+          :key="group.id"
+          class="category-card"
+          @click="handleCardClick(group)"
+          :class="{ 'clickable': !isSearching && group.has_subgroups }"
+        >
+          <div class="card-image-container">
             <img
-              v-if="group.flag_path"
-              :src="`${bucket}/flags/${group.flag_path}`"
-              :alt="`Bandeira de ${group.name}`"
-              class="group-flag"
+              v-if="group.cover_image_path"
+              :src="`${bucket}/covers/${group.cover_image_path}`"
+              :alt="`Capa ${group.name}`"
+              class="group-cover"
             />
-            <div v-else class="group-flag-placeholder">
-              <span>{{ group.name.substring(0, 1) }}</span>
+            <div v-else class="group-cover-placeholder"></div>
+            <div class="group-flag-container">
+              <img
+                v-if="group.flag_path"
+                :src="`${bucket}/flags/${group.flag_path}`"
+                :alt="`Bandeira de ${group.name}`"
+                class="group-flag"
+              />
+              <div v-else class="group-flag-placeholder">
+                <span>{{ group.name.substring(0, 1) }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="card-content">
+            <h2 class="category-name">{{ group.name }}</h2>
+            <span class="group-status-badge" :class="group.is_open ? 'open' : 'closed'">
+              <Icon
+                :name="group.is_open ? 'lucide:unlock' : 'lucide:lock'"
+                :size="14"
+                class="group-status-icon"
+              />
+              Grupo {{ group.is_open ? 'Aberto' : 'Restrito' }}
+            </span>
+            <p class="group-description line-clamp" :title="group.description || ''">{{ group.description }}</p>
+            <div class="card-actions">
+              <NuxtLink
+                :to="`/${group.country_code}/${group.slug}`"
+                class="button-secondary action-button"
+                @click.stop
+              >
+                Acessar grupo
+              </NuxtLink>
+
+              <template v-if="!group.is_open">
+                <button
+                  v-if="!isBiasDeclared(group.id)"
+                  @click.stop="openDeclareBiasDialog(group)"
+                  class="button-primary action-button"
+                  :disabled="isDeclaringBiasFor === group.id"
+                >
+                  <LoadingMessage
+                    v-if="isDeclaringBiasFor === group.id"
+                    message="Declarando..."
+                    :icon-size="16"
+                  />
+                  <template v-else>Defender viés</template>
+                </button>
+                <span v-else class="bias-declared-badge">
+                  <Icon name="lucide:shield-check" :size="16" class="bias-declared-icon" />
+                  Viés Declarado
+                </span>
+              </template>
             </div>
           </div>
         </div>
-        <div class="card-content">
-          <h2 class="category-name">{{ group.name }}</h2>
-          <span class="group-status-badge" :class="group.is_open ? 'open' : 'closed'">
-            <Icon
-              :name="group.is_open ? 'lucide:unlock' : 'lucide:lock'"
-              :size="14"
-              class="group-status-icon"
-            />
-            Grupo {{ group.is_open ? 'Aberto' : 'Restrito' }}
-          </span>
-          <p class="group-description line-clamp" :title="group.description || ''">{{ group.description }}</p>
-          <div class="card-actions">
-            <NuxtLink
-              :to="`/${group.country_code}/${group.slug}`"
-              class="button-secondary action-button"
-              @click.stop
-            >
-              Acessar grupo
-            </NuxtLink>
-
-            <template v-if="!group.is_open">
-              <button
-                v-if="!isBiasDeclared(group.id)"
-                @click.stop="openDeclareBiasDialog(group)"
-                class="button-primary action-button"
-                :disabled="isDeclaringBiasFor === group.id"
-              >
-                <LoadingMessage
-                  v-if="isDeclaringBiasFor === group.id"
-                  message="Declarando..."
-                  :icon-size="16"
-                />
-                <template v-else>Defender viés</template>
-              </button>
-              <span v-else class="bias-declared-badge">
-                <Icon name="lucide:shield-check" :size="16" class="bias-declared-icon" />
-                Viés Declarado
-              </span>
-            </template>
-          </div>
-        </div>
       </div>
-    </div>
-    <div v-else class="no-categories">
-      <p v-if="isSearching && searchTerm">Nenhum grupo encontrado para "{{ searchTerm }}".</p>
-      <p v-else-if="!isSearching && breadcrumbs.length > 0">Nenhum subgrupo encontrado nesta categoria.</p>
-      <p v-else-if="!isSearching && breadcrumbs.length === 0">Nenhuma categoria raiz encontrada.</p>
-      <button v-if="!isSearching && breadcrumbs.length > 0" @click="goBackInBreadcrumb" class="button-secondary">
-        Voltar
-      </button>
-    </div>
+      <div v-else class="no-categories">
+        <p v-if="isSearching && searchTerm">Nenhum grupo encontrado para "{{ searchTerm }}".</p>
+        <p v-else-if="!isSearching && breadcrumbs.length > 0">Nenhum subgrupo encontrado nesta categoria.</p>
+        <p v-else-if="!isSearching && breadcrumbs.length === 0">Nenhuma categoria raiz encontrada.</p>
+        <button v-if="!isSearching && breadcrumbs.length > 0" @click="goBackInBreadcrumb" class="button-secondary">
+          Voltar
+        </button>
+      </div>
+    </template>
 
     <DeclareBiasPremisesDialog
       :open="declareBiasDialogOpen"
@@ -145,12 +163,75 @@ const isDeclaringBiasFor = ref<string | null>(null);
 const declareBiasDialogOpen = ref(false);
 const pendingDeclareGroupId = ref<string | null>(null);
 const pendingDeclareGroupName = ref<string | null>(null);
+const quizHostIds = ref<Set<string>>(new Set());
+const quizHostsById = ref<Record<string, Pick<Group, 'id' | 'name' | 'slug' | 'country_code'>>>({});
 
 const bucket = 'https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public';
 
 const groupsToRender = computed(() => {
   return isSearching.value ? searchResults.value : displayedGroups.value;
 });
+
+const currentQuizHost = computed(() => {
+  if (isSearching.value) return null;
+  const last = breadcrumbs.value[breadcrumbs.value.length - 1];
+  if (!last?.groupId) return null;
+  if (!quizHostIds.value.has(last.groupId)) return null;
+  return quizHostsById.value[last.groupId] || null;
+});
+
+async function rememberQuizHost(group: Pick<Group, 'id' | 'name' | 'slug' | 'country_code'>) {
+  quizHostIds.value = new Set([...quizHostIds.value, group.id]);
+  quizHostsById.value = {
+    ...quizHostsById.value,
+    [group.id]: {
+      id: group.id,
+      name: group.name,
+      slug: group.slug,
+      country_code: group.country_code,
+    },
+  };
+}
+
+async function refreshQuizAvailability(groups: Group[]) {
+  const candidates = groups.filter((g) => g.has_subgroups);
+  await Promise.all(
+    candidates.map(async (g) => {
+      try {
+        const { data, error } = await supabase.rpc('host_group_has_quiz', {
+          p_host_group_id: g.id,
+        });
+        if (error) throw error;
+        if (data) await rememberQuizHost(g);
+      } catch (e) {
+        console.error('Erro ao verificar quiz:', e);
+      }
+    })
+  );
+}
+
+async function ensureParentQuizHost(parentId: string | null) {
+  if (!parentId) return;
+  if (quizHostsById.value[parentId] && quizHostIds.value.has(parentId)) return;
+
+  try {
+    const { data: hasQuiz, error } = await supabase.rpc('host_group_has_quiz', {
+      p_host_group_id: parentId,
+    });
+    if (error) throw error;
+    if (!hasQuiz) return;
+
+    const { data: group, error: groupError } = await supabase
+      .from('groups')
+      .select('id, name, slug, country_code')
+      .eq('id', parentId)
+      .maybeSingle();
+    if (groupError) throw groupError;
+    if (group) await rememberQuizHost(group);
+  } catch (e) {
+    console.error('Erro ao verificar quiz do grupo pai:', e);
+  }
+}
 
 async function fetchUserBiases() {
   if (!authUserId.value) {
@@ -258,6 +339,8 @@ async function fetchAndDisplayGroups(parentId: string | null, parentName?: strin
 
   if (allFetchedGroups.value[cacheKey]) {
     displayedGroups.value = allFetchedGroups.value[cacheKey];
+    void ensureParentQuizHost(parentId);
+    void refreshQuizAvailability(displayedGroups.value);
     isLoading.value = false;
     return;
   }
@@ -280,6 +363,8 @@ async function fetchAndDisplayGroups(parentId: string | null, parentName?: strin
     const groups = data as Group[] || [];
     allFetchedGroups.value[cacheKey] = groups;
     displayedGroups.value = groups;
+    await ensureParentQuizHost(parentId);
+    void refreshQuizAvailability(groups);
 
   } catch (e: any) {
     console.error('Erro ao buscar grupos:', e);
@@ -306,6 +391,7 @@ async function searchGroupsByName() {
 
     if (error) throw error;
     searchResults.value = data as Group[] || [];
+    void refreshQuizAvailability(searchResults.value);
   } catch (e: any) {
     console.error('Erro ao buscar grupos:', e);
     toast.error(e.message || 'Falha ao realizar a busca.');
@@ -430,6 +516,33 @@ watch(breadcrumbs, (newCrumbs) => {
   flex-grow: 1;
   font-size: 2rem;
 }
+
+.quiz-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  margin-bottom: 1.25rem;
+}
+
+.quiz-cta h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1.05rem;
+  color: var(--primary-color-dark);
+}
+
+.quiz-cta p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.quiz-cta .button-primary {
+  flex: 0 0 auto;
+}
+
 .search-bar {
   flex-basis: 300px;
   max-width: 100%;

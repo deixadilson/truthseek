@@ -826,6 +826,170 @@ export type Database = {
           },
         ]
       }
+      quiz_attempt_answers: {
+        Row: {
+          answer: number
+          attempt_id: string
+          proposition_id: string
+        }
+        Insert: {
+          answer: number
+          attempt_id: string
+          proposition_id: string
+        }
+        Update: {
+          answer?: number
+          attempt_id?: string
+          proposition_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_attempt_answers_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_attempts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quiz_attempt_answers_proposition_id_fkey"
+            columns: ["proposition_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_propositions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quiz_attempts: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          host_group_id: string
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          host_group_id: string
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          host_group_id?: string
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_attempts_host_group_id_fkey"
+            columns: ["host_group_id"]
+            isOneToOne: false
+            referencedRelation: "biases_with_details"
+            referencedColumns: ["category_id"]
+          },
+          {
+            foreignKeyName: "quiz_attempts_host_group_id_fkey"
+            columns: ["host_group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quiz_ideology_stances: {
+        Row: {
+          group_id: string
+          proposition_id: string
+          stance: number | null
+        }
+        Insert: {
+          group_id: string
+          proposition_id: string
+          stance?: number | null
+        }
+        Update: {
+          group_id?: string
+          proposition_id?: string
+          stance?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_ideology_stances_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "biases_with_details"
+            referencedColumns: ["category_id"]
+          },
+          {
+            foreignKeyName: "quiz_ideology_stances_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quiz_ideology_stances_proposition_id_fkey"
+            columns: ["proposition_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_propositions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quiz_propositions: {
+        Row: {
+          created_at: string
+          host_group_id: string
+          id: string
+          is_active: boolean
+          issue_id: string
+          sort_order: number
+          statement: string
+        }
+        Insert: {
+          created_at?: string
+          host_group_id: string
+          id?: string
+          is_active?: boolean
+          issue_id: string
+          sort_order?: number
+          statement: string
+        }
+        Update: {
+          created_at?: string
+          host_group_id?: string
+          id?: string
+          is_active?: boolean
+          issue_id?: string
+          sort_order?: number
+          statement?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_propositions_host_group_id_fkey"
+            columns: ["host_group_id"]
+            isOneToOne: false
+            referencedRelation: "biases_with_details"
+            referencedColumns: ["category_id"]
+          },
+          {
+            foreignKeyName: "quiz_propositions_host_group_id_fkey"
+            columns: ["host_group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quiz_propositions_issue_id_fkey"
+            columns: ["issue_id"]
+            isOneToOne: true
+            referencedRelation: "issues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           created_at: string
@@ -1215,6 +1379,33 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_quiz_for_group: { Args: { p_host_group_id: string }; Returns: Json }
+      get_quiz_target_groups: {
+        Args: { p_host_group_id: string }
+        Returns: {
+          category_group_id: string | null
+          country_code: string
+          cover_image_path: string | null
+          created_at: string
+          description: string | null
+          flag_path: string | null
+          has_subgroups: boolean
+          hidden: boolean
+          id: string
+          is_open: boolean
+          level: number
+          name: string
+          parent_group_id: string | null
+          slug: string
+          taxon_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "groups"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_timeline_posts: {
         Args: { p_before?: string; p_limit?: number }
         Returns: {
@@ -1273,6 +1464,10 @@ export type Database = {
           new_influence_points: number
           success: boolean
         }[]
+      }
+      host_group_has_quiz: {
+        Args: { p_host_group_id: string }
+        Returns: boolean
       }
       issue_is_available_for_group: {
         Args: { p_issue_group_id: string; p_target_group_id: string }

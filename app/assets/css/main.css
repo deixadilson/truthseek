@@ -20,6 +20,12 @@
 
   --button-shadow-color: rgba(0, 188, 212, 0.3);
   --button-shadow-hover-stronger: rgba(0, 188, 212, 0.5);
+
+  --quiz-agree-strong: #c8e6c9;
+  --quiz-agree-soft: #e8f5e9;
+  --quiz-neutral: #ffffff;
+  --quiz-disagree-soft: #ffebee;
+  --quiz-disagree-strong: #ffcdd2;
 }
 
 body {
