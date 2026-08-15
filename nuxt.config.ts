@@ -5,6 +5,14 @@ export default defineNuxtConfig({
   build: {
     transpile: ['vue-toastification'],
   },
+  app: {
+    head: {
+      link: [
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+        { rel: 'apple-touch-icon', href: '/favicon.svg' },
+      ],
+    },
+  },
   modules: [
     '@nuxtjs/supabase',
     '@nuxt/icon',

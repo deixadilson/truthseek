@@ -2,7 +2,13 @@
   <div class="app-container">
     <header class="app-header">
       <NuxtLink to="/" class="logo-link">
-        <img src="/images/logo.svg" alt="TruthSeek Network Logo" class="logo-img" />
+        <img
+          src="/images/logo.svg?v=3"
+          alt="TruthSeek Network Logo"
+          class="logo-img"
+          width="31"
+          height="38"
+        />
         <h1>TruthSeek Network</h1>
       </NuxtLink>
       <nav class="main-nav">
@@ -170,7 +176,7 @@ watch(authUserId, (userId) => {
   border-bottom: 1px solid color-mix(in srgb, var(--header-text) 15%, transparent);
 }
 .logo-link { display: flex; align-items: center; text-decoration: none; color: inherit; gap: 0.5rem; }
-.logo-img { height: 38px; }
+.logo-img { height: 38px; width: auto; display: block; }
 .logo-link h1 { margin: 0; font-size: 1.4rem; font-weight: 600; color: var(--header-text); }
 
 .nav-link, .main-nav .desktop-nav-items a {

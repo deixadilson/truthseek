@@ -73,6 +73,12 @@
         <QuizResults
           :scores="scores"
           :defend-redirect="quizPath"
+          :quiz-url="quizAbsoluteUrl"
+          :quiz-title="hostGroup ? `Quiz ${hostGroup.name}` : 'Quiz Ideologias Políticas'"
+          :host-group-id="hostGroup?.id || ''"
+          :host-group-name="hostGroup?.name || 'Ideologias Políticas'"
+          :host-group-slug="hostGroup?.slug || ''"
+          :host-group-country-code="hostGroup?.country_code || country"
           @defend="openDefend"
           @restart="restart"
         />
@@ -120,6 +126,14 @@ const groupSlug = computed(() => {
 
 const groupPath = computed(() => `/${country.value}/${groupSlug.value}`);
 const quizPath = computed(() => `${groupPath.value}/quiz`);
+
+const requestURL = useRequestURL();
+const quizAbsoluteUrl = computed(() => {
+  if (import.meta.client && typeof window !== 'undefined') {
+    return `${window.location.origin}${quizPath.value}`;
+  }
+  return `${requestURL.origin}${quizPath.value}`;
+});
 
 const isLoading = ref(true);
 const loadError = ref('');
