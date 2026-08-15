@@ -5,8 +5,9 @@
       <span class="quiz-results-top-name">{{ topIdeologyName }}!</span>
     </h2>
     <p class="quiz-results-intro">
-      Porcentagem de alinhamento com cada ideologia. Proposições em que a ideologia não tem
-      posição definida contam como correspondentes.
+      Lista ordenada pela porcentagem de alinhamento com cada ideologia. Proposições sem posição definida pela
+      ideologia são ignoradas no cálculo da porcentagem, mas no contador de respostas de acordo, essas
+      proposições contam como concordância.
     </p>
 
     <ol class="quiz-results-list">

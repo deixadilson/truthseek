@@ -286,7 +286,11 @@
           </li>
           <li>
             <strong>MetaGrupo TruthSeek:</strong> fórum sobre a própria
-            plataforma, regras e melhorias, com eleição de Super Moderadores.
+            plataforma, regras e melhorias, com eleição futura de Super Moderadores.
+            Acesse o grupo
+            <NuxtLink to="/br/truthseek">TruthSeek Network</NuxtLink>
+            na seção Plataforma em
+            <NuxtLink to="/categories">Categorias</NuxtLink>.
           </li>
         </ul>
       </section>

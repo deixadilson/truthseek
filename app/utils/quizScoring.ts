@@ -41,7 +41,7 @@ export type IdeologyScore = {
   scorePercent: number;
   /** Always total quiz propositions (e.g. 47) */
   totalCount: number;
-  /** Exact matches + N/A propositions (treated as matching) */
+  /** Exact matches + N/A propositions (N/A always counts as agreed for this label) */
   agreedCount: number;
 };
 
@@ -68,15 +68,15 @@ export function scoreIdeologies(
       if (userAnswer === undefined || userAnswer === null) continue;
 
       const raw = prop.stances[ideology.id];
-      // N/A (missing or null): always counts as corresponding
+      // N/A: counts as agreed in the label, ignored in the % average
       if (raw === undefined || raw === null) {
-        sum += 1;
         agreed += 1;
-      } else {
-        sum += stanceWeight(userAnswer, raw);
-        if (userAnswer === raw) agreed += 1;
+        continue;
       }
+
+      sum += stanceWeight(userAnswer, raw);
       scored += 1;
+      if (userAnswer === raw) agreed += 1;
     }
 
     const avg = scored > 0 ? sum / scored : 0;

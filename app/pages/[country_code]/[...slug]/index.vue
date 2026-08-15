@@ -23,10 +23,11 @@
         <div class="header-content container">
           <div class="group-flag-container">
             <img
-              v-if="groupData.flag_path"
+              v-if="groupFlagUrl"
               :src="groupFlagUrl"
               :alt="`Bandeira de ${groupData.name}`"
               class="group-flag"
+              :class="{ logo: isMetaGroupPage }"
             />
             <div v-else class="group-flag-placeholder">
               <span>{{ groupData.name.substring(0, 1) }}</span>
@@ -65,9 +66,14 @@
 
       <div class="group-body container">
         <div class="main-column">
-          <p v-if="groupData.description" class="group-description">
+          <p v-if="groupData.description && !isMetaGroupPage" class="group-description">
             {{ groupData.description }}
           </p>
+
+          <div v-if="isMetaGroupPage && groupData.description" class="meta-group-banner card-style">
+            <h3>MetaGrupo</h3>
+            <p>{{ groupData.description }}</p>
+          </div>
 
           <div v-if="accessChecked && !canInteractWithPosts" class="access-locked card-style">
             <h3>Postagens restritas</h3>
@@ -198,6 +204,7 @@
 import type { Bias, Group, Issue, PostWithAuthor } from '~/types/app';
 import { useToast } from 'vue-toastification';
 import { MIN_INFLUENCE_TO_ENTER_GROUP, countryFlagUrl, formatCountryName } from '~/utils/formatters';
+import { isMetaGroup, resolveGroupFlagUrl } from '~/utils/groupFlags';
 
 const route = useRoute();
 const supabase = useSupabaseClient();
@@ -275,12 +282,9 @@ const canInteractWithPosts = computed(() => {
   return points >= MIN_INFLUENCE_TO_ENTER_GROUP;
 });
 
-const groupFlagUrl = computed(() => {
-  if (groupData.value?.flag_path) {
-    return `https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/flags/${groupData.value.flag_path}`;
-  }
-  return '';
-});
+const isMetaGroupPage = computed(() => isMetaGroup(groupData.value));
+
+const groupFlagUrl = computed(() => resolveGroupFlagUrl(groupData.value) || '');
 
 const groupCountryFlag = computed(() => countryFlagUrl(groupData.value?.country_code));
 
@@ -752,6 +756,11 @@ watch(authUserId, () => {
 .group-flag {
   width: 100%; height: 100%; object-fit: cover;
 }
+.group-flag.logo {
+  object-fit: contain;
+  padding: 0.7rem;
+  box-sizing: border-box;
+}
 
 .group-title-info {
   flex-grow: 1;
@@ -894,6 +903,22 @@ watch(authUserId, () => {
   margin: 0 0 1.5rem;
   line-height: 1.6;
   font-size: 1rem;
+}
+
+.meta-group-banner {
+  margin: 0 0 1.5rem;
+  padding: 1.15rem 1.25rem;
+  border: 1px solid var(--primary-color-light);
+}
+.meta-group-banner h3 {
+  margin: 0 0 0.4rem;
+  color: var(--primary-color-dark);
+  font-size: 1.1rem;
+}
+.meta-group-banner p {
+  margin: 0;
+  color: #555;
+  line-height: 1.5;
 }
 
 .create-post-section textarea {

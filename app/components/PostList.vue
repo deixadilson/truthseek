@@ -67,6 +67,7 @@ const visiblePosts = computed(() =>
   font-style: italic;
   background-color: var(--card-bg);
   border-radius: 8px;
+  margin-bottom: 1.5rem;
 }
 .loading-more-posts {
   display: flex;

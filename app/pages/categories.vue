@@ -41,76 +41,49 @@
         </NuxtLink>
       </div>
 
-      <div v-if="groupsToRender.length > 0" class="categories-grid">
-        <div
+      <template v-if="isRootListing && (thematicRootGroups.length > 0 || platformRootGroups.length > 0)">
+        <section v-if="thematicRootGroups.length > 0" class="category-section">
+          <h2 class="section-title">Categorias de discussão</h2>
+          <div class="categories-grid">
+            <CategoryGroupCard
+              v-for="group in thematicRootGroups"
+              :key="group.id"
+              :group="group"
+              :clickable="!!group.has_subgroups"
+              :bias-declared="isBiasDeclared(group.id)"
+              :declaring="isDeclaringBiasFor === group.id"
+              @select="handleCardClick(group)"
+              @declare-bias="openDeclareBiasDialog(group)"
+            />
+          </div>
+        </section>
+        <section v-if="platformRootGroups.length > 0" class="category-section">
+          <h2 class="section-title">Metagrupo da própria plataforma</h2>
+          <div class="categories-grid">
+            <CategoryGroupCard
+              v-for="group in platformRootGroups"
+              :key="group.id"
+              :group="group"
+              :clickable="false"
+              :bias-declared="isBiasDeclared(group.id)"
+              :declaring="isDeclaringBiasFor === group.id"
+              @select="handleCardClick(group)"
+              @declare-bias="openDeclareBiasDialog(group)"
+            />
+          </div>
+        </section>
+      </template>
+      <div v-else-if="groupsToRender.length > 0" class="categories-grid">
+        <CategoryGroupCard
           v-for="group in groupsToRender"
           :key="group.id"
-          class="category-card"
-          @click="handleCardClick(group)"
-          :class="{ 'clickable': !isSearching && group.has_subgroups }"
-        >
-          <div class="card-image-container">
-            <img
-              v-if="group.cover_image_path"
-              :src="`${bucket}/covers/${group.cover_image_path}`"
-              :alt="`Capa ${group.name}`"
-              class="group-cover"
-            />
-            <div v-else class="group-cover-placeholder"></div>
-            <div class="group-flag-container">
-              <img
-                v-if="group.flag_path"
-                :src="`${bucket}/flags/${group.flag_path}`"
-                :alt="`Bandeira de ${group.name}`"
-                class="group-flag"
-              />
-              <div v-else class="group-flag-placeholder">
-                <span>{{ group.name.substring(0, 1) }}</span>
-              </div>
-            </div>
-          </div>
-          <div class="card-content">
-            <h2 class="category-name">{{ group.name }}</h2>
-            <span class="group-status-badge" :class="group.is_open ? 'open' : 'closed'">
-              <Icon
-                :name="group.is_open ? 'lucide:unlock' : 'lucide:lock'"
-                :size="14"
-                class="group-status-icon"
-              />
-              Grupo {{ group.is_open ? 'Aberto' : 'Restrito' }}
-            </span>
-            <p class="group-description line-clamp" :title="group.description || ''">{{ group.description }}</p>
-            <div class="card-actions">
-              <NuxtLink
-                :to="`/${group.country_code}/${group.slug}`"
-                class="button-secondary action-button"
-                @click.stop
-              >
-                Acessar grupo
-              </NuxtLink>
-
-              <template v-if="!group.is_open">
-                <button
-                  v-if="!isBiasDeclared(group.id)"
-                  @click.stop="openDeclareBiasDialog(group)"
-                  class="button-primary action-button"
-                  :disabled="isDeclaringBiasFor === group.id"
-                >
-                  <LoadingMessage
-                    v-if="isDeclaringBiasFor === group.id"
-                    message="Declarando..."
-                    :icon-size="16"
-                  />
-                  <template v-else>Defender viés</template>
-                </button>
-                <span v-else class="bias-declared-badge">
-                  <Icon name="lucide:shield-check" :size="16" class="bias-declared-icon" />
-                  Viés Declarado
-                </span>
-              </template>
-            </div>
-          </div>
-        </div>
+          :group="group"
+          :clickable="!isSearching && !!group.has_subgroups"
+          :bias-declared="isBiasDeclared(group.id)"
+          :declaring="isDeclaringBiasFor === group.id"
+          @select="handleCardClick(group)"
+          @declare-bias="openDeclareBiasDialog(group)"
+        />
       </div>
       <div v-else class="no-categories">
         <p v-if="isSearching && searchTerm">Nenhum grupo encontrado para "{{ searchTerm }}".</p>
@@ -137,6 +110,7 @@
 import type { Database } from '~/types/supabase';
 import type { Group, Bias } from '~/types/app';
 import { useToast } from 'vue-toastification';
+import { META_GROUP_SLUG } from '~/utils/groupFlags';
 
 interface BreadcrumbItem {
   name: string;
@@ -166,10 +140,20 @@ const pendingDeclareGroupName = ref<string | null>(null);
 const quizHostIds = ref<Set<string>>(new Set());
 const quizHostsById = ref<Record<string, Pick<Group, 'id' | 'name' | 'slug' | 'country_code'>>>({});
 
-const bucket = 'https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public';
-
 const groupsToRender = computed(() => {
   return isSearching.value ? searchResults.value : displayedGroups.value;
+});
+
+const isRootListing = computed(() => {
+  return !isSearching.value && breadcrumbs.value.length === 0;
+});
+
+const thematicRootGroups = computed(() => {
+  return displayedGroups.value.filter((group) => group.slug !== META_GROUP_SLUG);
+});
+
+const platformRootGroups = computed(() => {
+  return displayedGroups.value.filter((group) => group.slug === META_GROUP_SLUG);
 });
 
 const currentQuizHost = computed(() => {
@@ -541,6 +525,17 @@ watch(breadcrumbs, (newCrumbs) => {
 
 .quiz-cta .button-primary {
   flex: 0 0 auto;
+}
+
+.category-section {
+  margin-bottom: 2.25rem;
+}
+
+.section-title {
+  margin: 0 0 1rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--primary-color-dark);
 }
 
 .search-bar {
