@@ -150,6 +150,7 @@ import type { Database } from '~/types/supabase';
 import type { UserBiasForPopover } from '~/types/app';
 import type { BlockStatus } from '~/composables/useBlock';
 import type { FollowStatus } from '~/composables/useFollow';
+import { isMetaGroupBias } from '~/utils/groupFlags';
 import { useToast } from 'vue-toastification';
 
 const props = defineProps<{
@@ -232,7 +233,10 @@ async function fetchAuthorBiases() {
     });
 
     if (rpcError) throw rpcError;
-    authorBiases.value = data || [];
+    // MetaGrupo bias is only endorsable / visible inside the TruthSeek group itself.
+    authorBiases.value = (data || []).filter(
+      (bias) => !isMetaGroupBias(bias) || bias.group_id === props.contextGroupId
+    );
   } catch (e: any) {
     console.error("Erro ao buscar vieses do autor:", e);
     error.value = e.message || "Falha ao carregar vieses.";

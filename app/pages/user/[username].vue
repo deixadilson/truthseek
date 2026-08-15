@@ -127,6 +127,35 @@
       <div v-if="blockStatus !== 'blocking'" class="profile-body">
         <aside class="profile-sidebar">
           <section class="profile-section card-style">
+            <h2>Influência na plataforma</h2>
+            <ul class="biases-list platform-bias-list">
+              <li class="bias-item">
+                <NuxtLink
+                  :to="`/${platformBias.group_country_code}/${platformBias.group_slug}`"
+                  class="bias-link"
+                >
+                  <div class="bias-flag-container">
+                    <img
+                      v-if="platformBiasFlagUrl"
+                      :src="platformBiasFlagUrl"
+                      :alt="`Logo de ${platformBias.group_name}`"
+                      class="bias-flag bias-flag-logo"
+                    />
+                    <div v-else class="bias-flag-placeholder">
+                      <span>{{ platformBias.group_name?.substring(0, 1) || '?' }}</span>
+                    </div>
+                  </div>
+                  <div class="bias-text">
+                    <span class="bias-name">{{ platformBias.group_name || 'TruthSeek Network' }}</span>
+                    <span class="bias-influence">
+                      <span class="points">{{ platformBias.influence_points }}</span>
+                      <span class="title">{{ platformBias.title }}</span>
+                    </span>
+                  </div>
+                </NuxtLink>
+              </li>
+            </ul>
+
             <h2>Vieses declarados</h2>
             <div v-if="isLoadingBiases" class="loading-spinner compact">
               <LoadingMessage message="Carregando vieses..." :icon-size="16" />
@@ -217,6 +246,7 @@ import type { BiasWithDetails, PostWithAuthor, Profile } from '~/types/app';
 import type { BlockStatus } from '~/composables/useBlock';
 import type { FollowStatus } from '~/composables/useFollow';
 import { countryFlagUrl, formatCountryName, formatMembershipDuration } from '~/utils/formatters';
+import { isMetaGroupBias, resolveGroupFlagUrl } from '~/utils/groupFlags';
 import { parseProfileVisibility } from '~/utils/profileVisibility';
 import { useToast } from 'vue-toastification';
 
@@ -272,9 +302,23 @@ const isUnavailable = computed(() => blockStatus.value === 'blocked' || isProfil
 
 const countryFlag = computed(() => countryFlagUrl(profile.value?.country_code));
 
+const platformBias = computed(() =>
+  userBiases.value.find((bias) => isMetaGroupBias(bias)) ?? null
+);
+
+const platformBiasFlagUrl = computed(() =>
+  platformBias.value
+    ? resolveGroupFlagUrl({
+        slug: platformBias.value.group_slug,
+        flag_path: platformBias.value.group_flag_path,
+      })
+    : null
+);
+
 const groupedBiases = computed(() => {
   const groups: Record<string, { categoryName: string; biases: BiasWithDetails[] }> = {};
   for (const bias of userBiases.value) {
+    if (isMetaGroupBias(bias)) continue;
     const categoryId = bias.category_id || 'other';
     const categoryName = bias.category_name || 'Outros vieses';
     if (!groups[categoryId]) {
@@ -940,6 +984,10 @@ watch(authUserId, () => {
   border-radius: 0 0 4px 4px;
 }
 
+.platform-bias-list {
+  margin-bottom: 1rem;
+}
+
 .bias-item {
   padding: 0.65rem;
   border-bottom: 1px solid var(--border-color);
@@ -972,6 +1020,11 @@ watch(authUserId, () => {
   height: 28px;
   border-radius: 4px;
   object-fit: cover;
+}
+
+.bias-flag-logo {
+  object-fit: contain;
+  background: #fff;
 }
 
 .bias-flag-placeholder {

@@ -6,6 +6,14 @@ export function isMetaGroup(group: { slug?: string | null } | null | undefined):
   return group?.slug === META_GROUP_SLUG;
 }
 
+/** True when a bias row (or popover bias) belongs to the MetaGrupo TruthSeek. */
+export function isMetaGroupBias(bias: {
+  group_slug?: string | null;
+  slug?: string | null;
+} | null | undefined): boolean {
+  return isMetaGroup({ slug: bias?.group_slug ?? bias?.slug });
+}
+
 export function resolveGroupFlagUrl(group: {
   slug?: string | null;
   flag_path?: string | null;

@@ -80,6 +80,35 @@
           <span>{{ formatMembershipDuration(userProfile.created_at).replace(/^há\s+/i, '') }}</span>
         </div>
       </div>
+      <section class="user-biases-section platform-bias-section" v-if="user && platformBias">
+        <h2>Influência na plataforma</h2>
+        <ul class="biases-list platform-bias-list">
+          <li class="bias-item">
+            <NuxtLink
+              :to="`/${platformBias.group_country_code}/${platformBias.group_slug}`"
+              class="bias-link"
+            >
+              <div class="bias-flag-container">
+                <img
+                  v-if="platformBiasFlagUrl"
+                  :src="platformBiasFlagUrl"
+                  :alt="`Logo de ${platformBias.group_name}`"
+                  class="bias-flag bias-flag-logo"
+                />
+                <div v-else class="bias-flag-placeholder">
+                  <span>{{ platformBias.group_name?.substring(0, 1) || '?' }}</span>
+                </div>
+              </div>
+              <span class="bias-name">{{ platformBias.group_name || 'TruthSeek Network' }}</span>
+            </NuxtLink>
+            <div class="bias-influence">
+              <span class="points">{{ platformBias.influence_points }}</span>
+              <span class="title">{{ platformBias.title }}</span>
+            </div>
+          </li>
+        </ul>
+      </section>
+
       <section class="user-biases-section" v-if="user">
         <h2>Meus Vieses Declarados</h2>
         <div v-if="isLoadingBiases" class="loading-spinner">
@@ -154,6 +183,7 @@
 <script setup lang="ts">
 import { useToast } from 'vue-toastification';
 import type { Profile, BiasWithDetails } from '~/types/app';
+import { isMetaGroupBias, resolveGroupFlagUrl } from '~/utils/groupFlags';
 
 definePageMeta({
   middleware: 'auth',
@@ -187,11 +217,27 @@ const removeBiasMessage = computed(() => {
   return `Tem certeza que deseja remover${target}? Você perderá sua influência acumulada.`;
 });
 
+const platformBias = computed(() =>
+  userBiases.value.find((bias) => isMetaGroupBias(bias)) ?? null
+);
+
+const platformBiasFlagUrl = computed(() =>
+  platformBias.value
+    ? resolveGroupFlagUrl({
+        slug: platformBias.value.group_slug,
+        flag_path: platformBias.value.group_flag_path,
+      })
+    : null
+);
+
+const thematicBiases = computed(() =>
+  userBiases.value.filter((bias) => !isMetaGroupBias(bias))
+);
+
 const groupedBiases = computed(() => {
   const groups: Record<string, { categoryName: string; biases: BiasWithDetails[] }> = {};
-  if (!userBiases.value) return [];
 
-  userBiases.value.forEach(bias => {
+  thematicBiases.value.forEach((bias) => {
     const categoryId = bias.category_id || 'other';
     const categoryName = bias.category_name || 'Outros Vieses';
 
@@ -317,7 +363,7 @@ async function uploadAvatar(fileToUpload: File) {
 }
 
 function askRemoveBias(bias: BiasWithDetails) {
-  if (!bias.id || isRemovingBias.value) return;
+  if (!bias.id || isRemovingBias.value || isMetaGroupBias(bias)) return;
   biasIdPendingRemoval.value = bias.id;
   biasNamePendingRemoval.value = bias.group_name || null;
   showRemoveBiasConfirm.value = true;
@@ -333,6 +379,13 @@ function cancelRemoveBias() {
 async function executeRemoveBias() {
   const biasId = biasIdPendingRemoval.value;
   if (!biasId || isRemovingBias.value) return;
+
+  const pending = userBiases.value.find((b) => b.id === biasId);
+  if (pending && isMetaGroupBias(pending)) {
+    toast.error('A influência na plataforma não pode ser removida.');
+    cancelRemoveBias();
+    return;
+  }
 
   isRemovingBias.value = true;
   try {
@@ -486,6 +539,16 @@ watch(userProfile, (newProfileData) => {
 }
 .user-biases-section h2 {
   margin-bottom: 1rem;
+}
+
+.platform-bias-list {
+  border-top: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+.bias-flag-logo {
+  object-fit: contain;
+  background: #fff;
 }
 
 .bias-category-group {
