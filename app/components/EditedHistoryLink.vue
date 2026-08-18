@@ -44,11 +44,12 @@
             </div>
 
             <div class="history-body" v-if="currentRevision">
-              <p
+              <div
                 v-if="currentRevision.text_content"
                 class="history-text"
-                v-html="formatTextToHtml(currentRevision.text_content)"
-              ></p>
+                :class="{ 'markdown-content': format === 'markdown' }"
+                v-html="formattedRevisionText"
+              ></div>
               <p v-else class="history-empty-text">(sem texto nesta versão)</p>
 
               <div v-if="currentRevision.image_path" class="history-media">
@@ -90,14 +91,21 @@
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/vue';
 import type { Database } from '~/types/supabase';
 import { formatDate, formatTextToHtml, getEmbedVideoUrl } from '~/utils/formatters';
+import { renderPostMarkdown } from '~/utils/renderMarkdown';
 
 type ContentRevision = Database['public']['Tables']['content_revisions']['Row'];
 
-const props = defineProps<{
-  targetType: 'post' | 'comment';
-  targetId: string;
-  mediaBucket?: 'post-media' | 'comment-media';
-}>();
+const props = withDefaults(
+  defineProps<{
+    targetType: 'post' | 'comment';
+    targetId: string;
+    mediaBucket?: 'post-media' | 'comment-media';
+    format?: 'markdown' | 'plain';
+  }>(),
+  {
+    format: 'plain',
+  }
+);
 
 const supabase = useSupabaseClient<Database>();
 
@@ -109,6 +117,12 @@ const currentIndex = ref(0);
 const loaded = ref(false);
 
 const currentRevision = computed(() => revisions.value[currentIndex.value] || null);
+
+const formattedRevisionText = computed(() => {
+  const text = currentRevision.value?.text_content ?? null;
+  if (props.format === 'markdown') return renderPostMarkdown(text);
+  return formatTextToHtml(text);
+});
 
 const revisionImageUrl = computed(() => {
   const path = currentRevision.value?.image_path;
@@ -275,8 +289,11 @@ function closeHistory() {
   font-size: 0.92rem;
   line-height: 1.55;
   color: #444;
-  white-space: pre-wrap;
   word-wrap: break-word;
+}
+
+.history-text:not(.markdown-content) {
+  white-space: pre-wrap;
 }
 
 .history-empty-text {

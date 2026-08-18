@@ -3,17 +3,15 @@
     <h3>Criar Nova Postagem</h3>
     <form @submit.prevent="submitPost">
       <div class="form-group">
-        <textarea
-          ref="textareaRef"
+        <MarkdownEditor
           v-model="textContent"
           placeholder="O que você tem em mente? Cole ou arraste uma imagem ou cole um link de vídeo do YouTube/Vimeo aqui."
-          rows="4"
-          @paste="handlePaste"
-          @dragover.prevent="handleDragOver"
-          @dragleave.prevent="handleDragLeave"
-          @drop.prevent="handleDrop"
-          :class="{ 'drag-over': isDraggingOver }"
-        ></textarea>
+          :max-length="5000"
+          :media-paste="handlePaste"
+          :media-drop="handleDrop"
+          :media-drag-over="handleDragOver"
+          :media-drag-leave="handleDragLeave"
+        />
       </div>
 
       <div v-if="imagePreviewUrl || embedVideoUrl" class="media-preview-container form-group">
@@ -116,7 +114,6 @@ const textContent = ref('');
 const isAnonymous = ref(false);
 const isModeratedContent = ref(!!userProfile.value?.default_moderated_posts);
 const isLoading = ref(false);
-const textareaRef = ref<HTMLTextAreaElement | null>(null);
 const availableIssues = ref<Issue[]>([]);
 const selectedIssueIds = ref<string[]>([]);
 
@@ -136,7 +133,6 @@ const {
   imagePreviewUrl,
   videoUrlToSave,
   embedVideoUrl,
-  isDraggingOver,
   fileInputRef,
   removeImage,
   removeVideo,
@@ -149,7 +145,9 @@ const {
   canSubmitWith,
 } = useMediaAttachment(textContent);
 
-const canSubmit = computed(() => canSubmitWith());
+const canSubmit = computed(
+  () => canSubmitWith() && textContent.value.length <= 5000
+);
 
 async function loadGroupIssues() {
   availableIssues.value = [];
@@ -281,21 +279,6 @@ async function submitPost() {
 .create-post-component { margin-bottom: 1rem; }
 .create-post-form h3 { margin-top: 0; margin-bottom: 0.85rem; border-bottom: 0; color: var(--primary-color); }
 .form-group { margin-bottom: 0.65rem; }
-textarea {
-  width: 100%; min-height: 100px; padding: 0.75rem;
-  border: 1px solid var(--border-color); border-radius: 4px;
-  font-family: inherit; font-size: 1rem; line-height: 1.5;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-textarea:focus {
-  outline: none; border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color) 20%, transparent);
-}
-textarea.drag-over {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 30%, transparent),
-              inset 0 0 10px color-mix(in srgb, var(--primary-color) 10%, transparent);
-}
 
 .media-preview-container {
   border: 1px dashed var(--border-color);

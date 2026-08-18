@@ -48,6 +48,7 @@
                 target-type="post"
                 :target-id="post.id"
                 media-bucket="post-media"
+                format="markdown"
               />
             </template>
           </span>
@@ -74,18 +75,15 @@
 
     <div class="post-content">
       <form v-if="isEditing" class="edit-form" @submit.prevent="saveEdit">
-        <textarea
+        <MarkdownEditor
           v-model="editText"
-          rows="4"
-          class="edit-textarea"
-          maxlength="5000"
           placeholder="Edite o texto. Cole um link de YouTube/Vimeo ou uma imagem para substituir a mídia."
-          @paste="handlePaste"
-          @dragover.prevent="handleDragOver"
-          @dragleave.prevent="handleDragLeave"
-          @drop.prevent="handleDrop"
-          :class="{ 'drag-over': isDraggingOver }"
-        ></textarea>
+          :max-length="5000"
+          :media-paste="handlePaste"
+          :media-drop="handleDrop"
+          :media-drag-over="handleDragOver"
+          :media-drag-leave="handleDragLeave"
+        />
 
         <div v-if="imagePreviewUrl || editEmbedVideoUrl" class="media-preview-container">
           <div v-if="imagePreviewUrl" class="image-preview">
@@ -127,7 +125,11 @@
         </div>
       </form>
       <template v-else>
-        <p v-if="localTextContent" class="text-content" v-html="formattedTextContent"></p>
+        <div
+          v-if="localTextContent"
+          class="text-content markdown-content"
+          v-html="formattedTextContent"
+        ></div>
         <div v-if="localImagePath" class="image-content">
           <img :src="postImageUrl" :alt="`Imagem do post de ${post.author_username || 'usuário'}`" />
         </div>
@@ -188,7 +190,8 @@
 import type { Database } from '~/types/supabase';
 import type { PostWithAuthor } from '~/types/app';
 import { useToast } from 'vue-toastification';
-import { formatTextToHtml, getEmbedVideoUrl, timeAgo } from '~/utils/formatters';
+import { getEmbedVideoUrl, timeAgo } from '~/utils/formatters';
+import { renderPostMarkdown } from '~/utils/renderMarkdown';
 
 const props = defineProps<{
   post: PostWithAuthor;
@@ -239,7 +242,6 @@ const {
   imagePreviewUrl,
   videoUrlToSave,
   embedVideoUrl: editEmbedVideoUrl,
-  isDraggingOver,
   fileInputRef,
   removeImage,
   removeVideo,
@@ -254,7 +256,9 @@ const {
   canSubmitWith,
 } = useMediaAttachment(editText);
 
-const canSaveEdit = computed(() => canSubmitWith());
+const canSaveEdit = computed(
+  () => canSubmitWith() && editText.value.length <= 5000
+);
 
 const defaultUserAvatar = '/images/default-avatar.png';
 
@@ -387,7 +391,7 @@ const postImageUrl = computed(() => {
 });
 
 const embedVideoUrl = computed(() => getEmbedVideoUrl(localVideoUrl.value));
-const formattedTextContent = computed(() => formatTextToHtml(localTextContent.value));
+const formattedTextContent = computed(() => renderPostMarkdown(localTextContent.value));
 
 async function fetchCurrentUserVote() {
   if (!authUserId.value || !props.post.id) {
@@ -748,7 +752,6 @@ a.author-name:hover {
 }
 .text-content {
   line-height: 1.6;
-  white-space: pre-wrap;
   word-wrap: break-word;
   margin-bottom: 0.75rem;
 }
@@ -764,19 +767,6 @@ a.author-name:hover {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-}
-.edit-textarea {
-  width: 100%;
-  min-height: 100px;
-  padding: 0.75rem;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  font: inherit;
-  resize: vertical;
-}
-.edit-textarea:focus {
-  outline: none;
-  border-color: var(--primary-color);
 }
 .edit-actions {
   display: flex;
