@@ -28,7 +28,7 @@
       </div>
       <div class="comment-actions-toolbar">
         <div class="left-actions">
-          <label for="comment-hidden-file-input" class="toolbar-action-btn button-tertiary add-image-btn" title="Adicionar Imagem ao Comentário">
+          <label for="comment-hidden-file-input" class="toolbar-action-btn button-secondary add-image-btn" title="Adicionar Imagem ao Comentário">
             <Icon name="lucide:image" :size="16" />
             <span class="btn-text-optional">Imagem</span>
           </label>

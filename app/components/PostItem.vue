@@ -418,6 +418,8 @@ async function handleVote(newVoteType: 1 | -1) {
   if (!authUserId.value || !props.post.id) return;
 
   const oldVote = currentUserVote.value;
+  const oldLikes = localLikesCount.value;
+  const oldDislikes = localDislikesCount.value;
 
   if (oldVote === newVoteType) {
     currentUserVote.value = null;
@@ -464,6 +466,8 @@ async function handleVote(newVoteType: 1 | -1) {
     console.error('Erro ao registrar like:', e);
     toast.error(e.message || 'Falha ao registrar like.');
     currentUserVote.value = oldVote;
+    localLikesCount.value = oldLikes;
+    localDislikesCount.value = oldDislikes;
   }
 }
 
@@ -668,6 +672,7 @@ watch(authUserId, () => {
 watch(
   () => props.post.id,
   () => {
+    fetchCurrentUserVote();
     void fetchSubscriptionStatus();
   }
 );

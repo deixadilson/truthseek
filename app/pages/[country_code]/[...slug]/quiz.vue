@@ -17,15 +17,14 @@
         </NuxtLink>
         <h1>Quiz: {{ hostGroup.name }}</h1>
         <p v-if="phase !== 'results'" class="quiz-subtitle">
-          Responda às proposições para estimar com quais ideologias você mais se alinha.
+          {{ quizSubtitle }}
         </p>
       </header>
 
       <template v-if="phase === 'intro'">
         <div class="quiz-card card-style">
           <p>
-            São {{ quiz.propositions.length }} proposições. Para cada uma, escolha o quanto você
-            concorda. Ao final, mostramos o alinhamento percentual com cada ideologia.
+            {{ introCopy }}
           </p>
           <button type="button" class="button-primary" @click="startQuiz">
             Começar
@@ -35,7 +34,8 @@
 
       <template v-else-if="phase === 'questions'">
         <div class="quiz-progress" aria-live="polite">
-          Proposição {{ currentIndex + 1 }} de {{ quiz.propositions.length }}
+          {{ isChoiceMode ? 'Pergunta' : 'Proposição' }}
+          {{ currentIndex + 1 }} de {{ quiz.propositions.length }}
         </div>
         <div class="quiz-progress-bar" aria-hidden="true">
           <div class="quiz-progress-fill" :style="{ width: progressPct }" />
@@ -43,10 +43,18 @@
 
         <div class="quiz-card card-style">
           <h2 class="quiz-question">{{ currentProposition?.statement }}</h2>
+          <QuizOptionList
+            v-if="isChoiceMode"
+            :options="currentChoiceOptions"
+            :model-value="currentChoiceAnswer"
+            aria-label="Sua resposta"
+            @update:model-value="setChoiceAnswer"
+          />
           <QuizLikertScale
-            :model-value="currentAnswer"
+            v-else
+            :model-value="currentLikertAnswer"
             aria-label="Seu posicionamento"
-            @update:model-value="setAnswer"
+            @update:model-value="setLikertAnswer"
           />
           <div class="quiz-nav">
             <button
@@ -60,7 +68,7 @@
             <button
               type="button"
               class="button-primary"
-              :disabled="currentAnswer === null"
+              :disabled="!hasCurrentAnswer"
               @click="goNext"
             >
               {{ isLast ? 'Ver resultado' : 'Próxima' }}
@@ -74,11 +82,13 @@
           :scores="scores"
           :defend-redirect="quizPath"
           :quiz-url="quizAbsoluteUrl"
-          :quiz-title="hostGroup ? `Quiz ${hostGroup.name}` : 'Quiz Ideologias Políticas'"
+          :quiz-title="hostGroup ? `Quiz ${hostGroup.name}` : 'Quiz'"
           :host-group-id="hostGroup?.id || ''"
-          :host-group-name="hostGroup?.name || 'Ideologias Políticas'"
+          :host-group-name="hostGroup?.name || ''"
           :host-group-slug="hostGroup?.slug || ''"
           :host-group-country-code="hostGroup?.country_code || country"
+          :bar-mode="isChoiceMode ? 'unipolar' : 'bipolar'"
+          :result-noun="isChoiceMode ? 'caminho' : 'ideologia'"
           @defend="openDefend"
           @restart="restart"
         />
@@ -99,9 +109,13 @@
 <script setup lang="ts">
 import type { Group } from '~/types/app';
 import {
+  resolveQuizMode,
+  scoreChoiceGroups,
   scoreIdeologies,
+  shuffleArray,
   type IdeologyScore,
   type LikertStance,
+  type QuizChoiceOption,
   type QuizIdeology,
   type QuizPayload,
   type QuizProposition,
@@ -142,7 +156,10 @@ const quiz = ref<QuizPayload | null>(null);
 
 const phase = ref<'intro' | 'questions' | 'results'>('intro');
 const currentIndex = ref(0);
-const answers = ref<Record<string, LikertStance>>({});
+const likertAnswers = ref<Record<string, LikertStance>>({});
+const choiceAnswers = ref<Record<string, string>>({});
+/** Per-proposition shuffled option order for choice quizzes (stable within an attempt). */
+const shuffledOptionsByPropId = ref<Record<string, QuizChoiceOption[]>>({});
 const scores = ref<IdeologyScore[]>([]);
 const attemptId = ref<string | null>(null);
 
@@ -151,15 +168,49 @@ const pendingDefendId = ref<string | null>(null);
 const pendingDefendName = ref('');
 const isDeclaringBias = ref(false);
 
+const isChoiceMode = computed(() => resolveQuizMode(quiz.value) === 'choice');
+
+const quizSubtitle = computed(() => {
+  if (isChoiceMode.value) {
+    return 'Escolha, em cada pergunta, a resposta que mais se parece com o que você sente.';
+  }
+  return 'Responda às proposições para estimar com quais ideologias você mais se alinha.';
+});
+
+const introCopy = computed(() => {
+  const n = quiz.value?.propositions.length || 0;
+  if (isChoiceMode.value) {
+    return `São ${n} perguntas. Em cada uma, escolha a opção que mais se parece com você — sem rótulos religiosos. Ao final, mostramos a afinidade percentual com cada caminho.`;
+  }
+  return `São ${n} proposições. Para cada uma, escolha o quanto você concorda. Ao final, mostramos o alinhamento percentual com cada ideologia.`;
+});
+
 const currentProposition = computed<QuizProposition | null>(() => {
   const list = quiz.value?.propositions || [];
   return list[currentIndex.value] || null;
 });
 
-const currentAnswer = computed<LikertStance | null>(() => {
+const currentLikertAnswer = computed<LikertStance | null>(() => {
   const id = currentProposition.value?.id;
   if (!id) return null;
-  return answers.value[id] ?? null;
+  return likertAnswers.value[id] ?? null;
+});
+
+const currentChoiceAnswer = computed<string | null>(() => {
+  const id = currentProposition.value?.id;
+  if (!id) return null;
+  return choiceAnswers.value[id] ?? null;
+});
+
+const currentChoiceOptions = computed<QuizChoiceOption[]>(() => {
+  const id = currentProposition.value?.id;
+  if (!id) return [];
+  return shuffledOptionsByPropId.value[id] || currentProposition.value?.options || [];
+});
+
+const hasCurrentAnswer = computed(() => {
+  if (isChoiceMode.value) return currentChoiceAnswer.value !== null;
+  return currentLikertAnswer.value !== null;
 });
 
 const isLast = computed(() => {
@@ -211,12 +262,19 @@ async function loadQuiz() {
       return;
     }
 
-    // Normalize stances: jsonb may return string keys; ensure numbers/null
+    payload.mode = resolveQuizMode(payload);
     payload.propositions = payload.propositions.map((p) => ({
       ...p,
       stances: Object.fromEntries(
-        Object.entries(p.stances || {}).map(([k, v]) => [k, v === null || v === undefined ? null : Number(v)])
+        Object.entries(p.stances || {}).map(([k, v]) => [
+          k,
+          v === null || v === undefined ? null : Number(v),
+        ])
       ),
+      options: (p.options || []).map((o) => ({
+        ...o,
+        sort_order: Number(o.sort_order),
+      })),
     }));
 
     quiz.value = payload;
@@ -228,12 +286,26 @@ async function loadQuiz() {
   }
 }
 
+function shuffleChoiceOptions() {
+  if (!quiz.value || resolveQuizMode(quiz.value) !== 'choice') {
+    shuffledOptionsByPropId.value = {};
+    return;
+  }
+  const next: Record<string, QuizChoiceOption[]> = {};
+  for (const prop of quiz.value.propositions) {
+    next[prop.id] = shuffleArray(prop.options || []);
+  }
+  shuffledOptionsByPropId.value = next;
+}
+
 function startQuiz() {
   phase.value = 'questions';
   currentIndex.value = 0;
-  answers.value = {};
+  likertAnswers.value = {};
+  choiceAnswers.value = {};
   scores.value = [];
   attemptId.value = null;
+  shuffleChoiceOptions();
   void createAttempt();
 }
 
@@ -255,10 +327,16 @@ async function createAttempt() {
   }
 }
 
-function setAnswer(value: LikertStance) {
+function setLikertAnswer(value: LikertStance) {
   const id = currentProposition.value?.id;
   if (!id) return;
-  answers.value = { ...answers.value, [id]: value };
+  likertAnswers.value = { ...likertAnswers.value, [id]: value };
+}
+
+function setChoiceAnswer(groupId: string) {
+  const id = currentProposition.value?.id;
+  if (!id) return;
+  choiceAnswers.value = { ...choiceAnswers.value, [id]: groupId };
 }
 
 function goPrev() {
@@ -266,7 +344,7 @@ function goPrev() {
 }
 
 async function goNext() {
-  if (currentAnswer.value === null) return;
+  if (!hasCurrentAnswer.value) return;
   if (!isLast.value) {
     currentIndex.value += 1;
     return;
@@ -276,11 +354,19 @@ async function goNext() {
 
 async function finishQuiz() {
   if (!quiz.value) return;
-  scores.value = scoreIdeologies(
-    quiz.value.ideologies,
-    quiz.value.propositions,
-    answers.value
-  );
+  if (isChoiceMode.value) {
+    scores.value = scoreChoiceGroups(
+      quiz.value.ideologies,
+      quiz.value.propositions,
+      choiceAnswers.value
+    );
+  } else {
+    scores.value = scoreIdeologies(
+      quiz.value.ideologies,
+      quiz.value.propositions,
+      likertAnswers.value
+    );
+  }
   phase.value = 'results';
   await persistAnswers();
 }
@@ -288,13 +374,23 @@ async function finishQuiz() {
 async function persistAnswers() {
   if (!attemptId.value || !quiz.value) return;
   try {
-    const rows = quiz.value.propositions
-      .filter((p) => answers.value[p.id] !== undefined)
-      .map((p) => ({
-        attempt_id: attemptId.value!,
-        proposition_id: p.id,
-        answer: answers.value[p.id],
-      }));
+    const rows = isChoiceMode.value
+      ? quiz.value.propositions
+          .filter((p) => choiceAnswers.value[p.id])
+          .map((p) => ({
+            attempt_id: attemptId.value!,
+            proposition_id: p.id,
+            answer: null as number | null,
+            chosen_group_id: choiceAnswers.value[p.id],
+          }))
+      : quiz.value.propositions
+          .filter((p) => likertAnswers.value[p.id] !== undefined)
+          .map((p) => ({
+            attempt_id: attemptId.value!,
+            proposition_id: p.id,
+            answer: likertAnswers.value[p.id],
+            chosen_group_id: null as string | null,
+          }));
 
     if (rows.length) {
       const { error } = await supabase.from('quiz_attempt_answers').insert(rows);
@@ -314,7 +410,9 @@ async function persistAnswers() {
 function restart() {
   phase.value = 'intro';
   currentIndex.value = 0;
-  answers.value = {};
+  likertAnswers.value = {};
+  choiceAnswers.value = {};
+  shuffledOptionsByPropId.value = {};
   scores.value = [];
   attemptId.value = null;
 }
@@ -377,7 +475,7 @@ watch(
 );
 
 useSeoMeta({
-  title: () => hostGroup.value ? `Quiz — ${hostGroup.value.name}` : 'Quiz de ideologias',
+  title: () => hostGroup.value ? `Quiz — ${hostGroup.value.name}` : 'Quiz',
 });
 </script>
 

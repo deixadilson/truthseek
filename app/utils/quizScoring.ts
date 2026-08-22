@@ -21,17 +21,30 @@ export type QuizIdeology = {
   description?: string | null;
 };
 
+export type QuizChoiceOption = {
+  id: string;
+  group_id: string;
+  label: string;
+  sort_order: number;
+};
+
 export type QuizProposition = {
   id: string;
-  issue_id: string;
+  /** Optional issue tags; empty when the proposition has no linked issues */
+  issue_ids?: string[];
   statement: string;
   sort_order: number;
-  /** group_id -> stance; missing or null = no defined position */
+  /** group_id -> stance; missing or null = no defined position (likert mode) */
   stances: Record<string, number | null>;
+  /** Choice-mode answers; empty in likert mode */
+  options?: QuizChoiceOption[];
 };
+
+export type QuizMode = 'likert' | 'choice';
 
 export type QuizPayload = {
   host_group_id: string;
+  mode?: QuizMode;
   ideologies: QuizIdeology[];
   propositions: QuizProposition[];
 };
@@ -92,4 +105,56 @@ export function scoreIdeologies(
     if (b.scorePercent !== a.scorePercent) return b.scorePercent - a.scorePercent;
     return a.ideology.name.localeCompare(b.ideology.name, 'pt-BR');
   });
+}
+
+/** Choice mode: +1 per selected option matching the group → 0..100% */
+export function scoreChoiceGroups(
+  ideologies: QuizIdeology[],
+  propositions: QuizProposition[],
+  answers: Record<string, string>
+): IdeologyScore[] {
+  const totalCount = propositions.length;
+
+  const results: IdeologyScore[] = ideologies.map((ideology) => {
+    let agreed = 0;
+
+    for (const prop of propositions) {
+      const chosenGroupId = answers[prop.id];
+      if (!chosenGroupId) continue;
+      if (chosenGroupId === ideology.id) agreed += 1;
+    }
+
+    const scorePercent =
+      totalCount > 0 ? Math.round((agreed / totalCount) * 100) : 0;
+
+    return {
+      ideology,
+      scorePercent,
+      totalCount,
+      agreedCount: agreed,
+    };
+  });
+
+  return results.sort((a, b) => {
+    if (b.scorePercent !== a.scorePercent) return b.scorePercent - a.scorePercent;
+    return a.ideology.name.localeCompare(b.ideology.name, 'pt-BR');
+  });
+}
+
+export function resolveQuizMode(payload: QuizPayload | null | undefined): QuizMode {
+  if (payload?.mode === 'choice' || payload?.mode === 'likert') return payload.mode;
+  const hasOptions = payload?.propositions?.some((p) => (p.options?.length || 0) > 0);
+  return hasOptions ? 'choice' : 'likert';
+}
+
+/** Fisher–Yates shuffle; returns a new array (does not mutate input). */
+export function shuffleArray<T>(items: readonly T[]): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = out[i]!;
+    out[i] = out[j]!;
+    out[j] = tmp;
+  }
+  return out;
 }

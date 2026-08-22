@@ -158,8 +158,8 @@
 
           <div v-if="groupHasQuiz" class="quiz-cta card-style">
             <div class="quiz-cta-text">
-              <h3>Não sabe qual ideologia defender?</h3>
-              <p>Faça o quiz e veja com quais vieses suas posições mais se alinham.</p>
+              <h3>{{ quizCtaTitle }}</h3>
+              <p>{{ quizCtaBody }}</p>
             </div>
             <NuxtLink :to="`/${groupData.country_code}/${groupData.slug}/quiz`" class="button-primary">
               Fazer o quiz
@@ -218,6 +218,22 @@ const posts = ref<PostWithAuthor[]>([]);
 const filteredPosts = ref<PostWithAuthor[]>([]);
 const groupIssues = ref<Issue[]>([]);
 const groupHasQuiz = ref(false);
+
+const quizCtaTitle = computed(() => {
+  const slug = groupData.value?.slug || '';
+  if (slug === 'religiao' || slug.startsWith('religiao/')) {
+    return 'Não sabe qual caminho religioso seguir?';
+  }
+  return 'Não sabe qual ideologia defender?';
+});
+
+const quizCtaBody = computed(() => {
+  const slug = groupData.value?.slug || '';
+  if (slug === 'religiao' || slug.startsWith('religiao/')) {
+    return 'Faça o quiz e veja com quais vieses suas respostas mais se alinham.';
+  }
+  return 'Faça o quiz e veja com quais vieses suas posições mais se alinham.';
+});
 const isLoading = ref(true);
 const isLoadingPosts = ref(false);
 const isLoadingMorePosts = ref(false);

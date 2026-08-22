@@ -828,18 +828,21 @@ export type Database = {
       }
       quiz_attempt_answers: {
         Row: {
-          answer: number
+          answer: number | null
           attempt_id: string
+          chosen_group_id: string | null
           proposition_id: string
         }
         Insert: {
-          answer: number
+          answer?: number | null
           attempt_id: string
+          chosen_group_id?: string | null
           proposition_id: string
         }
         Update: {
-          answer?: number
+          answer?: number | null
           attempt_id?: string
+          chosen_group_id?: string | null
           proposition_id?: string
         }
         Relationships: [
@@ -848,6 +851,20 @@ export type Database = {
             columns: ["attempt_id"]
             isOneToOne: false
             referencedRelation: "quiz_attempts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quiz_attempt_answers_chosen_group_id_fkey"
+            columns: ["chosen_group_id"]
+            isOneToOne: false
+            referencedRelation: "biases_with_details"
+            referencedColumns: ["category_id"]
+          },
+          {
+            foreignKeyName: "quiz_attempt_answers_chosen_group_id_fkey"
+            columns: ["chosen_group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
             referencedColumns: ["id"]
           },
           {
@@ -938,13 +955,94 @@ export type Database = {
           },
         ]
       }
+      quiz_proposition_issues: {
+        Row: {
+          created_at: string
+          issue_id: string
+          proposition_id: string
+        }
+        Insert: {
+          created_at?: string
+          issue_id: string
+          proposition_id: string
+        }
+        Update: {
+          created_at?: string
+          issue_id?: string
+          proposition_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_proposition_issues_issue_id_fkey"
+            columns: ["issue_id"]
+            isOneToOne: false
+            referencedRelation: "issues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quiz_proposition_issues_proposition_id_fkey"
+            columns: ["proposition_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_propositions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quiz_proposition_options: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          label: string
+          proposition_id: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          label: string
+          proposition_id: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          label?: string
+          proposition_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_proposition_options_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "biases_with_details"
+            referencedColumns: ["category_id"]
+          },
+          {
+            foreignKeyName: "quiz_proposition_options_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quiz_proposition_options_proposition_id_fkey"
+            columns: ["proposition_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_propositions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quiz_propositions: {
         Row: {
           created_at: string
           host_group_id: string
           id: string
           is_active: boolean
-          issue_id: string
           sort_order: number
           statement: string
         }
@@ -953,7 +1051,6 @@ export type Database = {
           host_group_id: string
           id?: string
           is_active?: boolean
-          issue_id: string
           sort_order?: number
           statement: string
         }
@@ -962,7 +1059,6 @@ export type Database = {
           host_group_id?: string
           id?: string
           is_active?: boolean
-          issue_id?: string
           sort_order?: number
           statement?: string
         }
@@ -979,13 +1075,6 @@ export type Database = {
             columns: ["host_group_id"]
             isOneToOne: false
             referencedRelation: "groups"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "quiz_propositions_issue_id_fkey"
-            columns: ["issue_id"]
-            isOneToOne: true
-            referencedRelation: "issues"
             referencedColumns: ["id"]
           },
         ]

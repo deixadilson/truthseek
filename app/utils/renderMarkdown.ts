@@ -1,36 +1,15 @@
-import MarkdownIt from 'markdown-it';
-import DOMPurify from 'isomorphic-dompurify';
-
-const md = new MarkdownIt({
-  html: false,
-  linkify: true,
-  breaks: true,
-});
-
-const ALLOWED_TAGS = [
-  'p',
-  'br',
-  'strong',
-  'em',
-  's',
-  'del',
-  'h2',
-  'h3',
-  'ul',
-  'ol',
-  'li',
-  'blockquote',
-  'code',
-  'pre',
-  'a',
-];
-
-const ALLOWED_ATTR = ['href', 'target', 'rel'];
+import DOMPurify from 'dompurify';
+import {
+  ALLOWED_ATTR,
+  ALLOWED_TAGS,
+  hardenMarkdownHtml,
+  md,
+} from '~/utils/renderMarkdownShared';
 
 let hooksRegistered = false;
 
 function ensureSanitizeHooks() {
-  if (hooksRegistered) return;
+  if (hooksRegistered || import.meta.server) return;
   hooksRegistered = true;
 
   DOMPurify.addHook('afterSanitizeAttributes', (node) => {
@@ -48,10 +27,20 @@ function ensureSanitizeHooks() {
 /** Render post Markdown to sanitized HTML for v-html. */
 export function renderPostMarkdown(text: string | null | undefined): string {
   if (!text) return '';
-  ensureSanitizeHooks();
   const dirty = md.render(text);
-  return DOMPurify.sanitize(dirty, {
-    ALLOWED_TAGS,
-    ALLOWED_ATTR,
-  });
+
+  // Avoid DOMPurify/jsdom on the server (breaks Vercel/Lambda ESM).
+  if (import.meta.server || typeof window === 'undefined') {
+    return hardenMarkdownHtml(dirty);
+  }
+
+  ensureSanitizeHooks();
+  try {
+    return DOMPurify.sanitize(dirty, {
+      ALLOWED_TAGS,
+      ALLOWED_ATTR,
+    });
+  } catch {
+    return hardenMarkdownHtml(dirty);
+  }
 }

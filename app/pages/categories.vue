@@ -30,8 +30,8 @@
         class="quiz-cta card-style"
       >
         <div class="quiz-cta-text">
-          <h3>Não sabe qual ideologia defender?</h3>
-          <p>Faça o quiz e veja com quais vieses suas posições mais se alinham.</p>
+          <h3>{{ quizCtaTitle }}</h3>
+          <p>{{ quizCtaBody }}</p>
         </div>
         <NuxtLink
           :to="`/${currentQuizHost.country_code}/${currentQuizHost.slug}/quiz`"
@@ -162,6 +162,22 @@ const currentQuizHost = computed(() => {
   if (!last?.groupId) return null;
   if (!quizHostIds.value.has(last.groupId)) return null;
   return quizHostsById.value[last.groupId] || null;
+});
+
+const quizCtaTitle = computed(() => {
+  const slug = currentQuizHost.value?.slug || '';
+  if (slug === 'religiao' || slug.startsWith('religiao/')) {
+    return 'Não sabe qual caminho religioso seguir?';
+  }
+  return 'Não sabe qual ideologia defender?';
+});
+
+const quizCtaBody = computed(() => {
+  const slug = currentQuizHost.value?.slug || '';
+  if (slug === 'religiao' || slug.startsWith('religiao/')) {
+    return 'Faça o quiz e veja com quais vieses suas respostas mais se alinham.';
+  }
+  return 'Faça o quiz e veja com quais vieses suas posições mais se alinham.';
 });
 
 async function rememberQuizHost(group: Pick<Group, 'id' | 'name' | 'slug' | 'country_code'>) {

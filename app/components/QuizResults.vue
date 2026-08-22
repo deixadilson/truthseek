@@ -1,13 +1,11 @@
 <template>
   <div class="quiz-results">
     <h2 class="quiz-results-title">
-      A ideologia que mais se alinha às suas convicções é:
+      {{ titleLead }}
       <span class="quiz-results-top-name">{{ topIdeologyName }}!</span>
     </h2>
     <p class="quiz-results-intro">
-      Lista ordenada pela porcentagem de alinhamento com cada ideologia. Proposições sem posição definida pela
-      ideologia são ignoradas no cálculo da porcentagem, mas no contador de respostas de acordo, essas
-      proposições contam como concordância.
+      {{ introText }}
     </p>
 
     <ol class="quiz-results-list">
@@ -15,7 +13,10 @@
         v-for="(row, index) in scores"
         :key="row.ideology.id"
         class="quiz-results-item"
-        :class="{ top: index === 0, negative: row.scorePercent < 0 }"
+        :class="{
+          top: index === 0,
+          negative: barMode === 'bipolar' && row.scorePercent < 0,
+        }"
       >
         <div class="quiz-results-rank">{{ index + 1 }}</div>
 
@@ -43,16 +44,24 @@
             {{ row.ideology.description }}
           </p>
 
-          <div class="quiz-results-bar" aria-hidden="true">
+          <div
+            class="quiz-results-bar"
+            :class="barMode === 'unipolar' ? 'unipolar' : 'bipolar'"
+            aria-hidden="true"
+          >
             <div class="quiz-results-bar-track">
               <div
                 v-if="row.scorePercent !== 0"
                 class="quiz-results-bar-fill"
-                :class="row.scorePercent < 0 ? 'negative' : 'positive'"
+                :class="barFillClass(row.scorePercent)"
                 :style="{ width: barExtent(row.scorePercent) }"
               />
             </div>
-            <span class="quiz-results-bar-zero" title="0%" />
+            <span
+              v-if="barMode === 'bipolar'"
+              class="quiz-results-bar-zero"
+              title="0%"
+            />
           </div>
           <p v-if="row.scorePercent > 0" class="quiz-results-meta">
             {{ agreementLabel(row) }}
@@ -235,6 +244,9 @@ const props = defineProps<{
   hostGroupName?: string;
   hostGroupSlug?: string;
   hostGroupCountryCode?: string;
+  /** bipolar: ideology Likert (±%); unipolar: choice affinity 0–100% left→right */
+  barMode?: 'bipolar' | 'unipolar';
+  resultNoun?: string;
 }>();
 
 const emit = defineEmits<{
@@ -248,9 +260,26 @@ const userProfile = useProfile();
 const toast = useToast();
 const flagsBucket = 'https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/flags';
 
+const barMode = computed(() => props.barMode || 'bipolar');
+const resultNoun = computed(() => props.resultNoun || 'ideologia');
+
 const topScore = computed(() => props.scores[0] || null);
 const topIdeologyName = computed(() => topScore.value?.ideology.name || '—');
 const hostGroupName = computed(() => props.hostGroupName || 'Ideologias Políticas');
+
+const titleLead = computed(() => {
+  if (barMode.value === 'unipolar') {
+    return 'O caminho com o qual você mais se identifica é:';
+  }
+  return 'A ideologia que mais se alinha às suas convicções é:';
+});
+
+const introText = computed(() => {
+  if (barMode.value === 'unipolar') {
+    return `Lista ordenada pela afinidade percentual com cada ${resultNoun.value}. Cada resposta soma um ponto ao caminho correspondente.`;
+  }
+  return `Lista ordenada pela porcentagem de alinhamento com cada ${resultNoun.value}. Proposições sem posição definida pela ideologia são ignoradas no cálculo da porcentagem, mas no contador de respostas de acordo, essas proposições contam como concordância.`;
+});
 
 const shareModalOpen = ref(false);
 const shareBlob = ref<Blob | null>(null);
@@ -411,11 +440,16 @@ function flagUrl(path: string): string {
 }
 
 function formatScore(pct: number): string {
+  if (barMode.value === 'unipolar') return `${pct}%`;
   const sign = pct > 0 ? '+' : '';
   return `${sign}${pct}%`;
 }
 
 function scoreClass(pct: number): string {
+  if (barMode.value === 'unipolar') {
+    if (pct >= 40) return 'high';
+    return 'mid';
+  }
   if (pct > 0) return 'high';
   if (pct === 0) return 'mid';
   return 'low';
@@ -423,11 +457,24 @@ function scoreClass(pct: number): string {
 
 function agreementLabel(row: IdeologyScore): string {
   const { agreedCount, totalCount } = row;
+  if (barMode.value === 'unipolar') {
+    const resposta = agreedCount === 1 ? 'resposta alinhada' : 'respostas alinhadas';
+    return `${agreedCount} de ${totalCount} ${resposta} com este caminho`;
+  }
   const resposta = agreedCount === 1 ? 'resposta de acordo' : 'respostas de acordo';
   return `${agreedCount} de ${totalCount} ${resposta} com esta ideologia`;
 }
 
+function barFillClass(pct: number): string {
+  if (barMode.value === 'unipolar') return 'unipolar-fill';
+  return pct < 0 ? 'negative' : 'positive';
+}
+
 function barExtent(pct: number): string {
+  if (barMode.value === 'unipolar') {
+    const extent = Math.max(0, Math.min(100, Math.abs(pct)));
+    return `${extent}%`;
+  }
   const extent = Math.max(0, Math.min(50, Math.abs(pct) / 2));
   return `${extent}%`;
 }
@@ -579,6 +626,9 @@ function barExtent(pct: number): string {
   height: 0.4rem;
   border-radius: 999px;
   overflow: hidden;
+}
+
+.quiz-results-bar.bipolar .quiz-results-bar-track {
   background: linear-gradient(
     to right,
     #ef9a9a 0%,
@@ -586,6 +636,10 @@ function barExtent(pct: number): string {
     var(--primary-color-light) 50%,
     var(--primary-color-light) 100%
   );
+}
+
+.quiz-results-bar.unipolar .quiz-results-bar-track {
+  background: color-mix(in srgb, var(--primary-color-light) 45%, #e8e8e8);
 }
 
 .quiz-results-item.top .quiz-results-bar-track {
@@ -622,6 +676,12 @@ function barExtent(pct: number): string {
   right: 50%;
   background: #c62828;
   border-radius: 999px 0 0 999px;
+}
+
+.quiz-results-bar-fill.unipolar-fill {
+  left: 0;
+  background: var(--primary-color);
+  border-radius: 999px;
 }
 
 .quiz-results-meta {
