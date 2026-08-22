@@ -35,7 +35,7 @@
       <template v-else-if="phase === 'questions'">
         <div class="quiz-progress" aria-live="polite">
           {{ isChoiceMode ? 'Pergunta' : 'Proposição' }}
-          {{ currentIndex + 1 }} de {{ quiz.propositions.length }}
+          {{ currentIndex + 1 }} de {{ questionCount }}
         </div>
         <div class="quiz-progress-bar" aria-hidden="true">
           <div class="quiz-progress-fill" :style="{ width: progressPct }" />
@@ -78,7 +78,21 @@
       </template>
 
       <template v-else-if="phase === 'results'">
+        <QuizAxisResults
+          v-if="isMultiAxis"
+          :axis-scores="axisScores"
+          :defend-redirect="quizPath"
+          :quiz-url="quizAbsoluteUrl"
+          :quiz-title="hostGroup ? `Quiz ${hostGroup.name}` : 'Quiz'"
+          :host-group-id="hostGroup?.id || ''"
+          :host-group-name="hostGroup?.name || ''"
+          :host-group-slug="hostGroup?.slug || ''"
+          :host-group-country-code="hostGroup?.country_code || country"
+          @defend="openDefend"
+          @restart="restart"
+        />
         <QuizResults
+          v-else
           :scores="scores"
           :defend-redirect="quizPath"
           :quiz-url="quizAbsoluteUrl"
@@ -109,10 +123,14 @@
 <script setup lang="ts">
 import type { Group } from '~/types/app';
 import {
+  hasMultiAxisResults,
   resolveQuizMode,
+  scoreByAxes,
   scoreChoiceGroups,
   scoreIdeologies,
   shuffleArray,
+  shufflePropositionsSpreadHomes,
+  type AxisScoreResult,
   type IdeologyScore,
   type LikertStance,
   type QuizChoiceOption,
@@ -160,7 +178,10 @@ const likertAnswers = ref<Record<string, LikertStance>>({});
 const choiceAnswers = ref<Record<string, string>>({});
 /** Per-proposition shuffled option order for choice quizzes (stable within an attempt). */
 const shuffledOptionsByPropId = ref<Record<string, QuizChoiceOption[]>>({});
+/** Display order for likert multi-axis quizzes (spread home groups). */
+const orderedPropositions = ref<QuizProposition[]>([]);
 const scores = ref<IdeologyScore[]>([]);
+const axisScores = ref<AxisScoreResult[]>([]);
 const attemptId = ref<string | null>(null);
 
 const declareBiasDialogOpen = ref(false);
@@ -169,10 +190,14 @@ const pendingDefendName = ref('');
 const isDeclaringBias = ref(false);
 
 const isChoiceMode = computed(() => resolveQuizMode(quiz.value) === 'choice');
+const isMultiAxis = computed(() => hasMultiAxisResults(quiz.value));
 
 const quizSubtitle = computed(() => {
   if (isChoiceMode.value) {
     return 'Escolha, em cada pergunta, a resposta que mais se parece com o que você sente.';
+  }
+  if (isMultiAxis.value) {
+    return 'Indique o quanto concorda com cada afirmação. Ao final, mostramos sua posição em cada eixo.';
   }
   return 'Responda às proposições para estimar com quais ideologias você mais se alinha.';
 });
@@ -182,13 +207,24 @@ const introCopy = computed(() => {
   if (isChoiceMode.value) {
     return `São ${n} perguntas. Em cada uma, escolha a opção que mais se parece com você — sem rótulos religiosos. Ao final, mostramos a afinidade percentual com cada caminho.`;
   }
+  if (isMultiAxis.value) {
+    const axes = quiz.value?.axes?.length || 0;
+    return `São ${n} proposições. Para cada uma, escolha o quanto você concorda. Ao final, mostramos o alinhamento em cada um dos ${axes} eixos — com um vencedor por eixo.`;
+  }
   return `São ${n} proposições. Para cada uma, escolha o quanto você concorda. Ao final, mostramos o alinhamento percentual com cada ideologia.`;
 });
 
 const currentProposition = computed<QuizProposition | null>(() => {
-  const list = quiz.value?.propositions || [];
+  const list = displayPropositions.value;
   return list[currentIndex.value] || null;
 });
+
+const displayPropositions = computed<QuizProposition[]>(() => {
+  if (orderedPropositions.value.length) return orderedPropositions.value;
+  return quiz.value?.propositions || [];
+});
+
+const questionCount = computed(() => displayPropositions.value.length);
 
 const currentLikertAnswer = computed<LikertStance | null>(() => {
   const id = currentProposition.value?.id;
@@ -214,12 +250,12 @@ const hasCurrentAnswer = computed(() => {
 });
 
 const isLast = computed(() => {
-  const n = quiz.value?.propositions.length || 0;
+  const n = questionCount.value;
   return currentIndex.value >= n - 1;
 });
 
 const progressPct = computed(() => {
-  const n = quiz.value?.propositions.length || 1;
+  const n = questionCount.value || 1;
   return `${((currentIndex.value + 1) / n) * 100}%`;
 });
 
@@ -263,6 +299,12 @@ async function loadQuiz() {
     }
 
     payload.mode = resolveQuizMode(payload);
+    payload.axes = (payload.axes || []).map((a) => ({
+      id: a.id,
+      name: a.name,
+      slug: a.slug,
+      group_ids: (a.group_ids || []).map(String),
+    }));
     payload.propositions = payload.propositions.map((p) => ({
       ...p,
       stances: Object.fromEntries(
@@ -298,14 +340,28 @@ function shuffleChoiceOptions() {
   shuffledOptionsByPropId.value = next;
 }
 
+function preparePropositionOrder() {
+  if (!quiz.value) {
+    orderedPropositions.value = [];
+    return;
+  }
+  if (isMultiAxis.value) {
+    orderedPropositions.value = shufflePropositionsSpreadHomes(quiz.value.propositions);
+    return;
+  }
+  orderedPropositions.value = [...quiz.value.propositions];
+}
+
 function startQuiz() {
   phase.value = 'questions';
   currentIndex.value = 0;
   likertAnswers.value = {};
   choiceAnswers.value = {};
   scores.value = [];
+  axisScores.value = [];
   attemptId.value = null;
   shuffleChoiceOptions();
+  preparePropositionOrder();
   void createAttempt();
 }
 
@@ -360,12 +416,22 @@ async function finishQuiz() {
       quiz.value.propositions,
       choiceAnswers.value
     );
+    axisScores.value = [];
+  } else if (isMultiAxis.value && quiz.value.axes?.length) {
+    axisScores.value = scoreByAxes(
+      quiz.value.axes,
+      quiz.value.ideologies,
+      quiz.value.propositions,
+      likertAnswers.value
+    );
+    scores.value = axisScores.value.flatMap((b) => b.scores);
   } else {
     scores.value = scoreIdeologies(
       quiz.value.ideologies,
       quiz.value.propositions,
       likertAnswers.value
     );
+    axisScores.value = [];
   }
   phase.value = 'results';
   await persistAnswers();
@@ -413,7 +479,9 @@ function restart() {
   likertAnswers.value = {};
   choiceAnswers.value = {};
   shuffledOptionsByPropId.value = {};
+  orderedPropositions.value = [];
   scores.value = [];
+  axisScores.value = [];
   attemptId.value = null;
 }
 
@@ -427,7 +495,10 @@ async function confirmDeclareBias() {
   if (!pendingDefendId.value || !authUserId.value || isDeclaringBias.value) return;
   isDeclaringBias.value = true;
   const groupId = pendingDefendId.value;
-  const ideology = scores.value.find((s) => s.ideology.id === groupId)?.ideology;
+  const ideology =
+    scores.value.find((s) => s.ideology.id === groupId)?.ideology
+    || axisScores.value.flatMap((b) => b.scores).find((s) => s.ideology.id === groupId)?.ideology
+    || quiz.value?.ideologies.find((g) => g.id === groupId);
 
   try {
     const { data: checkData, error: checkError } = await supabase.rpc('can_declare_bias', {

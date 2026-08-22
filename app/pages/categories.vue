@@ -169,6 +169,13 @@ const quizCtaTitle = computed(() => {
   if (slug === 'religiao' || slug.startsWith('religiao/')) {
     return 'Não sabe qual caminho religioso seguir?';
   }
+  if (
+    slug.includes('/cosmologia')
+    || slug.includes('/ontologia')
+    || slug.endsWith('/metafisica')
+  ) {
+    return 'Não sabe qual posição metafísica defender?';
+  }
   return 'Não sabe qual ideologia defender?';
 });
 
@@ -176,6 +183,13 @@ const quizCtaBody = computed(() => {
   const slug = currentQuizHost.value?.slug || '';
   if (slug === 'religiao' || slug.startsWith('religiao/')) {
     return 'Faça o quiz e veja com quais vieses suas respostas mais se alinham.';
+  }
+  if (
+    slug.includes('/cosmologia')
+    || slug.includes('/ontologia')
+    || slug.endsWith('/metafisica')
+  ) {
+    return 'Faça o quiz e veja sua posição em cada eixo — com um vencedor por questão.';
   }
   return 'Faça o quiz e veja com quais vieses suas posições mais se alinham.';
 });

@@ -175,6 +175,174 @@ export function buildQuizShareCaption(input: {
   ].join('\n');
 }
 
+export type QuizAxisShareWinner = {
+  axisName: string;
+  winnerName: string;
+  scorePercent: number;
+  flagUrl?: string | null;
+};
+
+export function buildQuizAxisShareCaption(input: {
+  winners: QuizAxisShareWinner[];
+  quizUrl: string;
+  quizTitle?: string;
+}): string {
+  const title = input.quizTitle || 'Quiz';
+  const lines = input.winners.map(
+    (w) => `• ${w.axisName}: ${w.winnerName} (${w.scorePercent}%)`
+  );
+  return [
+    `Minhas posições no ${title} de TruthSeek Network:`,
+    ...lines,
+    'Faça você também e descubra as suas:',
+    input.quizUrl,
+  ].join('\n');
+}
+
+export async function renderQuizAxisResultImage(input: {
+  winners: QuizAxisShareWinner[];
+  quizTitle?: string;
+}): Promise<Blob> {
+  const canvas = document.createElement('canvas');
+  canvas.width = SIZE;
+  canvas.height = SIZE;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas não suportado neste navegador.');
+
+  const quizTitle = input.quizTitle || 'Quiz';
+  const logo = await loadImage(logoUrl());
+  const winners = input.winners.slice(0, 6);
+
+  const gradient = ctx.createLinearGradient(0, 0, SIZE, SIZE);
+  gradient.addColorStop(0, '#f4f7f6');
+  gradient.addColorStop(0.45, WHITE);
+  gradient.addColorStop(1, PRIMARY_LIGHT);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, SIZE, SIZE);
+
+  if (logo) drawLogoWatermarks(ctx, logo);
+
+  ctx.fillStyle = PRIMARY;
+  ctx.fillRect(0, 0, SIZE, 120);
+
+  let brandTextX = 64;
+  if (logo) {
+    const logoH = 72;
+    const logoW = logoH * (logo.width / Math.max(logo.height, 1));
+    const logoX = 48;
+    const logoY = (120 - logoH) / 2;
+    ctx.drawImage(logo, logoX, logoY, logoW, logoH);
+    brandTextX = logoX + logoW + 22;
+  }
+
+  ctx.fillStyle = WHITE;
+  ctx.font = '700 42px system-ui, -apple-system, Segoe UI, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('TruthSeek Network', brandTextX, 60);
+  ctx.textBaseline = 'alphabetic';
+
+  const cardX = 64;
+  const cardY = 160;
+  const cardW = SIZE - 128;
+  const cardH = 760;
+  ctx.fillStyle = WHITE;
+  roundRect(ctx, cardX, cardY, cardW, cardH, 28);
+  ctx.fill();
+  ctx.strokeStyle = '#dee2e6';
+  ctx.lineWidth = 2;
+  roundRect(ctx, cardX, cardY, cardW, cardH, 28);
+  ctx.stroke();
+
+  ctx.fillStyle = PRIMARY_DARK;
+  ctx.font = '600 32px system-ui, -apple-system, Segoe UI, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(quizTitle, SIZE / 2, cardY + 56);
+
+  ctx.fillStyle = MUTED;
+  ctx.font = '500 26px system-ui, -apple-system, Segoe UI, sans-serif';
+  ctx.fillText('Posições por eixo', SIZE / 2, cardY + 100);
+
+  const n = Math.max(winners.length, 1);
+  const listBottomPad = 120;
+  const rowH = Math.min(140, Math.floor((cardH - 160 - listBottomPad) / n));
+  let y = cardY + 130;
+
+  for (const w of winners) {
+    const rowY = y;
+    ctx.fillStyle = '#f7faf9';
+    roundRect(ctx, cardX + 36, rowY, cardW - 72, rowH - 16, 16);
+    ctx.fill();
+
+    const cx = cardX + 100;
+    const cy = rowY + (rowH - 16) / 2;
+    let flagDrawn = false;
+    if (w.flagUrl) {
+      const flag = await loadImage(w.flagUrl);
+      if (flag) {
+        drawCircularImage(ctx, flag, cx, cy, 36);
+        flagDrawn = true;
+      }
+    }
+    if (!flagDrawn) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, 36, 0, Math.PI * 2);
+      ctx.fillStyle = PRIMARY_LIGHT;
+      ctx.fill();
+      ctx.fillStyle = PRIMARY_DARK;
+      ctx.font = '700 28px system-ui, -apple-system, Segoe UI, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(w.winnerName.substring(0, 1).toUpperCase(), cx, cy);
+      ctx.textBaseline = 'alphabetic';
+    }
+
+    const textX = cardX + 160;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = MUTED;
+    ctx.font = '600 22px system-ui, -apple-system, Segoe UI, sans-serif';
+    ctx.fillText(w.axisName, textX, rowY + 38);
+
+    ctx.fillStyle = TEXT;
+    ctx.font = '700 34px system-ui, -apple-system, Segoe UI, sans-serif';
+    const nameLines = wrapText(ctx, w.winnerName, cardW - 320);
+    let nameY = rowY + 78;
+    for (const line of nameLines.slice(0, 2)) {
+      ctx.fillText(line, textX, nameY);
+      nameY += 36;
+    }
+
+    ctx.textAlign = 'right';
+    ctx.fillStyle = PRIMARY;
+    ctx.font = '800 36px system-ui, -apple-system, Segoe UI, sans-serif';
+    ctx.fillText(`${w.scorePercent}%`, cardX + cardW - 56, rowY + (rowH - 16) / 2 + 12);
+
+    y += rowH;
+  }
+
+  const sentence = `Confira meus resultados no ${quizTitle} de TruthSeek Network`;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = MUTED;
+  ctx.font = '500 28px system-ui, -apple-system, Segoe UI, sans-serif';
+  const sentenceLines = wrapText(ctx, sentence, cardW - 100);
+  let sentenceY = Math.min(y + 28, cardY + cardH - 70);
+  for (const line of sentenceLines.slice(0, 3)) {
+    ctx.fillText(line, SIZE / 2, sentenceY);
+    sentenceY += 36;
+  }
+
+  ctx.fillStyle = PRIMARY_DARK;
+  ctx.font = '600 28px system-ui, -apple-system, Segoe UI, sans-serif';
+  ctx.fillText('truthseek.network', SIZE / 2, SIZE - 48);
+
+  return await new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error('Falha ao gerar a imagem.'));
+    }, 'image/png');
+  });
+}
+
 export async function renderQuizResultImage(input: QuizShareImageInput): Promise<Blob> {
   const canvas = document.createElement('canvas');
   canvas.width = SIZE;
