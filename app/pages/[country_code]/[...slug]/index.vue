@@ -224,11 +224,13 @@ const quizCtaTitle = computed(() => {
   if (slug === 'religiao' || slug.startsWith('religiao/')) {
     return 'Não sabe qual caminho religioso seguir?';
   }
-  if (
-    slug.includes('/cosmologia')
-    || slug.includes('/ontologia')
-    || slug.endsWith('/metafisica')
-  ) {
+  if (slug.includes('/cosmologia')) {
+    return 'Não sabe qual posição cosmológica defender?';
+  }
+  if (slug.includes('/ontologia')) {
+    return 'Não sabe qual posição ontológica defender?';
+  }
+  if (slug.endsWith('/metafisica')) {
     return 'Não sabe qual posição metafísica defender?';
   }
   return 'Não sabe qual ideologia defender?';

@@ -2,7 +2,7 @@
   <div class="quiz-axis-results">
     <h2 class="quiz-axis-title">Suas posições por eixo</h2>
     <p class="quiz-axis-intro">
-      Em cada questão metafísica abaixo, o viés com o qual suas respostas mais se alinham.
+      Em cada questão {{ domainAdjective }} abaixo, o viés com o qual suas respostas mais se alinham.
     </p>
 
     <section
@@ -257,6 +257,13 @@ const shareBusy = ref(false);
 const canNativeShare = ref(false);
 const isPublishing = ref(false);
 const publishedPostId = ref<string | null>(null);
+
+const domainAdjective = computed(() => {
+  const slug = props.hostGroupSlug || '';
+  if (slug.includes('/cosmologia') || slug.endsWith('cosmologia')) return 'cosmológica';
+  if (slug.includes('/ontologia') || slug.endsWith('ontologia')) return 'ontológica';
+  return 'metafísica';
+});
 
 function flagUrl(path: string): string {
   return `${flagsBucket}/${path}`;

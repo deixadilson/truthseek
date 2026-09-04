@@ -202,10 +202,11 @@ function updatePanelPosition() {
 }
 
 function openPanel() {
+  updatePanelPosition();
   isOpen.value = true;
   nextTick(() => {
     updatePanelPosition();
-    filterInputRef.value?.focus();
+    filterInputRef.value?.focus({ preventScroll: true });
   });
 }
 
@@ -289,6 +290,7 @@ onBeforeUnmount(() => {
 }
 
 .issue-panel {
+  position: fixed;
   z-index: 1200;
   max-height: 20rem;
   overflow: hidden;

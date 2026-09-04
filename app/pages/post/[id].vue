@@ -90,6 +90,7 @@ import type { Database } from '~/types/supabase';
 import type { PostWithAuthor, CommentWithAuthor} from '~/types/app';
 import { useToast } from 'vue-toastification';
 import { MIN_INFLUENCE_TO_ENTER_GROUP } from '~/utils/formatters';
+import { buildPostOgMeta } from '~/utils/postOg';
 
 const route = useRoute();
 const supabase = useSupabaseClient<Database>();
@@ -97,8 +98,10 @@ const user = useSupabaseUser();
 const authUserId = useAuthUserId();
 const toast = useToast();
 const { isAuthorHidden, blockedIds } = useBlock();
+const runtimeConfig = useRuntimeConfig();
+const requestURL = useRequestURL();
 
-const postId = route.params.id as string;
+const postId = computed(() => String(route.params.id || ''));
 const post = ref<PostWithAuthor | null>(null);
 const comments = ref<CommentWithAuthor[]>([]);
 
@@ -108,6 +111,8 @@ const isLoadingComments = ref(false);
 const isLoadingMoreComments = ref(false);
 const hasMoreComments = ref(false);
 const commentsError = ref<string | null>(null);
+/** False when the post exists but must not leak into OG / page for this viewer. */
+const postPubliclyVisible = ref(false);
 
 const COMMENTS_PAGE_SIZE = 20;
 
@@ -127,6 +132,12 @@ const replyingToUsername = ref<string | null>(null);
 
 const goBackLink = computed(() => {
   return '/categories';
+});
+
+const siteOrigin = computed(() => {
+  const configured = String(runtimeConfig.public.siteUrl || '').replace(/\/$/, '');
+  if (configured) return configured;
+  return requestURL.origin;
 });
 
 /** Guests and low-influence users may only open posts from open groups. */
@@ -157,62 +168,141 @@ async function canViewPost(postData: PostWithAuthor): Promise<boolean> {
   return (bias?.influence_points ?? 0) >= MIN_INFLUENCE_TO_ENTER_GROUP;
 }
 
-async function fetchPostDetails() {
-  isLoadingPost.value = true; postError.value = null;
-  try {
-    const { data, error } = await supabase
-      .from('posts_with_author_info')
-      .select('*')
-      .eq('id', postId)
-      .single();
+type PostLoadResult = {
+  post: PostWithAuthor | null;
+  errorMessage: string | null;
+  visible: boolean;
+};
 
-    if (error) {
-      if (error.code === 'PGRST116') throw new Error('Post não encontrado.');
-      throw error;
-    }
-    if (data) {
-      let postData = data as PostWithAuthor;
-
-      // Resolve group name/slug directly (do not rely on view cache for these fields)
-      if (postData.owner_id) {
-        const { data: group, error: groupError } = await supabase
-          .from('groups')
-          .select('name, slug, country_code')
-          .eq('id', postData.owner_id)
-          .maybeSingle();
-        if (groupError) {
-          console.error('Erro ao buscar grupo do post:', groupError);
-        } else if (group) {
-          postData = {
-            ...postData,
-            owner_group_name: group.name,
-            owner_group_slug: group.slug,
-            owner_group_country_code: group.country_code,
-          };
-        }
-      }
-
-      const allowed = await canViewPost(postData);
-      if (!allowed) {
-        post.value = null;
-        postError.value = authUserId.value
-          ? 'Você não tem influência suficiente para ver este post de grupo fechado.'
-          : 'Este post pertence a um grupo fechado. Crie uma conta e declare o viés para acessá-lo.';
-        return;
-      }
-      post.value = postData;
-      await fetchComments();
-    } else {
-      postError.value = 'Post não encontrado.';
-    }
-  } catch (e: any) {
-    console.error("Erro ao buscar post:", e);
-    postError.value = e.message || 'Falha ao carregar o post.';
-    toast.error(postError.value);
-  } finally {
-    isLoadingPost.value = false;
+async function loadPostById(id: string): Promise<PostLoadResult> {
+  if (!id) {
+    return { post: null, errorMessage: 'ID do post não encontrado na URL.', visible: false };
   }
+
+  const { data, error } = await supabase
+    .from('posts_with_author_info')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return { post: null, errorMessage: 'Post não encontrado.', visible: false };
+    }
+    throw error;
+  }
+
+  if (!data) {
+    return { post: null, errorMessage: 'Post não encontrado.', visible: false };
+  }
+
+  let postData = data as PostWithAuthor;
+
+  // Resolve group name/slug directly (do not rely on view cache for these fields)
+  if (postData.owner_id) {
+    const { data: group, error: groupError } = await supabase
+      .from('groups')
+      .select('name, slug, country_code')
+      .eq('id', postData.owner_id)
+      .maybeSingle();
+    if (groupError) {
+      console.error('Erro ao buscar grupo do post:', groupError);
+    } else if (group) {
+      postData = {
+        ...postData,
+        owner_group_name: group.name,
+        owner_group_slug: group.slug,
+        owner_group_country_code: group.country_code,
+      };
+    }
+  }
+
+  const allowed = await canViewPost(postData);
+  if (!allowed) {
+    return {
+      post: null,
+      errorMessage: authUserId.value
+        ? 'Você não tem influência suficiente para ver este post de grupo fechado.'
+        : 'Este post pertence a um grupo fechado. Crie uma conta e declare o viés para acessá-lo.',
+      visible: false,
+    };
+  }
+
+  return { post: postData, errorMessage: null, visible: true };
 }
+
+const { data: postLoad, pending: postPending, error: postLoadError } = await useAsyncData(
+  () => `post-page-${postId.value}`,
+  async () => loadPostById(postId.value)
+);
+
+function applyPostLoadResult() {
+  isLoadingPost.value = postPending.value;
+  if (postPending.value) return;
+
+  if (postLoadError.value) {
+    console.error('Erro ao buscar post:', postLoadError.value);
+    post.value = null;
+    postPubliclyVisible.value = false;
+    postError.value = postLoadError.value.message || 'Falha ao carregar o post.';
+    if (import.meta.client) toast.error(postError.value);
+    return;
+  }
+
+  const result = postLoad.value;
+  post.value = result?.post ?? null;
+  postPubliclyVisible.value = !!result?.visible;
+  postError.value = result?.errorMessage ?? null;
+}
+
+applyPostLoadResult();
+watch([postLoad, postPending, postLoadError], applyPostLoadResult);
+
+const ogMeta = computed(() => {
+  // Prefer live `post` (edits) but fall back to async payload for SSR head tags.
+  const loaded = postLoad.value?.visible ? postLoad.value.post : null;
+  const current = post.value ?? loaded;
+  const visible = !!(postPubliclyVisible.value || postLoad.value?.visible) && !!current;
+
+  return buildPostOgMeta({
+    siteOrigin: siteOrigin.value,
+    postId: postId.value || current?.id || 'unknown',
+    textContent: visible ? current?.text_content : null,
+    imagePath: visible ? current?.image_path : null,
+    isAnonymous: visible ? current?.is_anonymous : true,
+    authorUsername: visible ? current?.author_username : null,
+    groupName: visible ? current?.owner_group_name : null,
+    visible,
+  });
+});
+
+useSeoMeta({
+  title: () => ogMeta.value.title,
+  description: () => ogMeta.value.description,
+  ogTitle: () => ogMeta.value.title,
+  ogDescription: () => ogMeta.value.description,
+  ogType: 'article',
+  ogUrl: () => ogMeta.value.url,
+  ogImage: () => ogMeta.value.image,
+  ogImageAlt: () => ogMeta.value.imageAlt,
+  ogImageType: () =>
+    ogMeta.value.image.endsWith('.png')
+      ? 'image/png'
+      : ogMeta.value.image.match(/\.jpe?g(\?|$)/i)
+        ? 'image/jpeg'
+        : ogMeta.value.image.endsWith('.webp')
+          ? 'image/webp'
+          : undefined,
+  ogSiteName: 'TruthSeek Network',
+  twitterCard: 'summary_large_image',
+  twitterTitle: () => ogMeta.value.title,
+  twitterDescription: () => ogMeta.value.description,
+  twitterImage: () => ogMeta.value.image,
+});
+
+useHead(() => ({
+  link: [{ rel: 'canonical', href: ogMeta.value.url }],
+}));
 
 async function fetchComments(after?: string | null, append = false) {
   if (!post.value || !post.value.id) return;
@@ -353,26 +443,26 @@ function handlePostUpdated(payload: { id: string; text_content: string | null; i
   };
 }
 
-useHead({
-  title: 'Post - TruthSeek Network'
-});
-
 watch(blockedIds, () => {
   if (post.value?.author_id && isAuthorHidden(post.value.author_id)) {
     post.value = null;
     comments.value = [];
+    postPubliclyVisible.value = false;
     postError.value = 'Este post não está disponível.';
   }
 });
 
-onMounted(() => {
-  if (postId) {
-    fetchPostDetails();
-  } else {
-    postError.value = "ID do post não encontrado na URL.";
-    isLoadingPost.value = false;
-  }
-});
+watch(
+  () => post.value?.id,
+  (id) => {
+    comments.value = [];
+    hasMoreComments.value = false;
+    if (id && import.meta.client) {
+      void fetchComments();
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <style scoped>

@@ -17,6 +17,18 @@ export default defineNuxtConfig({
     '@nuxtjs/supabase',
     '@nuxt/icon',
   ],
+  // Canonical production origin for OG tags when the request host is unreliable
+  // (set NUXT_PUBLIC_SITE_URL on Vercel, e.g. https://truthseek.network).
+  runtimeConfig: {
+    public: {
+      siteUrl: '',
+    },
+  },
+  // Crawlers (WhatsApp/Facebook/X) need HTML with og:* in the first response.
+  // Client-only fetch leaves them with empty meta on Vercel + Supabase.
+  routeRules: {
+    '/post/**': { ssr: true },
+  },
   supabase: {
     types: '~/types/supabase.ts',
     redirectOptions: {
