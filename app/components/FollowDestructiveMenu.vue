@@ -11,14 +11,7 @@
     </MenuButton>
 
     <Teleport to="body">
-      <transition
-        enter-active-class="menu-enter-active"
-        enter-from-class="menu-enter-from"
-        enter-to-class="menu-enter-to"
-        leave-active-class="menu-leave-active"
-        leave-from-class="menu-leave-from"
-        leave-to-class="menu-leave-to"
-      >
+      <transition name="ui-fade-slide">
         <MenuItems
           v-if="open"
           class="follow-more-panel"
@@ -186,16 +179,5 @@ function updatePosition() {
 .menu-item.danger:hover {
   background: #fde8ec;
   color: #b81727;
-}
-
-.menu-enter-active,
-.menu-leave-active {
-  transition: opacity 0.12s ease, transform 0.12s ease;
-}
-
-.menu-enter-from,
-.menu-leave-to {
-  opacity: 0;
-  transform: translateY(-4px);
 }
 </style>

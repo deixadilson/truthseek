@@ -243,3 +243,69 @@ a.button-tertiary {
 .markdown-content del {
   text-decoration: line-through;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Shared enter/leave motion for panels, menus, and modals                    */
+/* Prefer <Transition name="ui-*"> or Headless TransitionChild with these.    */
+/* -------------------------------------------------------------------------- */
+
+.ui-expand-enter-active,
+.ui-expand-leave-active {
+  display: grid !important;
+  transition: grid-template-rows 0.28s ease;
+}
+.ui-expand-enter-from,
+.ui-expand-leave-to {
+  grid-template-rows: 0fr;
+}
+.ui-expand-enter-to,
+.ui-expand-leave-from {
+  grid-template-rows: 1fr;
+}
+.ui-expand-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.ui-fade-slide-enter-active,
+.ui-fade-slide-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.ui-fade-slide-enter-from,
+.ui-fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
+}
+.ui-fade-slide-enter-to,
+.ui-fade-slide-leave-from {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.ui-modal-backdrop-enter-active,
+.ui-modal-backdrop-leave-active {
+  transition: opacity 0.2s ease;
+}
+.ui-modal-backdrop-enter-from,
+.ui-modal-backdrop-leave-to {
+  opacity: 0;
+}
+.ui-modal-backdrop-enter-to,
+.ui-modal-backdrop-leave-from {
+  opacity: 1;
+}
+
+.ui-modal-panel-enter-active,
+.ui-modal-panel-leave-active {
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+.ui-modal-panel-enter-from,
+.ui-modal-panel-leave-to {
+  opacity: 0;
+  transform: translateY(10px) scale(0.97);
+}
+.ui-modal-panel-enter-to,
+.ui-modal-panel-leave-from {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}

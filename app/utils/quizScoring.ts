@@ -6,9 +6,9 @@ export const LIKERT_OPTIONS: Array<{
   colorVar: string;
 }> = [
   { value: 2, label: 'Concordo totalmente', colorVar: 'var(--quiz-agree-strong)' },
-  { value: 1, label: 'Concordo parcialmente', colorVar: 'var(--quiz-agree-soft)' },
+  { value: 1, label: 'Concordo', colorVar: 'var(--quiz-agree-soft)' },
   { value: 0, label: 'Não concordo nem discordo', colorVar: 'var(--quiz-neutral)' },
-  { value: -1, label: 'Discordo parcialmente', colorVar: 'var(--quiz-disagree-soft)' },
+  { value: -1, label: 'Discordo', colorVar: 'var(--quiz-disagree-soft)' },
   { value: -2, label: 'Discordo totalmente', colorVar: 'var(--quiz-disagree-strong)' },
 ];
 

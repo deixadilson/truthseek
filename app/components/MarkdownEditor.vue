@@ -127,10 +127,30 @@
       </div>
     </div>
 
-    <Dialog :open="linkDialogOpen" @close="closeLinkDialog" class="link-dialog-root">
-      <div class="link-backdrop" aria-hidden="true" />
-      <div class="link-dialog-container">
-        <DialogPanel class="link-panel" as="form" @submit.prevent="confirmLink">
+    <TransitionRoot appear :show="linkDialogOpen" as="template">
+      <Dialog class="link-dialog-root" @close="closeLinkDialog">
+        <TransitionChild
+          as="template"
+          enter="ui-modal-backdrop-enter-active"
+          enter-from="ui-modal-backdrop-enter-from"
+          enter-to="ui-modal-backdrop-enter-to"
+          leave="ui-modal-backdrop-leave-active"
+          leave-from="ui-modal-backdrop-leave-from"
+          leave-to="ui-modal-backdrop-leave-to"
+        >
+          <div class="link-backdrop" aria-hidden="true" />
+        </TransitionChild>
+        <div class="link-dialog-container">
+          <TransitionChild
+            as="template"
+            enter="ui-modal-panel-enter-active"
+            enter-from="ui-modal-panel-enter-from"
+            enter-to="ui-modal-panel-enter-to"
+            leave="ui-modal-panel-leave-active"
+            leave-from="ui-modal-panel-leave-from"
+            leave-to="ui-modal-panel-leave-to"
+          >
+            <DialogPanel class="link-panel" as="form" @submit.prevent="confirmLink">
           <div class="link-header">
             <DialogTitle class="link-title">Adicionar link</DialogTitle>
             <button
@@ -165,9 +185,11 @@
               Aplicar
             </button>
           </div>
-        </DialogPanel>
-      </div>
-    </Dialog>
+            </DialogPanel>
+          </TransitionChild>
+        </div>
+      </Dialog>
+    </TransitionRoot>
 
     <template #fallback>
       <textarea
@@ -187,7 +209,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Markdown } from 'tiptap-markdown';
-import { Dialog, DialogPanel, DialogTitle } from '@headlessui/vue';
+import { Dialog, DialogPanel, DialogTitle, TransitionRoot, TransitionChild } from '@headlessui/vue';
 import { getEmbedVideoUrl } from '~/utils/formatters';
 
 const props = withDefaults(

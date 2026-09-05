@@ -4,14 +4,7 @@
       <Icon name="lucide:ellipsis-vertical" :size="18" />
     </MenuButton>
 
-    <transition
-      enter-active-class="menu-enter-active"
-      enter-from-class="menu-enter-from"
-      enter-to-class="menu-enter-to"
-      leave-active-class="menu-leave-active"
-      leave-from-class="menu-leave-from"
-      leave-to-class="menu-leave-to"
-    >
+    <transition name="ui-fade-slide">
       <MenuItems class="options-menu">
         <MenuItem v-if="canEdit" v-slot="{ active }">
           <button
@@ -170,15 +163,5 @@ const emit = defineEmits<{
 .menu-item.danger:hover {
   background: #fde8ec;
   color: #b81727;
-}
-
-.menu-enter-active,
-.menu-leave-active {
-  transition: opacity 0.12s ease, transform 0.12s ease;
-}
-.menu-enter-from,
-.menu-leave-to {
-  opacity: 0;
-  transform: translateY(-4px);
 }
 </style>

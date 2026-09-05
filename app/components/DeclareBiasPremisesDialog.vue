@@ -1,9 +1,29 @@
 <template>
-  <Dialog :open="open" @close="handleDismiss" class="declare-bias-dialog-root">
-    <div class="declare-bias-backdrop" aria-hidden="true" />
+  <TransitionRoot appear :show="open" as="template">
+    <Dialog class="declare-bias-dialog-root" @close="handleDismiss">
+      <TransitionChild
+        as="template"
+        enter="ui-modal-backdrop-enter-active"
+        enter-from="ui-modal-backdrop-enter-from"
+        enter-to="ui-modal-backdrop-enter-to"
+        leave="ui-modal-backdrop-leave-active"
+        leave-from="ui-modal-backdrop-leave-from"
+        leave-to="ui-modal-backdrop-leave-to"
+      >
+        <div class="declare-bias-backdrop" aria-hidden="true" />
+      </TransitionChild>
 
-    <div class="declare-bias-dialog-container">
-      <DialogPanel class="declare-bias-panel">
+      <div class="declare-bias-dialog-container">
+        <TransitionChild
+          as="template"
+          enter="ui-modal-panel-enter-active"
+          enter-from="ui-modal-panel-enter-from"
+          enter-to="ui-modal-panel-enter-to"
+          leave="ui-modal-panel-leave-active"
+          leave-from="ui-modal-panel-leave-from"
+          leave-to="ui-modal-panel-leave-to"
+        >
+          <DialogPanel class="declare-bias-panel">
         <div class="declare-bias-header">
           <DialogTitle class="declare-bias-title">
             Declarar viés{{ groupName ? `: ${groupName}` : '' }}
@@ -78,13 +98,15 @@
             <template v-else>Declarar viés</template>
           </button>
         </div>
-      </DialogPanel>
-    </div>
-  </Dialog>
+          </DialogPanel>
+        </TransitionChild>
+      </div>
+    </Dialog>
+  </TransitionRoot>
 </template>
 
 <script setup lang="ts">
-import { Dialog, DialogPanel, DialogTitle } from '@headlessui/vue';
+import { Dialog, DialogPanel, DialogTitle, TransitionRoot, TransitionChild } from '@headlessui/vue';
 import type { Database } from '~/types/supabase';
 
 type PremiseRow = Database['public']['Tables']['premises']['Row'];

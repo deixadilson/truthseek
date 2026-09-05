@@ -20,75 +20,77 @@
     </button>
 
     <Teleport to="body">
-      <div
-        v-if="isOpen"
-        ref="panelRef"
-        class="issue-panel"
-        :style="panelStyle"
-        role="dialog"
-        aria-label="Selecionar issue tags"
-      >
-        <div class="issue-filter">
-          <Icon name="lucide:search" :size="16" class="filter-icon" />
-          <input
-            ref="filterInputRef"
-            v-model="filterText"
-            type="search"
-            placeholder="Filtrar issues..."
-            aria-label="Filtrar issues"
-          >
-          <button
-            v-if="filterText"
-            type="button"
-            class="clear-filter"
-            title="Limpar filtro"
-            @click="filterText = ''"
-          >
-            <Icon name="lucide:x" :size="14" />
-          </button>
-        </div>
-
-        <ul v-if="visibleRoots.length > 0" class="issue-tree" role="list">
-          <li v-for="root in visibleRoots" :key="root.id" class="issue-tree-node">
-            <label class="issue-row">
-              <input
-                type="checkbox"
-                :checked="isSelected(root.id)"
-                :disabled="!isSelected(root.id) && atLimit"
-                @change="toggleIssue(root.id)"
-              >
-              <span class="issue-name">{{ root.name }}</span>
-            </label>
-
-            <ul
-              v-if="visibleChildren(root).length > 0"
-              class="issue-tree children"
-              role="list"
+      <Transition name="ui-fade-slide">
+        <div
+          v-if="isOpen"
+          ref="panelRef"
+          class="issue-panel"
+          :style="panelStyle"
+          role="dialog"
+          aria-label="Selecionar issue tags"
+        >
+          <div class="issue-filter">
+            <Icon name="lucide:search" :size="16" class="filter-icon" />
+            <input
+              ref="filterInputRef"
+              v-model="filterText"
+              type="search"
+              placeholder="Filtrar issues..."
+              aria-label="Filtrar issues"
             >
-              <li
-                v-for="child in visibleChildren(root)"
-                :key="child.id"
-                class="issue-tree-node"
-              >
-                <label class="issue-row child">
-                  <input
-                    type="checkbox"
-                    :checked="isSelected(child.id)"
-                    :disabled="!isSelected(child.id) && atLimit"
-                    @change="toggleIssue(child.id)"
-                  >
-                  <span class="issue-name">{{ child.name }}</span>
-                </label>
-              </li>
-            </ul>
-          </li>
-        </ul>
-        <p v-else class="issue-empty">Nenhuma issue encontrada.</p>
+            <button
+              v-if="filterText"
+              type="button"
+              class="clear-filter"
+              title="Limpar filtro"
+              @click="filterText = ''"
+            >
+              <Icon name="lucide:x" :size="14" />
+            </button>
+          </div>
 
-        <p v-if="atLimit" class="issue-limit-hint">
-          Limite de {{ maxSelected }} issues por post.
-        </p>
-      </div>
+          <ul v-if="visibleRoots.length > 0" class="issue-tree" role="list">
+            <li v-for="root in visibleRoots" :key="root.id" class="issue-tree-node">
+              <label class="issue-row">
+                <input
+                  type="checkbox"
+                  :checked="isSelected(root.id)"
+                  :disabled="!isSelected(root.id) && atLimit"
+                  @change="toggleIssue(root.id)"
+                >
+                <span class="issue-name">{{ root.name }}</span>
+              </label>
+
+              <ul
+                v-if="visibleChildren(root).length > 0"
+                class="issue-tree children"
+                role="list"
+              >
+                <li
+                  v-for="child in visibleChildren(root)"
+                  :key="child.id"
+                  class="issue-tree-node"
+                >
+                  <label class="issue-row child">
+                    <input
+                      type="checkbox"
+                      :checked="isSelected(child.id)"
+                      :disabled="!isSelected(child.id) && atLimit"
+                      @change="toggleIssue(child.id)"
+                    >
+                    <span class="issue-name">{{ child.name }}</span>
+                  </label>
+                </li>
+              </ul>
+            </li>
+          </ul>
+          <p v-else class="issue-empty">Nenhuma issue encontrada.</p>
+
+          <p v-if="atLimit" class="issue-limit-hint">
+            Limite de {{ maxSelected }} issues por post.
+          </p>
+        </div>
+      </Transition>
     </Teleport>
   </div>
 </template>

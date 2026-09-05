@@ -108,10 +108,30 @@
       </button>
     </div>
 
-    <Dialog :open="shareModalOpen" class="quiz-share-dialog-root" @close="closeShareModal">
-      <div class="quiz-share-backdrop" aria-hidden="true" />
-      <div class="quiz-share-dialog-container">
-        <DialogPanel class="quiz-share-panel">
+    <TransitionRoot appear :show="shareModalOpen" as="template">
+      <Dialog class="quiz-share-dialog-root" @close="closeShareModal">
+        <TransitionChild
+          as="template"
+          enter="ui-modal-backdrop-enter-active"
+          enter-from="ui-modal-backdrop-enter-from"
+          enter-to="ui-modal-backdrop-enter-to"
+          leave="ui-modal-backdrop-leave-active"
+          leave-from="ui-modal-backdrop-leave-from"
+          leave-to="ui-modal-backdrop-leave-to"
+        >
+          <div class="quiz-share-backdrop" aria-hidden="true" />
+        </TransitionChild>
+        <div class="quiz-share-dialog-container">
+          <TransitionChild
+            as="template"
+            enter="ui-modal-panel-enter-active"
+            enter-from="ui-modal-panel-enter-from"
+            enter-to="ui-modal-panel-enter-to"
+            leave="ui-modal-panel-leave-active"
+            leave-from="ui-modal-panel-leave-from"
+            leave-to="ui-modal-panel-leave-to"
+          >
+            <DialogPanel class="quiz-share-panel">
           <div class="quiz-share-header">
             <DialogTitle class="quiz-share-title">Compartilhar resultado</DialogTitle>
             <button
@@ -222,13 +242,15 @@
             </template>
           </p>
         </DialogPanel>
-      </div>
-    </Dialog>
+          </TransitionChild>
+        </div>
+      </Dialog>
+    </TransitionRoot>
   </div>
 </template>
 
 <script setup lang="ts">
-import { Dialog, DialogPanel, DialogTitle } from '@headlessui/vue';
+import { Dialog, DialogPanel, DialogTitle, TransitionRoot, TransitionChild } from '@headlessui/vue';
 import { useToast } from 'vue-toastification';
 import type { Database } from '~/types/supabase';
 import type { IdeologyScore, QuizIdeology } from '~/utils/quizScoring';

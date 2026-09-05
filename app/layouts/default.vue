@@ -174,6 +174,7 @@ watch(authUserId, (userId) => {
   background-color: var(--header-bg); color: var(--header-text);
   position: sticky; top: 0; z-index: 1010;
   border-bottom: 1px solid color-mix(in srgb, var(--header-text) 15%, transparent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 .logo-link { display: flex; align-items: center; text-decoration: none; color: inherit; gap: 0.5rem; }
 .logo-img { height: 38px; width: auto; display: block; }

@@ -37,71 +37,79 @@
       </div>
     </div>
 
-    <div v-show="isOpen" class="filters-panel">
-      <div class="filters-options-row">
-        <div class="filter-group">
-          <span class="filter-group-label">Tipo de conteúdo</span>
-          <div class="filter-toggles">
-            <OptionToggle v-model="showText" label="Texto" icon="lucide:type" title="Mostrar posts com texto" />
-            <OptionToggle v-model="showImage" label="Imagem" icon="lucide:image" title="Mostrar posts com imagem" />
-            <OptionToggle v-model="showVideo" label="Vídeo" icon="lucide:video" title="Mostrar posts com vídeo" />
-          </div>
+    <div
+      class="filters-panel-expand"
+      :class="{ open: isOpen }"
+      :aria-hidden="!isOpen"
+    >
+      <div class="filters-panel-expand-inner">
+        <div class="filters-panel">
+            <div class="filters-options-row">
+              <div class="filter-group">
+                <span class="filter-group-label">Tipo de conteúdo</span>
+                <div class="filter-toggles">
+                  <OptionToggle v-model="showText" label="Texto" icon="lucide:type" title="Mostrar posts com texto" />
+                  <OptionToggle v-model="showImage" label="Imagem" icon="lucide:image" title="Mostrar posts com imagem" />
+                  <OptionToggle v-model="showVideo" label="Vídeo" icon="lucide:video" title="Mostrar posts com vídeo" />
+                </div>
+              </div>
+
+              <div class="filter-group">
+                <span class="filter-group-label">Moderação</span>
+                <div class="filter-toggles">
+                  <OptionToggle
+                    v-model="showModerated"
+                    label="Moderado"
+                    icon="lucide:shield-check"
+                    title="Mostrar posts moderados"
+                  />
+                  <OptionToggle
+                    v-model="showUnmoderated"
+                    label="Não moderado"
+                    icon="lucide:shield-off"
+                    title="Mostrar posts não moderados"
+                  />
+                </div>
+                <p v-if="preferModeratedOnly" class="filter-preference-hint">
+                  Preferência salva: exibindo apenas conteúdo moderado.
+                </p>
+              </div>
+
+              <div v-if="availableIssues.length > 0" class="filter-group filter-group-issues">
+                <span class="filter-group-label">Issue Tags</span>
+                <IssueSelector
+                  v-model="selectedIssueIds"
+                  :issues="availableIssues"
+                  :max-selected="10"
+                  label="Filtrar tags"
+                />
+              </div>
+            </div>
+
+            <div v-if="selectedIssueChips.length > 0" class="issue-filter-chips">
+              <button
+                v-for="issue in selectedIssueChips"
+                :key="issue.id"
+                type="button"
+                class="issue-filter-chip"
+                :title="`Remover filtro ${issue.name}`"
+                @click="removeIssueFilter(issue.id)"
+              >
+                <span>{{ issue.name }}</span>
+                <Icon name="lucide:x" :size="12" />
+              </button>
+            </div>
+
+            <div v-if="hasActiveFilters" class="filters-reset-row">
+              <button
+                type="button"
+                class="button-tertiary reset-filters"
+                @click="resetFilters"
+              >
+                Limpar filtros
+              </button>
+            </div>
         </div>
-
-        <div class="filter-group">
-          <span class="filter-group-label">Moderação</span>
-          <div class="filter-toggles">
-            <OptionToggle
-              v-model="showModerated"
-              label="Moderado"
-              icon="lucide:shield-check"
-              title="Mostrar posts moderados"
-            />
-            <OptionToggle
-              v-model="showUnmoderated"
-              label="Não moderado"
-              icon="lucide:shield-off"
-              title="Mostrar posts não moderados"
-            />
-          </div>
-          <p v-if="preferModeratedOnly" class="filter-preference-hint">
-            Preferência salva: exibindo apenas conteúdo moderado.
-          </p>
-        </div>
-
-        <div v-if="availableIssues.length > 0" class="filter-group filter-group-issues">
-          <span class="filter-group-label">Issue Tags</span>
-          <IssueSelector
-            v-model="selectedIssueIds"
-            :issues="availableIssues"
-            :max-selected="10"
-            label="Filtrar tags"
-          />
-        </div>
-      </div>
-
-      <div v-if="selectedIssueChips.length > 0" class="issue-filter-chips">
-        <button
-          v-for="issue in selectedIssueChips"
-          :key="issue.id"
-          type="button"
-          class="issue-filter-chip"
-          :title="`Remover filtro ${issue.name}`"
-          @click="removeIssueFilter(issue.id)"
-        >
-          <span>{{ issue.name }}</span>
-          <Icon name="lucide:x" :size="12" />
-        </button>
-      </div>
-
-      <div v-if="hasActiveFilters" class="filters-reset-row">
-        <button
-          type="button"
-          class="button-tertiary reset-filters"
-          @click="resetFilters"
-        >
-          Limpar filtros
-        </button>
       </div>
     </div>
   </div>
@@ -345,6 +353,25 @@ onBeforeUnmount(() => {
 .clear-search:hover {
   background: var(--primary-color-light);
   color: var(--primary-color);
+}
+
+.filters-panel-expand {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.28s ease;
+}
+
+.filters-panel-expand.open {
+  grid-template-rows: 1fr;
+}
+
+.filters-panel-expand:not(.open) {
+  pointer-events: none;
+}
+
+.filters-panel-expand-inner {
+  overflow: hidden;
+  min-height: 0;
 }
 
 .filters-panel {

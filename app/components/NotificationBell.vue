@@ -14,7 +14,8 @@
       </span>
     </button>
 
-    <div v-if="isOpen" class="bell-dropdown">
+    <Transition name="ui-fade-slide">
+      <div v-if="isOpen" class="bell-dropdown">
       <div class="bell-header">
         <strong>Notificações</strong>
         <button
@@ -80,7 +81,8 @@
       <NuxtLink to="/user/notifications" class="bell-footer" @click="isOpen = false">
         Ver todas
       </NuxtLink>
-    </div>
+      </div>
+    </Transition>
   </div>
 </template>
 

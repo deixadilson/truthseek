@@ -182,7 +182,11 @@
               </li>
             </ul>
           </section>
-          <NuxtLink :to="`/${groupData.country_code}/${groupData.slug}/details`" class="details-link">
+          <NuxtLink
+            v-if="!groupData.is_open"
+            :to="`/${groupData.country_code}/${groupData.slug}/details`"
+            class="details-link"
+          >
             Ver Detalhes do Grupo
           </NuxtLink>
         </aside>

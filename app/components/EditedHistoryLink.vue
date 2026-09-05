@@ -9,11 +9,31 @@
       Editado
     </button>
 
-    <Dialog :open="isOpen" @close="closeHistory" class="history-dialog-root">
-      <div class="history-backdrop" aria-hidden="true" />
+    <TransitionRoot appear :show="isOpen" as="template">
+      <Dialog class="history-dialog-root" @close="closeHistory">
+        <TransitionChild
+          as="template"
+          enter="ui-modal-backdrop-enter-active"
+          enter-from="ui-modal-backdrop-enter-from"
+          enter-to="ui-modal-backdrop-enter-to"
+          leave="ui-modal-backdrop-leave-active"
+          leave-from="ui-modal-backdrop-leave-from"
+          leave-to="ui-modal-backdrop-leave-to"
+        >
+          <div class="history-backdrop" aria-hidden="true" />
+        </TransitionChild>
 
-      <div class="history-dialog-container">
-        <DialogPanel class="history-panel">
+        <div class="history-dialog-container">
+          <TransitionChild
+            as="template"
+            enter="ui-modal-panel-enter-active"
+            enter-from="ui-modal-panel-enter-from"
+            enter-to="ui-modal-panel-enter-to"
+            leave="ui-modal-panel-leave-active"
+            leave-from="ui-modal-panel-leave-from"
+            leave-to="ui-modal-panel-leave-to"
+          >
+            <DialogPanel class="history-panel">
           <div class="history-panel-header">
             <DialogTitle class="history-title">Histórico de edições</DialogTitle>
             <button
@@ -81,14 +101,16 @@
               </button>
             </div>
           </template>
-        </DialogPanel>
-      </div>
-    </Dialog>
+            </DialogPanel>
+          </TransitionChild>
+        </div>
+      </Dialog>
+    </TransitionRoot>
   </span>
 </template>
 
 <script setup lang="ts">
-import { Dialog, DialogPanel, DialogTitle } from '@headlessui/vue';
+import { Dialog, DialogPanel, DialogTitle, TransitionRoot, TransitionChild } from '@headlessui/vue';
 import type { Database } from '~/types/supabase';
 import { formatDate, formatTextToHtml, getEmbedVideoUrl } from '~/utils/formatters';
 import { renderPostMarkdown } from '~/utils/renderMarkdown';

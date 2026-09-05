@@ -15,14 +15,7 @@
       <slot></slot>
     </PopoverButton>
 
-    <transition
-      enter-active-class="popover-transition-enter-active"
-      enter-from-class="popover-transition-enter-from"
-      enter-to-class="popover-transition-enter-to"
-      leave-active-class="popover-transition-leave-active"
-      leave-from-class="popover-transition-leave-from"
-      leave-to-class="popover-transition-leave-to"
-    >
+    <transition name="ui-fade-slide">
       <PopoverPanel
         static
         v-show="isOpenForUI"
@@ -145,7 +138,7 @@
 </template>
 
 <script setup lang="ts">
-import { Popover, PopoverButton, PopoverPanel, TransitionRoot, TransitionChild } from '@headlessui/vue';
+import { Popover, PopoverButton, PopoverPanel } from '@headlessui/vue';
 import type { Database } from '~/types/supabase';
 import type { UserBiasForPopover } from '~/types/app';
 import type { BlockStatus } from '~/composables/useBlock';
@@ -672,20 +665,5 @@ async function goToPublicProfile() {
 .action-link:disabled {
   opacity: 0.55;
   cursor: not-allowed;
-}
-
-.popover-transition-enter-active,
-.popover-transition-leave-active {
-  transition: opacity 0.1s ease-out, transform 0.1s ease-out;
-}
-.popover-transition-enter-from,
-.popover-transition-leave-to {
-  opacity: 0;
-  transform: translateY(-4px) scale(0.98);
-}
-.popover-transition-enter-to,
-.popover-transition-leave-from {
-  opacity: 1;
-  transform: translateY(0) scale(1);
 }
 </style>

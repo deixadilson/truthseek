@@ -1,50 +1,72 @@
 <template>
-  <Dialog :open="open" @close="handleDismiss" class="confirm-dialog-root">
-    <div class="confirm-backdrop" aria-hidden="true" />
+  <TransitionRoot appear :show="open" as="template">
+    <Dialog class="confirm-dialog-root" @close="handleDismiss">
+      <TransitionChild
+        as="template"
+        enter="ui-modal-backdrop-enter-active"
+        enter-from="ui-modal-backdrop-enter-from"
+        enter-to="ui-modal-backdrop-enter-to"
+        leave="ui-modal-backdrop-leave-active"
+        leave-from="ui-modal-backdrop-leave-from"
+        leave-to="ui-modal-backdrop-leave-to"
+      >
+        <div class="confirm-backdrop" aria-hidden="true" />
+      </TransitionChild>
 
-    <div class="confirm-dialog-container">
-      <DialogPanel class="confirm-panel">
-        <div class="confirm-header">
-          <DialogTitle class="confirm-title">{{ title }}</DialogTitle>
-          <button
-            type="button"
-            class="confirm-close-icon"
-            title="Fechar"
-            :disabled="busy"
-            @click="handleDismiss"
-          >
-            <Icon name="lucide:x" :size="18" />
-          </button>
-        </div>
+      <div class="confirm-dialog-container">
+        <TransitionChild
+          as="template"
+          enter="ui-modal-panel-enter-active"
+          enter-from="ui-modal-panel-enter-from"
+          enter-to="ui-modal-panel-enter-to"
+          leave="ui-modal-panel-leave-active"
+          leave-from="ui-modal-panel-leave-from"
+          leave-to="ui-modal-panel-leave-to"
+        >
+          <DialogPanel class="confirm-panel">
+            <div class="confirm-header">
+              <DialogTitle class="confirm-title">{{ title }}</DialogTitle>
+              <button
+                type="button"
+                class="confirm-close-icon"
+                title="Fechar"
+                :disabled="busy"
+                @click="handleDismiss"
+              >
+                <Icon name="lucide:x" :size="18" />
+              </button>
+            </div>
 
-        <p v-if="message" class="confirm-message">{{ message }}</p>
+            <p v-if="message" class="confirm-message">{{ message }}</p>
 
-        <div class="confirm-actions">
-          <button
-            type="button"
-            class="button-secondary confirm-btn"
-            :disabled="busy"
-            @click="handleDismiss"
-          >
-            {{ cancelLabel }}
-          </button>
-          <button
-            type="button"
-            class="confirm-btn confirm-danger"
-            :disabled="busy"
-            @click="emit('confirm')"
-          >
-            <LoadingMessage v-if="busy" :message="busyLabel" :icon-size="14" />
-            <template v-else>{{ confirmLabel }}</template>
-          </button>
-        </div>
-      </DialogPanel>
-    </div>
-  </Dialog>
+            <div class="confirm-actions">
+              <button
+                type="button"
+                class="button-secondary confirm-btn"
+                :disabled="busy"
+                @click="handleDismiss"
+              >
+                {{ cancelLabel }}
+              </button>
+              <button
+                type="button"
+                class="confirm-btn confirm-danger"
+                :disabled="busy"
+                @click="emit('confirm')"
+              >
+                <LoadingMessage v-if="busy" :message="busyLabel" :icon-size="14" />
+                <template v-else>{{ confirmLabel }}</template>
+              </button>
+            </div>
+          </DialogPanel>
+        </TransitionChild>
+      </div>
+    </Dialog>
+  </TransitionRoot>
 </template>
 
 <script setup lang="ts">
-import { Dialog, DialogPanel, DialogTitle } from '@headlessui/vue';
+import { Dialog, DialogPanel, DialogTitle, TransitionRoot, TransitionChild } from '@headlessui/vue';
 
 const props = withDefaults(defineProps<{
   open: boolean;

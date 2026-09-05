@@ -1,9 +1,29 @@
 <template>
-  <Dialog :open="open" @close="handleClose" class="follow-list-dialog-root">
-    <div class="follow-backdrop" aria-hidden="true" />
+  <TransitionRoot appear :show="open" as="template">
+    <Dialog class="follow-list-dialog-root" @close="handleClose">
+      <TransitionChild
+        as="template"
+        enter="ui-modal-backdrop-enter-active"
+        enter-from="ui-modal-backdrop-enter-from"
+        enter-to="ui-modal-backdrop-enter-to"
+        leave="ui-modal-backdrop-leave-active"
+        leave-from="ui-modal-backdrop-leave-from"
+        leave-to="ui-modal-backdrop-leave-to"
+      >
+        <div class="follow-backdrop" aria-hidden="true" />
+      </TransitionChild>
 
-    <div class="follow-dialog-container">
-      <DialogPanel class="follow-panel">
+      <div class="follow-dialog-container">
+        <TransitionChild
+          as="template"
+          enter="ui-modal-panel-enter-active"
+          enter-from="ui-modal-panel-enter-from"
+          enter-to="ui-modal-panel-enter-to"
+          leave="ui-modal-panel-leave-active"
+          leave-from="ui-modal-panel-leave-from"
+          leave-to="ui-modal-panel-leave-to"
+        >
+          <DialogPanel class="follow-panel">
         <div class="follow-header">
           <DialogTitle class="follow-title">{{ title }}</DialogTitle>
           <button
@@ -79,9 +99,11 @@
             <template v-else>Carregar mais</template>
           </button>
         </div>
-      </DialogPanel>
-    </div>
-  </Dialog>
+          </DialogPanel>
+        </TransitionChild>
+      </div>
+    </Dialog>
+  </TransitionRoot>
 
   <ConfirmDialog
     :open="!!pendingBlock"
@@ -98,7 +120,7 @@
 </template>
 
 <script setup lang="ts">
-import { Dialog, DialogPanel, DialogTitle } from '@headlessui/vue';
+import { Dialog, DialogPanel, DialogTitle, TransitionRoot, TransitionChild } from '@headlessui/vue';
 import type { FollowListItem, FollowStatus } from '~/composables/useFollow';
 import { useToast } from 'vue-toastification';
 
