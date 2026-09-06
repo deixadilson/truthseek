@@ -2,7 +2,7 @@
   <span
     v-if="meta"
     class="influence-badge"
-    :class="meta.badgeClass"
+    :class="[meta.badgeClass, sizeClass]"
     :title="tooltip"
   >
     <span class="influence-badge-shield" aria-hidden="true" />
@@ -18,14 +18,17 @@ const props = withDefaults(defineProps<{
   title?: string | null;
   influencePoints?: number | null;
   showPe?: boolean;
+  size?: 'md' | 'lg';
 }>(), {
   level: null,
   title: null,
   influencePoints: null,
   showPe: false,
+  size: 'md',
 });
 
 const meta = computed(() => getInfluenceTierMeta(props.level, props.title));
+const sizeClass = computed(() => (props.size === 'lg' ? 'influence-badge--lg' : ''));
 
 const tooltip = computed(() => {
   if (!meta.value) return undefined;
@@ -55,20 +58,31 @@ const tooltip = computed(() => {
 
 .influence-badge-shield {
   flex-shrink: 0;
-  width: 0.85rem;
-  height: 1rem;
+  width: 0.95rem;
+  height: 1.1rem;
   background: currentColor;
   opacity: 0.95;
   clip-path: polygon(50% 0%, 100% 18%, 100% 62%, 50% 100%, 0% 62%, 0% 18%);
 }
 
 .influence-badge-label {
-  font-size: 0.72rem;
+  font-size: 0.85rem;
   font-weight: 600;
   letter-spacing: 0.01em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.influence-badge--lg {
+  gap: 0.4rem;
+}
+.influence-badge--lg .influence-badge-shield {
+  width: 1.1rem;
+  height: 1.3rem;
+}
+.influence-badge--lg .influence-badge-label {
+  font-size: 1rem;
 }
 
 /* Text darker for contrast; shield lighter (claro / médio / degradê) */

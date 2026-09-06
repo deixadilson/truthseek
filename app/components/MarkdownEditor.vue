@@ -404,6 +404,9 @@ onBeforeUnmount(() => {
   border-radius: 4px;
   background: #fff;
   transition: border-color 0.2s, box-shadow 0.2s;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .markdown-editor:focus-within {
@@ -476,6 +479,9 @@ onBeforeUnmount(() => {
   font-size: 1rem;
   line-height: 1.55;
   word-wrap: break-word;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .markdown-editor-content :deep(.ProseMirror p.is-editor-empty:first-child::before) {

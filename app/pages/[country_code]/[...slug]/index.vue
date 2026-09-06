@@ -178,7 +178,7 @@
             <h4>Grupos Opostos</h4>
             <ul>
               <li v-for="opposite in oppositeGroups" :key="opposite.id">
-                <NuxtLink :to="`/${opposite.country_code}/${opposite.slug}`">
+                <NuxtLink :to="vsPathForOpposite(opposite) || `/${opposite.country_code}/${opposite.slug}`">
                   <img
                     v-if="opposite.flag_path"
                     :src="`https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/flags/${opposite.flag_path}`"
@@ -217,6 +217,7 @@ import type { Bias, Group, Issue, PostWithAuthor } from '~/types/app';
 import { useToast } from 'vue-toastification';
 import { canEnterClosedGroup, countryFlagUrl, formatCountryName } from '~/utils/formatters';
 import { isMetaGroup, resolveGroupFlagUrl } from '~/utils/groupFlags';
+import { buildVsPath } from '~/utils/vsGroups';
 
 const route = useRoute();
 const supabase = useSupabaseClient();
@@ -331,15 +332,25 @@ const showGroupDetailsLink = computed(
 );
 
 const groupFlagUrl = computed(() => resolveGroupFlagUrl(groupData.value) || '');
+const { fallbackColor: flagFallbackColor } = useFlagTheme(() =>
+  groupData.value?.cover_image_path ? null : groupFlagUrl.value
+);
 
 const groupCountryFlag = computed(() => countryFlagUrl(groupData.value?.country_code));
+
+function vsPathForOpposite(
+  opposite: Pick<Group, 'slug' | 'country_code'>
+): string | null {
+  if (!groupData.value) return null;
+  return buildVsPath(groupData.value.country_code, groupData.value, opposite);
+}
 
 const headerBackgroundStyle = computed(() => {
   if (groupData.value?.cover_image_path) {
     const coverUrl = `https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/covers/${groupData.value.cover_image_path}`;
     return { backgroundImage: `url('${coverUrl}')` };
   }
-  return { backgroundColor: 'var(--primary-color-light)' };
+  return { backgroundColor: flagFallbackColor.value };
 });
 
 async function resolveGroupAccess(groupId: string, isOpen: boolean) {
@@ -708,6 +719,12 @@ watch(authUserId, () => {
 </script>
 
 <style scoped>
+.group-page,
+.group-content {
+  min-width: 0;
+  overflow-x: clip;
+}
+
 .breadcrumb-nav {
   position: relative;
   z-index: 2;
@@ -783,6 +800,7 @@ watch(authUserId, () => {
   align-items: flex-end; /* Alinha flag e título na base */
   gap: 1.5rem;
   min-height: calc(250px - 2.5rem);
+  min-width: 0;
 }
 
 .group-flag-container {
@@ -811,12 +829,15 @@ watch(authUserId, () => {
 
 .group-title-info {
   flex-grow: 1;
+  min-width: 0;
 }
 .group-title-info h1 {
   font-size: 2.2rem;
   margin-bottom: 0.25rem;
   color: var(--header-text); /* Garante cor do texto no header */
   text-shadow: 1px 1px 2px rgba(0,0,0,0.5); /* Sombra para legibilidade */
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .group-meta {
   font-size: 0.9rem;
@@ -855,6 +876,11 @@ watch(authUserId, () => {
   display: grid;
   grid-template-columns: 1fr; /* Mobile: uma coluna */
   gap: 1.5rem;
+  min-width: 0;
+}
+
+.group-body > * {
+  min-width: 0;
 }
 
 @media (min-width: 992px) {
@@ -1032,6 +1058,21 @@ watch(authUserId, () => {
 .details-link:hover {
   background-color: color-mix(in srgb, var(--primary-color-light) 90%, #000);
   text-decoration: none;
+}
+
+@media (max-width: 560px) {
+  .header-content {
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-end;
+  }
+  .group-flag-container {
+    width: 88px;
+    height: 88px;
+  }
+  .group-title-info h1 {
+    font-size: 1.55rem;
+  }
 }
 
 

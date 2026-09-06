@@ -32,39 +32,40 @@
 
       <div class="form-actions-block">
         <div class="form-actions-toolbar">
-          <div class="media-and-options">
-            <label for="hidden-file-input" class="toolbar-action-btn button-secondary add-image-btn" title="Adicionar Imagem">
-              <Icon name="lucide:image" :size="16" />
-              <span class="btn-text">Imagem</span>
-            </label>
-            <input
-              type="file" id="hidden-file-input" @change="handleImageFileSelected"
-              accept="image/*" style="display: none" ref="fileInputRef"
-            />
+          <label for="hidden-file-input" class="toolbar-action-btn button-secondary add-image-btn" title="Adicionar Imagem">
+            <Icon name="lucide:image" :size="16" />
+            <span class="btn-text">Imagem</span>
+          </label>
+          <input
+            type="file" id="hidden-file-input" @change="handleImageFileSelected"
+            accept="image/*" style="display: none" ref="fileInputRef"
+          />
 
-            <span class="toolbar-separator" aria-hidden="true" />
+          <span class="toolbar-separator" aria-hidden="true" />
 
-            <OptionToggle
-              v-model="isAnonymous"
-              label="Anônimo"
-              icon="lucide:hat-glasses"
-              title="Postar anonimamente"
-            />
-            <OptionToggle
-              v-model="isModeratedContent"
-              label="Moderado"
-              icon="lucide:shield-check"
-              title="Conteúdo requer moderação / Respostas moderadas"
-            />
+          <OptionToggle
+            v-model="isAnonymous"
+            label="Anônimo"
+            icon="lucide:hat-glasses"
+            title="Postar anonimamente"
+          />
+          <OptionToggle
+            v-model="isModeratedContent"
+            label="Moderado"
+            icon="lucide:shield-check"
+            title="Conteúdo requer moderação / Respostas moderadas"
+          />
 
-            <template v-if="ownerType === 'group' && availableIssues.length > 0">
+            <div
+              v-if="(ownerType === 'group' || ownerType === 'vs_group') && availableIssues.length > 0"
+              class="toolbar-group"
+            >
               <span class="toolbar-separator" aria-hidden="true" />
               <IssueSelector
                 v-model="selectedIssueIds"
                 :issues="availableIssues"
               />
-            </template>
-          </div>
+            </div>
 
           <button type="submit" class="button-primary submit-post-btn" :disabled="isLoading || !canSubmit">
             <LoadingMessage v-if="isLoading" message="Postando..." :icon-size="16" />
@@ -100,6 +101,8 @@ const MAX_POST_ISSUES = 5;
 const props = defineProps<{
   ownerId: string;
   ownerType: 'group' | 'vs_group' | 'user_timeline';
+  /** When set (e.g. VS parent), load issue tags from this group instead of ownerId. */
+  issuesGroupId?: string | null;
 }>();
 
 const emit = defineEmits(['post-created']);
@@ -153,11 +156,15 @@ async function loadGroupIssues() {
   availableIssues.value = [];
   selectedIssueIds.value = [];
 
-  if (props.ownerType !== 'group' || !props.ownerId) return;
+  const sourceGroupId =
+    props.issuesGroupId
+    || (props.ownerType === 'group' ? props.ownerId : null);
+
+  if (!sourceGroupId) return;
 
   try {
     const { data, error } = await supabase.rpc('get_issues_for_group', {
-      p_group_id: props.ownerId,
+      p_group_id: sourceGroupId,
     });
     if (error) throw error;
     availableIssues.value = (data || []) as Issue[];
@@ -183,7 +190,7 @@ watch(
 );
 
 watch(
-  () => [props.ownerType, props.ownerId] as const,
+  () => [props.ownerType, props.ownerId, props.issuesGroupId] as const,
   () => {
     void loadGroupIssues();
   },
@@ -277,8 +284,11 @@ async function submitPost() {
 
 <style scoped>
 .create-post-component { margin-bottom: 1rem; }
+.create-post-form {
+  min-width: 0;
+}
 .create-post-form h3 { margin-top: 0; margin-bottom: 0.85rem; border-bottom: 0; color: var(--primary-color); }
-.form-group { margin-bottom: 0.65rem; }
+.form-group { margin-bottom: 0.65rem; min-width: 0; }
 
 .media-preview-container {
   border: 1px dashed var(--border-color);
@@ -288,7 +298,17 @@ async function submitPost() {
   margin-bottom: 0.65rem;
 }
 .image-preview img { max-width: 100%; max-height: 300px; display: block; margin: 0 auto; border-radius: 4px; }
-.video-preview iframe { width: 100%; aspect-ratio: 16 / 9; border-radius: 4px; }
+.video-preview {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.video-preview iframe {
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 4px;
+}
 .remove-media-btn {
   position: absolute; top: 5px; right: 5px;
   background-color: rgba(0,0,0,0.6); color: white;
@@ -303,21 +323,20 @@ async function submitPost() {
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
+  min-width: 0;
 }
 .form-actions-toolbar {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.75rem 1rem;
-  padding-top: 0.15rem;
-}
-.media-and-options {
-  display: flex;
   align-items: center;
   gap: 0.45rem;
-  flex-wrap: wrap;
-  flex: 1;
+  padding-top: 0.15rem;
+  min-width: 0;
+}
+.toolbar-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
   min-width: 0;
 }
 .toolbar-separator {
@@ -385,25 +404,12 @@ async function submitPost() {
   justify-content: center;
   height: 2.25rem;
   padding: 0 0.9em;
-  margin: 0;
+  margin-left: auto;
   font-size: 0.85rem;
   font-weight: 500;
   line-height: 1;
   box-sizing: border-box;
+  flex-shrink: 0;
 }
 .form-actions { display: flex; justify-content: flex-end; margin-top: 1rem; }
-
-@media (max-width: 500px) {
-  .form-actions-toolbar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .media-and-options {
-    justify-content: flex-start;
-    margin-bottom: 0.35rem;
-  }
-  .submit-post-btn {
-    align-self: flex-end;
-  }
-}
 </style>

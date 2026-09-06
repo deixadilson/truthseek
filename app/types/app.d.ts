@@ -3,6 +3,7 @@ import type { Database } from './supabase';
 export type Profile = Database['public']['Tables']['profiles']['Row'];
 export type ProfileInsert = Database['public']['Tables']['profiles']['Insert'];
 export type Group = Database['public']['Tables']['groups']['Row'];
+export type VsGroup = Database['public']['Tables']['vs_groups']['Row'];
 export type Post = Database['public']['Tables']['posts']['Row'];
 export type Comment = Database['public']['Tables']['comments']['Row'];
 export type Bias = Database['public']['Tables']['biases']['Row'];

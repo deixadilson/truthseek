@@ -358,6 +358,62 @@ export type Database = {
           },
         ]
       }
+      vs_groups: {
+        Row: {
+          category_group_id: string | null
+          country_code: string
+          created_at: string
+          group_id_1: string
+          group_id_2: string
+          id: string
+        }
+        Insert: {
+          category_group_id?: string | null
+          country_code: string
+          created_at?: string
+          group_id_1: string
+          group_id_2: string
+          id?: string
+        }
+        Update: {
+          category_group_id?: string | null
+          country_code?: string
+          created_at?: string
+          group_id_1?: string
+          group_id_2?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vs_groups_category_group_id_fkey"
+            columns: ["category_group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vs_groups_group_id_1_fkey"
+            columns: ["group_id_1"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vs_groups_group_id_2_fkey"
+            columns: ["group_id_2"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vs_groups_country_code_fkey"
+            columns: ["country_code"]
+            isOneToOne: false
+            referencedRelation: "countries"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       groups: {
         Row: {
           category_group_id: string | null
@@ -1441,6 +1497,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      ensure_vs_group: {
+        Args: { p_group_a: string; p_group_b: string }
+        Returns: string
       }
       get_block_status: { Args: { p_other_id: string }; Returns: string }
       get_follow_counts: {

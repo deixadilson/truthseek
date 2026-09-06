@@ -166,6 +166,8 @@ watch(authUserId, (userId) => {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 .app-header {
@@ -173,12 +175,25 @@ watch(authUserId, (userId) => {
   padding: 0.6rem 1.5rem;
   background-color: var(--header-bg); color: var(--header-text);
   position: sticky; top: 0; z-index: 1010;
+  left: 0;
+  right: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   border-bottom: 1px solid color-mix(in srgb, var(--header-text) 15%, transparent);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
-.logo-link { display: flex; align-items: center; text-decoration: none; color: inherit; gap: 0.5rem; }
-.logo-img { height: 38px; width: auto; display: block; }
-.logo-link h1 { margin: 0; font-size: 1.4rem; font-weight: 600; color: var(--header-text); }
+.logo-link { display: flex; align-items: center; text-decoration: none; color: inherit; gap: 0.5rem; min-width: 0; }
+.logo-img { height: 38px; width: auto; display: block; flex-shrink: 0; }
+.logo-link h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--header-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .nav-link, .main-nav .desktop-nav-items a {
   color: var(--header-text);
@@ -284,6 +299,9 @@ watch(authUserId, (userId) => {
 
 .main-content {
   flex-grow: 1;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: clip;
 }
 .main-content.no-scroll {
   overflow: hidden;

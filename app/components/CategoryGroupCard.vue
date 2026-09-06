@@ -11,7 +11,11 @@
         :alt="`Capa ${group.name}`"
         class="group-cover"
       >
-      <div v-else class="group-cover-placeholder" />
+      <div
+        v-else
+        class="group-cover-placeholder"
+        :style="{ backgroundColor: flagFallbackColor }"
+      />
       <div class="group-flag-container">
         <img
           v-if="flagUrl"
@@ -89,6 +93,9 @@ const emit = defineEmits<{
 const bucket = 'https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public';
 const flagUrl = computed(() => resolveGroupFlagUrl(props.group));
 const isLogoFlag = computed(() => isMetaGroup(props.group));
+const { fallbackColor: flagFallbackColor } = useFlagTheme(() =>
+  props.group.cover_image_path ? null : flagUrl.value
+);
 </script>
 
 <style scoped>

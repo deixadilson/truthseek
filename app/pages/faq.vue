@@ -216,7 +216,10 @@
                   o poder de endossamento (P.E.). Molduras no avatar e badges em
                   formato de escudo mostram o nível no contexto de cada viés.
                   <strong>O P.E. já vale nos endossos</strong> (P.E. 0 não concede
-                  pontos). Os demais privilégios descritos em
+                  pontos). Se o P.E. sobe ou desce por faixa absoluta, os endossos
+                  já dados por aquela pessoa no viés são reajustados na hora
+                  (1 salto); por percentil, no ciclo diário. Os demais privilégios
+                  descritos em
                   <NuxtLink to="/how-it-works">Como Funciona</NuxtLink>
                   (debates, falácias, wiki, moderação, etc.)
                   <strong>ainda não estão ativos</strong>.

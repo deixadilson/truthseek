@@ -17,7 +17,9 @@
       </button>
 
       <div class="search-field">
-        <Icon name="lucide:search" :size="16" class="search-icon" />
+        <span class="search-icon" aria-hidden="true">
+          <Icon name="lucide:search" :size="16" />
+        </span>
         <input
           v-model="searchDraft"
           type="search"
@@ -267,6 +269,7 @@ onBeforeUnmount(() => {
 .post-filters {
   margin-bottom: 1rem;
   padding: 0.85rem 1rem;
+  min-width: 0;
 }
 
 .filters-toolbar {
@@ -274,6 +277,7 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem;
+  min-width: 0;
 }
 
 .filters-toggle {
@@ -302,20 +306,28 @@ onBeforeUnmount(() => {
 
 .search-field {
   position: relative;
+  display: block;
   flex: 1 1 12rem;
-  min-width: 10rem;
+  min-width: 0;
+  max-width: 100%;
+  height: 2.25rem;
 }
 
 .search-icon {
   position: absolute;
   left: 0.7rem;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 0;
+  bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: #888;
   pointer-events: none;
+  z-index: 1;
 }
 
 .search-field input {
+  display: block;
   width: 100%;
   height: 2.25rem;
   padding: 0 2rem 0 2.1rem;
@@ -325,6 +337,8 @@ onBeforeUnmount(() => {
   font-size: 0.9rem;
   box-sizing: border-box;
   background: #fff;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .search-field input:focus {
@@ -483,7 +497,14 @@ onBeforeUnmount(() => {
     align-items: stretch;
   }
   .search-field {
-    min-width: 0;
+    order: 1;
+    width: 100%;
+    flex: 0 0 auto;
+  }
+  .filters-toggle {
+    order: 2;
+    width: 100%;
+    justify-content: center;
   }
 }
 </style>

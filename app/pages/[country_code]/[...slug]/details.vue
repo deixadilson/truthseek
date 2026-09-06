@@ -130,8 +130,8 @@
             <p class="section-hint">
               {{
                 isMetaGroupPage
-                  ? 'Membros da plataforma ordenados por pontos de influência no MetaGrupo.'
-                  : 'Defensores deste viés ordenados por pontos de influência.'
+                  ? 'Membros da plataforma agrupados por título de influência.'
+                  : 'Defensores deste viés agrupados por título de influência.'
               }}
             </p>
           </div>
@@ -146,51 +146,64 @@
                 : 'Ainda não há membros declarados neste viés.'
             }}
           </p>
-          <ol v-else class="rank-list">
-            <li
-              v-for="(entry, index) in ranking"
-              :key="entry.biasId"
-              class="rank-row"
-              :class="{ podium: index < 3 }"
+          <div v-else class="rank-groups">
+            <section
+              v-for="titleGroup in rankingByTitle"
+              :key="`${titleGroup.level}-${titleGroup.title}`"
+              class="rank-group"
             >
-              <span class="rank-pos" :aria-label="`Posição ${index + 1}`">{{ index + 1 }}</span>
-              <NuxtLink
-                v-if="entry.username"
-                :to="`/user/${entry.username}`"
-                class="rank-user"
-              >
-                <UserAvatar
-                  :src="entry.avatarUrl"
-                  :alt="entry.username"
-                  size="md"
-                  class="rank-avatar"
-                  :level="entry.level"
-                  :title="entry.title"
-                />
-                <span class="rank-username">{{ entry.username }}</span>
-              </NuxtLink>
-              <div v-else class="rank-user unknown">
-                <UserAvatar
-                  :src="defaultAvatar"
-                  alt=""
-                  size="md"
-                  class="rank-avatar"
-                />
-                <span class="rank-username">Usuário</span>
-              </div>
-              <div class="rank-title">
+              <header class="rank-group-header">
                 <InfluenceBadge
-                  :level="entry.level"
-                  :title="entry.title"
-                  :influence-points="entry.influencePoints"
+                  :level="titleGroup.level"
+                  :title="titleGroup.title"
+                  size="lg"
                   show-pe
                 />
-              </div>
-              <div class="rank-influence">
-                <span class="points">{{ entry.influencePoints }} pts</span>
-              </div>
-            </li>
-          </ol>
+                <span class="rank-group-count">
+                  {{ titleGroup.entries.length }}
+                  {{ titleGroup.entries.length === 1 ? 'membro' : 'membros' }}
+                </span>
+              </header>
+              <ol class="rank-list">
+                <li
+                  v-for="entry in titleGroup.entries"
+                  :key="entry.biasId"
+                  class="rank-row"
+                >
+                  <span class="rank-pos" :aria-label="`Posição ${entry.position}`">
+                    {{ entry.position }}
+                  </span>
+                  <NuxtLink
+                    v-if="entry.username"
+                    :to="`/user/${entry.username}`"
+                    class="rank-user"
+                  >
+                    <UserAvatar
+                      :src="entry.avatarUrl"
+                      :alt="entry.username"
+                      size="md"
+                      class="rank-avatar"
+                      :level="entry.level"
+                      :title="entry.title"
+                    />
+                    <span class="rank-username">{{ entry.username }}</span>
+                  </NuxtLink>
+                  <div v-else class="rank-user unknown">
+                    <UserAvatar
+                      :src="defaultAvatar"
+                      alt=""
+                      size="md"
+                      class="rank-avatar"
+                    />
+                    <span class="rank-username">Usuário</span>
+                  </div>
+                  <div class="rank-influence">
+                    <span class="points">{{ entry.influencePoints }} pts</span>
+                  </div>
+                </li>
+              </ol>
+            </section>
+          </div>
         </section>
       </div>
     </template>
@@ -216,6 +229,13 @@ type RankEntry = {
   level: number;
   username: string | null;
   avatarUrl: string;
+  position: number;
+};
+
+type RankTitleGroup = {
+  level: number;
+  title: string;
+  entries: RankEntry[];
 };
 
 const route = useRoute();
@@ -242,6 +262,23 @@ const isMetaGroupPage = computed(() => isMetaGroup(group.value));
 const showInfluenceRanking = computed(
   () => !!group.value && (!group.value.is_open || isMetaGroupPage.value)
 );
+
+const rankingByTitle = computed((): RankTitleGroup[] => {
+  const groups: RankTitleGroup[] = [];
+  for (const entry of ranking.value) {
+    const last = groups[groups.length - 1];
+    if (last && last.level === entry.level && last.title === entry.title) {
+      last.entries.push(entry);
+    } else {
+      groups.push({
+        level: entry.level,
+        title: entry.title,
+        entries: [entry],
+      });
+    }
+  }
+  return groups;
+});
 
 const isLoading = ref(true);
 const loadError = ref('');
@@ -305,6 +342,9 @@ const flagUrl = computed(() =>
       })
     : null
 );
+const { fallbackColor: flagFallbackColor } = useFlagTheme(() =>
+  group.value?.cover_image_path ? null : (flagUrl.value || '')
+);
 
 const countryFlag = computed(() => countryFlagUrl(group.value?.country_code));
 
@@ -313,7 +353,7 @@ const headerBackgroundStyle = computed(() => {
     const coverUrl = `https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/covers/${group.value.cover_image_path}`;
     return { backgroundImage: `url('${coverUrl}')` };
   }
-  return { backgroundColor: 'var(--primary-color-light)' };
+  return { backgroundColor: flagFallbackColor.value };
 });
 
 function avatarUrlFor(path: string | null | undefined): string {
@@ -392,7 +432,7 @@ async function loadRanking(groupId: string) {
       return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
     });
 
-    ranking.value = sorted.map((row) => {
+    ranking.value = sorted.map((row, index) => {
       const profile = byId.get(row.user_id);
       return {
         biasId: row.id,
@@ -402,6 +442,7 @@ async function loadRanking(groupId: string) {
         level: row.level ?? 1,
         username: profile?.username ?? null,
         avatarUrl: avatarUrlFor(profile?.avatar_path),
+        position: index + 1,
       };
     });
   } catch (e) {
@@ -856,6 +897,27 @@ useSeoMeta({
   color: var(--primary-color-dark);
 }
 
+.rank-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.rank-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.35rem 0.5rem 0.55rem;
+  margin-bottom: 0.1rem;
+}
+
+.rank-group-count {
+  font-size: 0.8rem;
+  color: #777;
+  white-space: nowrap;
+}
+
 .rank-list {
   list-style: none;
   margin: 0;
@@ -864,24 +926,18 @@ useSeoMeta({
 
 .rank-row {
   display: grid;
-  grid-template-columns: 2rem minmax(0, 1.2fr) minmax(0, 1fr) auto;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.65rem 0.35rem;
-  border-bottom: 1px solid var(--border-color);
+  padding: 0.65rem 0.5rem;
+  margin-bottom: 0.25rem;
+  border-radius: 6px;
+  border-bottom: none;
+  background: color-mix(in srgb, var(--primary-color) 5%, white);
 }
 
 .rank-row:last-child {
-  border-bottom: none;
-}
-
-.rank-row.podium {
-  background: color-mix(in srgb, var(--primary-color) 5%, white);
-  border-radius: 6px;
-  border-bottom-color: transparent;
-  margin-bottom: 0.25rem;
-  padding-left: 0.5rem;
-  padding-right: 0.5rem;
+  margin-bottom: 0;
 }
 
 .rank-pos {
@@ -921,17 +977,6 @@ useSeoMeta({
   white-space: nowrap;
 }
 
-.rank-title {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-width: 0;
-}
-
-.rank-title :deep(.influence-badge) {
-  max-width: 100%;
-}
-
 .rank-influence {
   display: flex;
   align-items: center;
@@ -967,18 +1012,10 @@ useSeoMeta({
 
   .rank-row {
     grid-template-columns: 1.75rem minmax(0, 1fr) auto;
-    grid-template-rows: auto auto;
-  }
-
-  .rank-title {
-    grid-column: 2;
-    justify-content: flex-start;
-    padding-left: 3.05rem;
   }
 
   .rank-influence {
-    grid-row: 1;
-    grid-column: 3;
+    justify-content: flex-end;
   }
 }
 </style>

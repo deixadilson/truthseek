@@ -159,7 +159,10 @@
           <strong>Em vigor agora:</strong> títulos, molduras, badges, P.E. nos
           endossos e acesso a grupos restritos com
           <strong>20 pontos</strong> ou
-          <strong>top 50%</strong> (NV 5+). <strong>Ainda não ativos:</strong>
+          <strong>top 50%</strong> (NV 5+). Quando o P.E. muda por faixa
+          absoluta (NV 1–4), os endossos já dados por aquela pessoa no viés são
+          reajustados na hora (1 salto). Mudanças de P.E. por percentil (NV 5+)
+          são reconciliadas diariamente. <strong>Ainda não ativos:</strong>
           banir, silenciar, falácias, wiki, capa, debates formais e demais
           privilégios listados na coluna “Privilégio”.
         </p>

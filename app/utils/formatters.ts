@@ -42,6 +42,13 @@ export function canEnterClosedGroup(bias: {
   );
 }
 
+/** VS debate access: Apologista+ (top 50% / level ≥ 5) on either opposing bias. */
+export function canEnterVsGroup(
+  ...biases: Array<{ level?: number | null } | null | undefined>
+): boolean {
+  return biases.some((bias) => (bias?.level ?? 0) >= MIN_LEVEL_TO_ENTER_GROUP);
+}
+
 /**
  * Parse date strings without UTC shift for date-only values (YYYY-MM-DD),
  * which otherwise become the previous day in timezones west of UTC (e.g. Brazil).

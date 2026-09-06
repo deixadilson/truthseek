@@ -887,8 +887,14 @@ a.author-name:hover {
   margin-top: 0.5rem;
   display: block;
 }
+.video-content {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
 .video-content iframe {
   width: 100%;
+  max-width: 100%;
   aspect-ratio: 16 / 9;
   border-radius: 6px;
   margin-top: 0.5rem;
