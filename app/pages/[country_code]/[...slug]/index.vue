@@ -37,7 +37,6 @@
             <h1>{{ groupData.name }}</h1>
             <p class="group-meta">
               <span class="country-with-flag">
-                País:
                 <img
                   v-if="groupCountryFlag"
                   :src="groupCountryFlag"
@@ -47,7 +46,7 @@
                   height="18"
                   loading="lazy"
                 />
-                {{ groupData.country_code.toUpperCase() }}
+                {{ formatCountryName(groupData.country_code) }}
               </span>
               <span v-if="false">| Categoria: {{ groupData?.category_group_id }}</span>
               <span class="group-access-status" :class="groupData.is_open ? 'open' : 'closed'">
@@ -106,13 +105,21 @@
             </template>
             <template v-else>
               <p>
-                Você já defende este viés, mas tem apenas
-                <strong>{{ userBiasForGroup.influence_points ?? 0 }}</strong> pontos de influência.
-                É necessário acumular
-                <strong>{{ MIN_INFLUENCE_TO_ENTER_GROUP }}</strong> pontos para ver e criar postagens.
+                Você já defende este viés, mas ainda não liberou o acesso ao grupo
+                restrito. É necessário ter
+                <strong>20 pontos</strong> de influência
+                <strong>ou</strong> estar entre os
+                <strong>50% mais influentes</strong> (Apologista ou superior).
+                Você tem
+                <strong>{{ userBiasForGroup.influence_points ?? 0 }}</strong> pontos
+                <template v-if="userBiasForGroup.level">
+                  (NV {{ userBiasForGroup.level }}).
+                </template>
+                <template v-else>.</template>
               </p>
               <p class="access-hint">
                 Poste na categoria raiz deste viés para que outros defensores possam endossá-lo.
+                Em grupos pequenos, quem está no topo relativo sobe de nível cedo e já libera o acesso.
               </p>
               <NuxtLink to="/categories" class="button-primary">Ir para Categorias</NuxtLink>
             </template>
@@ -139,6 +146,7 @@
                 :is-loading-more="isLoadingMorePosts"
                 :empty-message="postsEmptyMessage"
                 :show-group-context="false"
+                :influence-group-id="groupData.id"
                 @post-deleted="handlePostDeleted"
                 @post-updated="handlePostUpdated"
                 @load-more="loadMorePosts"
@@ -183,7 +191,7 @@
             </ul>
           </section>
           <NuxtLink
-            v-if="!groupData.is_open"
+            v-if="showGroupDetailsLink"
             :to="`/${groupData.country_code}/${groupData.slug}/details`"
             class="details-link"
           >
@@ -207,7 +215,7 @@
 <script setup lang="ts">
 import type { Bias, Group, Issue, PostWithAuthor } from '~/types/app';
 import { useToast } from 'vue-toastification';
-import { MIN_INFLUENCE_TO_ENTER_GROUP, countryFlagUrl, formatCountryName } from '~/utils/formatters';
+import { canEnterClosedGroup, countryFlagUrl, formatCountryName } from '~/utils/formatters';
 import { isMetaGroup, resolveGroupFlagUrl } from '~/utils/groupFlags';
 
 const route = useRoute();
@@ -261,7 +269,7 @@ const hasMorePosts = ref(false);
 const accessChecked = ref(false);
 const isDeclaringBias = ref(false);
 const declareBiasDialogOpen = ref(false);
-const userBiasForGroup = ref<Pick<Bias, 'id' | 'group_id' | 'influence_points'> | null>(null);
+const userBiasForGroup = ref<Pick<Bias, 'id' | 'group_id' | 'influence_points' | 'level'> | null>(null);
 
 const POSTS_PAGE_SIZE = 20;
 
@@ -314,11 +322,13 @@ const postsEmptyMessage = computed(() => {
 const canInteractWithPosts = computed(() => {
   if (!groupData.value) return false;
   if (groupData.value.is_open) return true;
-  const points = userBiasForGroup.value?.influence_points ?? 0;
-  return points >= MIN_INFLUENCE_TO_ENTER_GROUP;
+  return canEnterClosedGroup(userBiasForGroup.value);
 });
 
 const isMetaGroupPage = computed(() => isMetaGroup(groupData.value));
+const showGroupDetailsLink = computed(
+  () => !!groupData.value && (!groupData.value.is_open || isMetaGroupPage.value)
+);
 
 const groupFlagUrl = computed(() => resolveGroupFlagUrl(groupData.value) || '');
 
@@ -349,7 +359,7 @@ async function resolveGroupAccess(groupId: string, isOpen: boolean) {
   try {
     const { data, error } = await supabase
       .from('biases')
-      .select('id, group_id, influence_points')
+      .select('id, group_id, influence_points, level')
       .eq('user_id', authUserId.value)
       .eq('group_id', groupId)
       .maybeSingle();
@@ -399,7 +409,7 @@ async function confirmDeclareBias() {
         group_id: groupData.value.id,
         influence_points: 10,
       })
-      .select('id, group_id, influence_points')
+      .select('id, group_id, influence_points, level')
       .single();
 
     if (error) {
@@ -414,7 +424,8 @@ async function confirmDeclareBias() {
     }
 
     if (data) {
-      userBiasForGroup.value = data;
+      // Re-fetch so level reflects percentile ranks after insert trigger.
+      await resolveGroupAccess(groupData.value.id, !!groupData.value.is_open);
       toast.success('Viés declarado com sucesso!');
       declareBiasDialogOpen.value = false;
     }

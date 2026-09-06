@@ -9,13 +9,19 @@
           :hide-trigger-arrow="true"
           v-if="post.author_id && post.owner_id && !post.is_anonymous"
         >
-          <img :src="authorAvatarUrl" alt="Avatar do autor" class="author-avatar"/>
+          <UserAvatar
+            :src="authorAvatarUrl"
+            alt="Avatar do autor"
+            size="md"
+            :level="authorRank?.level"
+            :title="authorRank?.title"
+          />
         </AuthorPopover>
-        <img
+        <UserAvatar
           v-else
           :src="authorAvatarUrl"
           alt="Avatar"
-          class="author-avatar"
+          size="md"
         />
         <div class="author-text">
           <div class="author-line">
@@ -27,6 +33,13 @@
               {{ authorDisplayName }}
             </NuxtLink>
             <span v-else class="author-name">{{ authorDisplayName }}</span>
+            <InfluenceBadge
+              v-if="authorRank && !post.is_anonymous"
+              :level="authorRank.level"
+              :title="authorRank.title"
+              :influence-points="authorRank.influencePoints"
+              show-pe
+            />
             <template v-if="showGroupContext && ownerGroupName">
               <span class="posted-in">postou em</span>
               <NuxtLink
@@ -189,6 +202,7 @@
 <script setup lang="ts">
 import type { Database } from '~/types/supabase';
 import type { PostWithAuthor } from '~/types/app';
+import type { AuthorGroupRank } from '~/composables/useGroupAuthorRanks';
 import { useToast } from 'vue-toastification';
 import { getEmbedVideoUrl, timeAgo } from '~/utils/formatters';
 import { renderPostMarkdown } from '~/utils/renderMarkdown';
@@ -219,6 +233,17 @@ const supabase = useSupabaseClient<Database>();
 const user = useSupabaseUser();
 const authUserId = useAuthUserId();
 const toast = useToast();
+
+type GroupAuthorRanksApi = {
+  rankFor: (authorId: string | null | undefined) => AuthorGroupRank | null;
+};
+
+const groupAuthorRanks = inject<GroupAuthorRanksApi | null>('groupAuthorRanks', null);
+
+const authorRank = computed(() => {
+  if (props.post.is_anonymous || !props.post.author_id || !groupAuthorRanks) return null;
+  return groupAuthorRanks.rankFor(props.post.author_id);
+});
 
 const currentUserVote = ref<number | null>(null);
 const localLikesCount = ref(props.post.likes_count || 0);
@@ -699,6 +724,7 @@ watch(
   flex: 1;
 }
 .author-avatar {
+  /* legacy class kept if referenced elsewhere; avatars use UserAvatar */
   width: 2.75rem;
   height: 2.75rem;
   border-radius: 50%;

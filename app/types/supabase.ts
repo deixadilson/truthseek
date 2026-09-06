@@ -1197,6 +1197,7 @@ export type Database = {
           category_id: string | null
           category_name: string | null
           created_at: string | null
+          endorsement_power: number | null
           group_country_code: string | null
           group_flag_path: string | null
           group_id: string | null
@@ -1204,6 +1205,7 @@ export type Database = {
           group_slug: string | null
           id: string | null
           influence_points: number | null
+          level: number | null
           title: string | null
           user_id: string | null
         }
@@ -1546,7 +1548,7 @@ export type Database = {
           p_bias_id: string
           p_endorsement_type: number
           p_endorsing_user_id: string
-          p_points_to_award?: number
+          p_points_to_award?: number | null
         }
         Returns: {
           message: string
@@ -1613,6 +1615,7 @@ export type Database = {
         influence_points: number | null
         title: string | null
         current_user_endorsement: number | null
+        level: number | null
       }
     }
   }

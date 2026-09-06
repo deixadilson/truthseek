@@ -55,7 +55,15 @@
                     >
                       {{ bias.group_name }}
                     </NuxtLink>
-                    <span class="influence">{{ bias.influence_points }} {{ bias.title }}</span>
+                    <div class="bias-influence-row">
+                      <InfluenceBadge
+                        :level="bias.level"
+                        :title="bias.title"
+                        :influence-points="bias.influence_points"
+                        show-pe
+                      />
+                      <span class="influence-points">{{ bias.influence_points }} pts</span>
+                    </div>
                   </div>
                 </div>
                 <div v-if="user && authUserId !== authorId && blockStatus === 'none' && canEndorseBias(bias)" class="endorse-actions">
@@ -66,8 +74,11 @@
                     :disabled="isHandlingEndorsement === bias.bias_id"
                     title="Endossar"
                     type="button"
+                    :aria-pressed="bias.current_user_endorsement === 1"
                   >
-                    <svg class="endorse-svg" viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
+                    <svg class="endorse-svg" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 4.2 4.2 13.5h4.4V19.8h6.8v-6.3h4.4L12 4.2z" />
+                    </svg>
                   </button>
                   <button
                     @click="toggleEndorsement(bias, -1)"
@@ -76,8 +87,11 @@
                     :disabled="isHandlingEndorsement === bias.bias_id"
                     title="Desendossar"
                     type="button"
+                    :aria-pressed="bias.current_user_endorsement === -1"
                   >
-                    <svg class="endorse-svg" viewBox="0 0 24 24"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"></path></svg>
+                    <svg class="endorse-svg" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 19.8 19.8 10.5h-4.4V4.2H8.6v6.3H4.2L12 19.8z" />
+                    </svg>
                   </button>
                 </div>
               </li>
@@ -413,18 +427,22 @@ async function toggleEndorsement(bias: UserBiasForPopover, endorsementType: 1 | 
       p_bias_id: bias.bias_id,
       p_endorsing_user_id: authUserId.value,
       p_endorsement_type: endorsementType,
-      p_points_to_award: 1,
     });
 
     if (rpcError) throw rpcError;
 
     if (data && data[0] && data[0].success) {
-      toast.success(data[0].message);
+      const msg = data[0].message || '';
+      if (msg.includes('P.E. atual é 0')) {
+        toast.info(msg);
+      } else {
+        toast.success(msg);
+      }
       // Atualizar a UI localmente
       const updatedBiasIndex = authorBiases.value.findIndex(b => b.bias_id === bias.bias_id);
       if (updatedBiasIndex !== -1) {
         // Se o endosso foi removido (clicou no mesmo tipo)
-        if(data[0].message.includes('removido')) {
+        if (msg.includes('removido')) {
           authorBiases.value[updatedBiasIndex].current_user_endorsement = null;
         } else {
           authorBiases.value[updatedBiasIndex].current_user_endorsement = endorsementType;
@@ -601,36 +619,54 @@ async function goToPublicProfile() {
   color: var(--primary-color-hover);
 }
 
-.influence {
+.bias-influence-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.1rem;
+}
+.influence-points {
   font-size: 0.75rem;
   color: #555;
 }
 
-.endorse-actions { display: flex; gap: 0.4rem; }
+.endorse-actions { display: flex; gap: 0.25rem; }
 .endorse-btn {
-  background: none; border: 1px solid #ccc;
-  border-radius: 50%; padding: 0.25rem;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; color: #666;
-  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 0.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, opacity 0.15s;
 }
-.endorse-btn:hover { background-color: #f0f0f0; color: #333; }
-.endorse-btn.active {
-  border-color: var(--primary-color);
-  background-color: var(--primary-color);
+.endorse-btn.up {
+  color: var(--primary-color);
 }
-.endorse-btn.down.active {
-  border-color: #db3575;
-  background-color: #db3575;
+.endorse-btn.down {
+  color: #db3575;
+}
+.endorse-btn.up:hover {
+  background-color: color-mix(in srgb, var(--primary-color) 12%, transparent);
+}
+.endorse-btn.down:hover {
+  background-color: color-mix(in srgb, #db3575 12%, transparent);
 }
 .endorse-btn .endorse-svg {
-  width: 12px; height: 12px;
-  stroke: currentColor;
+  width: 20px;
+  height: 20px;
   fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linejoin: round;
+  stroke-linecap: round;
 }
 .endorse-btn.active .endorse-svg {
-  stroke: white;
-  fill: white;
+  fill: currentColor;
+  stroke: currentColor;
 }
 .endorse-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 

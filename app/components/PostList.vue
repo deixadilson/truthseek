@@ -39,11 +39,14 @@ const props = withDefaults(
     hasMore?: boolean;
     emptyMessage?: string;
     showGroupContext?: boolean;
+    /** When set, loads author influence frames/badges for this group. */
+    influenceGroupId?: string | null;
   }>(),
   {
     showGroupContext: true,
     hasMore: false,
     isLoadingMore: false,
+    influenceGroupId: null,
   }
 );
 
@@ -56,6 +59,24 @@ const emit = defineEmits<{
 const { isAuthorHidden } = useBlock();
 const visiblePosts = computed(() =>
   props.posts.filter((post) => !isAuthorHidden(post.author_id))
+);
+
+const { loadForAuthors, rankFor, ranks } = useGroupAuthorRanks(
+  () => props.influenceGroupId
+);
+
+provide('groupAuthorRanks', {
+  rankFor,
+  ranks,
+});
+
+watch(
+  () => [props.influenceGroupId, visiblePosts.value.map((p) => p.author_id).join(',')] as const,
+  () => {
+    if (!props.influenceGroupId) return;
+    void loadForAuthors(visiblePosts.value.map((p) => p.author_id));
+  },
+  { immediate: true }
 );
 </script>
 

@@ -103,7 +103,12 @@
             </NuxtLink>
             <div class="bias-influence">
               <span class="points">{{ platformBias.influence_points }}</span>
-              <span class="title">{{ platformBias.title }}</span>
+              <InfluenceBadge
+                :level="platformBias.level"
+                :title="platformBias.title"
+                :influence-points="platformBias.influence_points"
+                show-pe
+              />
             </div>
           </li>
         </ul>
@@ -142,7 +147,12 @@
                 </NuxtLink>
                 <div class="bias-influence">
                   <span class="points">{{ bias.influence_points }}</span>
-                  <span class="title">{{ bias.title }}</span>
+                  <InfluenceBadge
+                    :level="bias.level"
+                    :title="bias.title"
+                    :influence-points="bias.influence_points"
+                    show-pe
+                  />
                 </div>
                 <button
                   v-if="bias.id"
@@ -541,11 +551,6 @@ watch(userProfile, (newProfileData) => {
   margin-bottom: 1rem;
 }
 
-.platform-bias-list {
-  border-top: 1px solid var(--border-color);
-  border-radius: 4px;
-}
-
 .bias-flag-logo {
   object-fit: contain;
   background: #fff;
@@ -579,8 +584,18 @@ watch(userProfile, (newProfileData) => {
   padding: 0;
   margin: 0;
   border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+/* Listas sob o cabeçalho da categoria: sem borda superior (já vem do header). */
+.bias-category-group .biases-list {
   border-top: none;
   border-radius: 0 0 4px 4px;
+}
+
+.platform-bias-section .platform-bias-list {
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
 }
 
 .bias-item {
@@ -635,16 +650,16 @@ watch(userProfile, (newProfileData) => {
 .bias-influence {
   flex-shrink: 0;
   min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
   text-align: right;
   font-size: 0.9rem;
 }
 .bias-influence .points {
   font-weight: bold;
   color: var(--primary-color);
-  margin-right: 0.5rem;
-}
-.bias-influence .title {
-  color: #666;
 }
 
 .remove-bias-btn {

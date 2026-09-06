@@ -149,7 +149,12 @@
                     <span class="bias-name">{{ platformBias.group_name || 'TruthSeek Network' }}</span>
                     <span class="bias-influence">
                       <span class="points">{{ platformBias.influence_points }}</span>
-                      <span class="title">{{ platformBias.title }}</span>
+                      <InfluenceBadge
+                        :level="platformBias.level"
+                        :title="platformBias.title"
+                        :influence-points="platformBias.influence_points"
+                        show-pe
+                      />
                     </span>
                   </div>
                 </NuxtLink>
@@ -190,7 +195,12 @@
                         <span class="bias-name">{{ bias.group_name || 'Grupo desconhecido' }}</span>
                         <span class="bias-influence">
                           <span class="points">{{ bias.influence_points }}</span>
-                          <span class="title">{{ bias.title }}</span>
+                          <InfluenceBadge
+                            :level="bias.level"
+                            :title="bias.title"
+                            :influence-points="bias.influence_points"
+                            show-pe
+                          />
                         </span>
                       </div>
                     </NuxtLink>
@@ -980,12 +990,18 @@ watch(authUserId, () => {
   padding: 0;
   margin: 0;
   border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+.bias-category-group .biases-list {
   border-top: none;
   border-radius: 0 0 4px 4px;
 }
 
-.platform-bias-list {
+.biases-list.platform-bias-list {
   margin-bottom: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
 }
 
 .bias-item {
@@ -1056,16 +1072,15 @@ watch(authUserId, () => {
 .bias-influence {
   font-size: 0.78rem;
   line-height: 1.2;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
 }
 
 .bias-influence .points {
   font-weight: bold;
   color: var(--primary-color);
-  margin-right: 0.35rem;
-}
-
-.bias-influence .title {
-  color: #666;
 }
 
 .empty-message {

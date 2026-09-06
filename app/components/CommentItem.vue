@@ -1,7 +1,13 @@
 <template>
   <div :id="`comment-${comment.id}`" class="comment-item" :class="{ 'is-reply': !!comment.reply_to, 'highlighted': isHighlighted }">
     <div class="comment-main-content">
-      <img :src="authorAvatarUrl" alt="Avatar" class="author-avatar-small" />
+      <UserAvatar
+        :src="authorAvatarUrl"
+        alt="Avatar"
+        size="sm"
+        :level="comment.is_anonymous ? null : commentAuthorRank?.level"
+        :title="comment.is_anonymous ? null : commentAuthorRank?.title"
+      />
       <div class="comment-body">
         <div class="comment-top-row">
           <AuthorPopover
@@ -15,6 +21,12 @@
               <span class="comment-author-name">
                 {{ comment.is_anonymous ? 'Anônimo' : (comment.author_username || 'Usuário') }}
               </span>
+              <InfluenceBadge
+                v-if="commentAuthorRank"
+                :level="commentAuthorRank.level"
+                :title="commentAuthorRank.title"
+                :influence-points="commentAuthorRank.influencePoints"
+              />
               <span v-if="comment.created_at" class="comment-timestamp">
                 {{ timeAgo(comment.created_at) }}
                 <template v-if="localIsEdited">
@@ -165,6 +177,7 @@
 <script setup lang="ts">
 import type { Database } from '~/types/supabase';
 import type { CommentWithAuthor } from '~/types/app';
+import type { AuthorGroupRank } from '~/composables/useGroupAuthorRanks';
 import { useToast } from 'vue-toastification';
 import { formatTextToHtml, getEmbedVideoUrl, timeAgo } from '~/utils/formatters';
 
@@ -196,6 +209,19 @@ const emit = defineEmits<{
 const supabase = useSupabaseClient<Database>();
 const authUserId = useAuthUserId();
 const toast = useToast();
+
+type GroupAuthorRanksApi = {
+  rankFor: (authorId: string | null | undefined) => AuthorGroupRank | null;
+};
+
+const groupAuthorRanks = inject<GroupAuthorRanksApi | null>('groupAuthorRanks', null);
+
+const commentAuthorRank = computed(() => {
+  if (props.comment.is_anonymous || !props.comment.author_id || !groupAuthorRanks) {
+    return null;
+  }
+  return groupAuthorRanks.rankFor(props.comment.author_id);
+});
 
 const defaultUserAvatar = '/images/default-avatar.png';
 

@@ -11,56 +11,61 @@
     </div>
 
     <template v-else-if="group">
-      <header class="details-header">
-        <div class="header-background" :style="coverStyle" />
-        <div class="header-inner container">
-          <NuxtLink :to="groupPath" class="back-link">
-            <Icon name="lucide:arrow-left" :size="16" />
-            Voltar ao grupo
-          </NuxtLink>
-
-          <div class="header-main">
-            <div class="flag-wrap">
-              <img
-                v-if="flagUrl"
-                :src="flagUrl"
-                :alt="`Bandeira de ${group.name}`"
-                class="flag"
-              />
-              <div v-else class="flag-placeholder">
-                {{ group.name.substring(0, 1) }}
-              </div>
+      <header class="group-header">
+        <div class="header-background-image" :style="headerBackgroundStyle" />
+        <nav v-if="breadcrumbs.length > 0" aria-label="breadcrumb" class="breadcrumb-nav container">
+          <ol>
+            <li v-for="(crumb, index) in breadcrumbs" :key="crumb.key">
+              <span v-if="index === breadcrumbs.length - 1" class="active">{{ crumb.name }}</span>
+              <NuxtLink v-else-if="crumb.to" :to="crumb.to">{{ crumb.name }}</NuxtLink>
+              <span v-else>{{ crumb.name }}</span>
+            </li>
+          </ol>
+        </nav>
+        <div class="header-content container">
+          <div class="group-flag-container">
+            <img
+              v-if="flagUrl"
+              :src="flagUrl"
+              :alt="`Bandeira de ${group.name}`"
+              class="group-flag"
+              :class="{ logo: isMetaGroupPage }"
+            />
+            <div v-else class="group-flag-placeholder">
+              <span>{{ group.name.substring(0, 1) }}</span>
             </div>
-            <div class="title-block">
-              <h1>{{ group.name }}</h1>
-              <p class="meta">
-                <span class="country-with-flag">
-                  <img
-                    v-if="countryFlag"
-                    :src="countryFlag"
-                    :alt="formatCountryName(group.country_code)"
-                    class="country-flag"
-                    width="24"
-                    height="18"
-                    loading="lazy"
-                  />
-                  {{ formatCountryName(group.country_code) }}
-                </span>
-                <span class="access" :class="group.is_open ? 'open' : 'closed'">
-                  <Icon
-                    :name="group.is_open ? 'lucide:unlock' : 'lucide:lock'"
-                    :size="14"
-                  />
-                  Grupo {{ group.is_open ? 'Aberto' : 'Restrito' }}
-                </span>
-              </p>
-            </div>
+          </div>
+          <div class="group-title-info">
+            <h1>{{ group.name }}</h1>
+            <p class="group-meta">
+              <span class="country-with-flag">
+                <img
+                  v-if="countryFlag"
+                  :src="countryFlag"
+                  :alt="`Bandeira de ${formatCountryName(group.country_code)}`"
+                  class="country-flag"
+                  width="24"
+                  height="18"
+                  loading="lazy"
+                />
+                {{ formatCountryName(group.country_code) }}
+              </span>
+              <span class="group-access-status" :class="group.is_open ? 'open' : 'closed'">
+                |
+                <Icon
+                  :name="group.is_open ? 'lucide:unlock' : 'lucide:lock'"
+                  :size="14"
+                  class="group-status-icon"
+                />
+                Grupo {{ group.is_open ? 'Aberto' : 'Restrito' }}
+              </span>
+            </p>
           </div>
         </div>
       </header>
 
       <div class="details-body container">
-        <p v-if="group.is_open" class="open-notice card-style">
+        <p v-if="group.is_open && !isMetaGroupPage" class="open-notice card-style">
           Esta página de detalhes é pensada para grupos restritos (vieses).
           Grupos abertos concentram discussão geral — use o feed do grupo para participar.
         </p>
@@ -119,11 +124,15 @@
           </ul>
         </section>
 
-        <section v-if="!group.is_open" class="ranking card-style">
+        <section v-if="showInfluenceRanking" class="ranking card-style">
           <div class="section-header">
             <h2>Ranking de influência</h2>
             <p class="section-hint">
-              Defensores deste viés ordenados por pontos de influência.
+              {{
+                isMetaGroupPage
+                  ? 'Membros da plataforma ordenados por pontos de influência no MetaGrupo.'
+                  : 'Defensores deste viés ordenados por pontos de influência.'
+              }}
             </p>
           </div>
 
@@ -131,7 +140,11 @@
             <LoadingMessage message="Carregando ranking..." :icon-size="16" />
           </div>
           <p v-else-if="ranking.length === 0" class="section-empty muted">
-            Ainda não há membros declarados neste viés.
+            {{
+              isMetaGroupPage
+                ? 'Ainda não há membros com influência registrada na plataforma.'
+                : 'Ainda não há membros declarados neste viés.'
+            }}
           </p>
           <ol v-else class="rank-list">
             <li
@@ -146,21 +159,35 @@
                 :to="`/user/${entry.username}`"
                 class="rank-user"
               >
-                <img
+                <UserAvatar
                   :src="entry.avatarUrl"
                   :alt="entry.username"
+                  size="md"
                   class="rank-avatar"
-                  @error="onAvatarError"
+                  :level="entry.level"
+                  :title="entry.title"
                 />
-                <span class="rank-username">@{{ entry.username }}</span>
+                <span class="rank-username">{{ entry.username }}</span>
               </NuxtLink>
               <div v-else class="rank-user unknown">
-                <img :src="defaultAvatar" alt="" class="rank-avatar" />
+                <UserAvatar
+                  :src="defaultAvatar"
+                  alt=""
+                  size="md"
+                  class="rank-avatar"
+                />
                 <span class="rank-username">Usuário</span>
               </div>
+              <div class="rank-title">
+                <InfluenceBadge
+                  :level="entry.level"
+                  :title="entry.title"
+                  :influence-points="entry.influencePoints"
+                  show-pe
+                />
+              </div>
               <div class="rank-influence">
-                <span class="points">{{ entry.influencePoints }}</span>
-                <span class="title">{{ entry.title }}</span>
+                <span class="points">{{ entry.influencePoints }} pts</span>
               </div>
             </li>
           </ol>
@@ -174,7 +201,7 @@
 import type { Group } from '~/types/app';
 import type { Database } from '~/types/supabase';
 import { countryFlagUrl, formatCountryName } from '~/utils/formatters';
-import { resolveGroupFlagUrl } from '~/utils/groupFlags';
+import { isMetaGroup, resolveGroupFlagUrl } from '~/utils/groupFlags';
 
 type PremiseRow = Pick<
   Database['public']['Tables']['premises']['Row'],
@@ -186,6 +213,7 @@ type RankEntry = {
   userId: string;
   influencePoints: number;
   title: string;
+  level: number;
   username: string | null;
   avatarUrl: string;
 };
@@ -210,6 +238,11 @@ const groupSlug = computed(() => {
 
 const groupPath = computed(() => `/${country.value}/${groupSlug.value}`);
 
+const isMetaGroupPage = computed(() => isMetaGroup(group.value));
+const showInfluenceRanking = computed(
+  () => !!group.value && (!group.value.is_open || isMetaGroupPage.value)
+);
+
 const isLoading = ref(true);
 const loadError = ref('');
 const group = ref<Group | null>(null);
@@ -219,6 +252,50 @@ const ranking = ref<RankEntry[]>([]);
 const isLoadingRank = ref(false);
 const premises = ref<PremiseRow[]>([]);
 const isLoadingPremises = ref(false);
+
+type GroupBreadcrumb = {
+  key: string;
+  name: string;
+  to: string | null;
+};
+
+const breadcrumbs = ref<GroupBreadcrumb[]>([]);
+
+/** Walk parent_group_id chain; append current group (link) + Detalhes. */
+async function buildBreadcrumbs(groupRow: Group) {
+  const ancestors: GroupBreadcrumb[] = [];
+  let parentId = groupRow.parent_group_id;
+  let guard = 0;
+
+  while (parentId && guard < 8) {
+    guard += 1;
+    const { data, error } = await supabase
+      .from('groups')
+      .select('id, name, slug, country_code, parent_group_id')
+      .eq('id', parentId)
+      .maybeSingle();
+
+    if (error || !data) break;
+
+    ancestors.unshift({
+      key: data.id,
+      name: data.name,
+      to: `/${data.country_code}/${data.slug}`,
+    });
+    parentId = data.parent_group_id;
+  }
+
+  breadcrumbs.value = [
+    { key: 'categories-root', name: 'Categorias', to: '/categories' },
+    ...ancestors,
+    {
+      key: groupRow.id,
+      name: groupRow.name,
+      to: `/${groupRow.country_code}/${groupRow.slug}`,
+    },
+    { key: 'details', name: 'Detalhes', to: null },
+  ];
+}
 
 const flagUrl = computed(() =>
   group.value
@@ -231,20 +308,17 @@ const flagUrl = computed(() =>
 
 const countryFlag = computed(() => countryFlagUrl(group.value?.country_code));
 
-const coverStyle = computed(() => {
-  if (!group.value?.cover_image_path) return {};
-  const url = `https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/covers/${group.value.cover_image_path}`;
-  return { backgroundImage: `url(${url})` };
+const headerBackgroundStyle = computed(() => {
+  if (group.value?.cover_image_path) {
+    const coverUrl = `https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/covers/${group.value.cover_image_path}`;
+    return { backgroundImage: `url('${coverUrl}')` };
+  }
+  return { backgroundColor: 'var(--primary-color-light)' };
 });
 
 function avatarUrlFor(path: string | null | undefined): string {
   if (!path) return defaultAvatar;
   return `${avatarBucket}/${path}`;
-}
-
-function onAvatarError(event: Event) {
-  const img = event.target as HTMLImageElement | null;
-  if (img) img.src = defaultAvatar;
 }
 
 async function loadPremises(groupId: string) {
@@ -273,9 +347,8 @@ async function loadRanking(groupId: string) {
   try {
     const { data: biases, error } = await supabase
       .from('biases')
-      .select('id, user_id, influence_points, title')
+      .select('id, user_id, influence_points, title, level, created_at')
       .eq('group_id', groupId)
-      .order('influence_points', { ascending: false })
       .limit(RANK_LIMIT);
 
     if (error) throw error;
@@ -297,20 +370,36 @@ async function loadRanking(groupId: string) {
     const userIds = [...new Set(rows.map((r) => r.user_id))];
     const { data: profiles, error: profileError } = await supabase
       .from('profiles')
-      .select('id, username, avatar_path')
+      .select('id, username, avatar_path, created_at')
       .in('id', userIds);
 
     if (profileError) throw profileError;
 
     const byId = new Map((profiles || []).map((p) => [p.id, p]));
 
-    ranking.value = rows.map((row) => {
+    const sorted = [...rows].sort((a, b) => {
+      const pointsDiff = (b.influence_points ?? 0) - (a.influence_points ?? 0);
+      if (pointsDiff !== 0) return pointsDiff;
+
+      const aProfile = byId.get(a.user_id)?.created_at || '';
+      const bProfile = byId.get(b.user_id)?.created_at || '';
+      if (aProfile !== bProfile) return aProfile < bProfile ? -1 : 1;
+
+      const aBias = a.created_at || '';
+      const bBias = b.created_at || '';
+      if (aBias !== bBias) return aBias < bBias ? -1 : 1;
+
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+    });
+
+    ranking.value = sorted.map((row) => {
       const profile = byId.get(row.user_id);
       return {
         biasId: row.id,
         userId: row.user_id,
         influencePoints: row.influence_points,
         title: row.title || 'Aspirante',
+        level: row.level ?? 1,
         username: profile?.username ?? null,
         avatarUrl: avatarUrlFor(profile?.avatar_path),
       };
@@ -330,6 +419,7 @@ async function loadDetails() {
   memberCount.value = 0;
   ranking.value = [];
   premises.value = [];
+  breadcrumbs.value = [];
 
   if (!country.value || !groupSlug.value) {
     loadError.value = 'Link do grupo incompleto.';
@@ -359,7 +449,7 @@ async function loadDetails() {
 
     group.value = data as Group;
 
-    const tasks: Promise<unknown>[] = [];
+    const tasks: Promise<unknown>[] = [buildBreadcrumbs(group.value)];
 
     if (group.value.has_subgroups) {
       tasks.push(
@@ -378,6 +468,8 @@ async function loadDetails() {
 
     if (!group.value.is_open) {
       tasks.push(loadPremises(group.value.id));
+      tasks.push(loadRanking(group.value.id));
+    } else if (isMetaGroup(group.value)) {
       tasks.push(loadRanking(group.value.id));
     } else {
       // Still show member count for open groups if anyone declared them
@@ -436,123 +528,158 @@ useSeoMeta({
   color: var(--primary-color);
 }
 
-.details-header {
-  position: relative;
-  margin-bottom: 1.75rem;
-  color: var(--header-text);
-}
-
-.header-background {
-  position: absolute;
-  inset: 0;
-  height: 200px;
-  background-color: var(--primary-color);
-  background-size: cover;
-  background-position: center;
-  z-index: 1;
-}
-
-.header-background::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-}
-
-.header-inner {
+.breadcrumb-nav {
   position: relative;
   z-index: 2;
-  padding-top: 1rem;
-  padding-bottom: 1.5rem;
-  min-height: 200px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.back-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  align-self: flex-start;
-  color: var(--header-text);
-  text-decoration: none;
+  margin: 0 auto;
+  padding: 0.85rem 15px 0;
   font-size: 0.9rem;
-  opacity: 0.92;
+  background: none;
+  box-shadow: none;
+  border-radius: 0;
 }
-
-.back-link:hover {
-  opacity: 1;
+.breadcrumb-nav ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+  align-items: center;
+}
+.breadcrumb-nav li:not(:last-child)::after {
+  content: '›';
+  margin-left: 0.5rem;
+  color: var(--header-text);
+  opacity: 0.85;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+  display: inline-block;
+}
+.breadcrumb-nav a,
+.breadcrumb-nav li span {
+  color: var(--header-text);
+  text-decoration: none;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+.breadcrumb-nav a:hover {
+  opacity: 0.85;
   text-decoration: none;
   color: var(--header-text);
 }
+.breadcrumb-nav li span.active {
+  font-weight: 500;
+  opacity: 0.95;
+}
 
-.header-main {
+.group-header {
+  color: var(--header-text);
+  position: relative;
+  margin-bottom: 2rem;
+}
+
+.header-background-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 250px;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--primary-color-light);
+  z-index: 1;
+}
+.header-background-image::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+.header-content {
+  position: relative;
+  z-index: 2;
+  padding-top: 1.25rem;
+  padding-bottom: 1.5rem;
   display: flex;
   align-items: flex-end;
-  gap: 1.25rem;
+  gap: 1.5rem;
+  min-height: calc(250px - 2.5rem);
 }
 
-.flag-wrap {
-  width: 96px;
-  height: 96px;
+.group-flag-container {
+  width: 120px;
+  height: 120px;
   border-radius: 8px;
   overflow: hidden;
   border: 3px solid var(--card-bg);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  background: var(--primary-color-dark);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  background-color: var(--primary-color);
   flex-shrink: 0;
 }
-
-.flag,
-.flag-placeholder {
+.group-flag-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  font-weight: bold;
+  color: var(--header-text);
+}
+.group-flag {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
+.group-flag.logo {
+  object-fit: contain;
+  padding: 0.7rem;
+  box-sizing: border-box;
+}
 
-.flag-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 2.4rem;
-  font-weight: 700;
+.group-title-info {
+  flex-grow: 1;
+}
+.group-title-info h1 {
+  font-size: 2.2rem;
+  margin-bottom: 0.25rem;
   color: var(--header-text);
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
 }
-
-.title-block h1 {
-  margin: 0 0 0.35rem;
-  font-size: 1.85rem;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.45);
-}
-
-.meta {
-  margin: 0;
+.group-meta {
+  font-size: 0.9rem;
+  color: var(--header-text);
+  opacity: 0.9;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.4);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem;
-  font-size: 0.9rem;
-  opacity: 0.95;
-  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.35);
+  gap: 0.35rem;
 }
-
 .country-with-flag {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
 }
-
 .country-flag {
+  display: inline-block;
+  width: 24px;
+  height: 18px;
+  object-fit: cover;
   border-radius: 2px;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
 }
-
-.access {
+.group-access-status {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
+}
+.group-status-icon {
+  flex-shrink: 0;
 }
 
 .details-body {
@@ -737,7 +864,7 @@ useSeoMeta({
 
 .rank-row {
   display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  grid-template-columns: 2rem minmax(0, 1.2fr) minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.75rem;
   padding: 0.65rem 0.35rem;
@@ -781,13 +908,10 @@ useSeoMeta({
   opacity: 0.75;
 }
 
-.rank-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  object-fit: cover;
-  background: #eee;
-  flex-shrink: 0;
+.rank-user :deep(.rank-avatar),
+.rank-user :deep(.user-avatar.rank-avatar) {
+  width: 2.5rem;
+  height: 2.5rem;
 }
 
 .rank-username {
@@ -797,11 +921,21 @@ useSeoMeta({
   white-space: nowrap;
 }
 
+.rank-title {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 0;
+}
+
+.rank-title :deep(.influence-badge) {
+  max-width: 100%;
+}
+
 .rank-influence {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.1rem;
+  align-items: center;
+  justify-content: flex-end;
   text-align: right;
 }
 
@@ -809,21 +943,22 @@ useSeoMeta({
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--primary-color-dark);
-}
-
-.rank-influence .title {
-  font-size: 0.78rem;
-  color: #777;
+  font-size: 0.9rem;
+  white-space: nowrap;
 }
 
 @media (max-width: 560px) {
-  .title-block h1 {
-    font-size: 1.45rem;
+  .group-title-info h1 {
+    font-size: 1.6rem;
   }
 
-  .flag-wrap {
-    width: 72px;
-    height: 72px;
+  .group-flag-container {
+    width: 88px;
+    height: 88px;
+  }
+
+  .header-content {
+    gap: 1rem;
   }
 
   .stats {
@@ -831,17 +966,19 @@ useSeoMeta({
   }
 
   .rank-row {
-    grid-template-columns: 1.75rem minmax(0, 1fr);
+    grid-template-columns: 1.75rem minmax(0, 1fr) auto;
     grid-template-rows: auto auto;
   }
 
-  .rank-influence {
+  .rank-title {
     grid-column: 2;
-    align-items: flex-start;
-    text-align: left;
-    flex-direction: row;
-    gap: 0.5rem;
-    padding-left: 2.55rem;
+    justify-content: flex-start;
+    padding-left: 3.05rem;
+  }
+
+  .rank-influence {
+    grid-row: 1;
+    grid-column: 3;
   }
 }
 </style>

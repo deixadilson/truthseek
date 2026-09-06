@@ -87,15 +87,20 @@
           A seta só aparece quando ambos defendem o mesmo viés.
         </p>
         <p>
-          Cada endosso adiciona pontos de influência, conforme o nível de quem
-          endossa. Também é possível <strong>desendossar</strong>, removendo
-          esses pontos.
+          Cada endosso concede pontos iguais ao
+          <strong>poder de endossamento (P.E.)</strong> de quem endossa naquele
+          viés. Com P.E. 0 o gesto pode ser registrado, mas não altera os pontos.
+          Também é possível <strong>desendossar</strong>, removendo os pontos
+          que aquele endosso havia concedido.
         </p>
 
-        <h3>4. Atingir 20 pontos</h3>
+        <h3>4. Liberar o grupo restrito</h3>
         <p>
-          Com <strong>20 pontos de influência</strong> no viés, você libera o
-          acesso ao grupo restrito: pode ver e criar postagens.
+          Você libera o acesso ao grupo restrito (ver e criar postagens) ao
+          atingir <strong>20 pontos de influência</strong> no viés
+          <strong>ou</strong> ao entrar nos <strong>50% mais influentes</strong>
+          daquele grupo (título Apologista ou superior), mesmo com menos de 20
+          pontos.
         </p>
       </section>
 
@@ -104,8 +109,10 @@
         <p>
           Em função do nível de influência em um viés, o usuário recebe um
           <strong>título</strong>, um <strong>poder de endossamento (P.E.)</strong>
-          e privilégios adicionais. Insígnias no perfil e molduras no avatar
-          refletem o título em cada viés.
+          e, no futuro, privilégios adicionais. Insígnias no perfil e molduras no
+          avatar já refletem o título em cada viés. O P.E. já define quantos
+          pontos um endosso concede; os demais privilégios da tabela abaixo
+          <strong>ainda não estão ativos</strong>.
         </p>
         <div class="table-wrap">
           <table class="privileges-table">
@@ -119,108 +126,23 @@
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>1</td>
-                <td>0 a 19 pontos</td>
-                <td>Aspirante</td>
-                <td>0</td>
-                <td>Pode endossar e ser endossado por outros usuários</td>
-              </tr>
-              <tr>
-                <td>2</td>
-                <td>20 a 29 pontos</td>
-                <td>Neófito</td>
-                <td>0</td>
-                <td>Participar de grupos restritos sem rivais</td>
-              </tr>
-              <tr>
-                <td>3</td>
-                <td>30 a 49 pontos</td>
-                <td>Iniciado</td>
-                <td>1</td>
+              <tr v-for="row in influenceLevels" :key="row.level">
+                <td>{{ row.level }}</td>
+                <td>{{ row.criterion }}</td>
                 <td>
-                  Participar de grupos restritos com rivais<br />
-                  Pode desendossar outros usuários
+                  <InfluenceBadge
+                    class="title-badge"
+                    :level="row.level"
+                    :title="row.title"
+                    show-pe
+                  />
                 </td>
-              </tr>
-              <tr>
-                <td>4</td>
-                <td>Mais de 49 pontos</td>
-                <td>Seguidor</td>
-                <td>1</td>
-                <td>Voto conta nos debates</td>
-              </tr>
-              <tr>
-                <td>5</td>
-                <td>50% mais influente</td>
-                <td>Apologista</td>
-                <td>2</td>
-                <td>Participar de grupos de debates</td>
-              </tr>
-              <tr>
-                <td>6</td>
-                <td>30% mais influente</td>
-                <td>Entusiasta</td>
-                <td>3</td>
-                <td>Desafiar usuários para debates</td>
-              </tr>
-              <tr>
-                <td>7</td>
-                <td>20% mais influente</td>
-                <td>Defensor</td>
-                <td>4</td>
+                <td>{{ row.pe }}</td>
                 <td>
-                  Marcar posts como falaciosos<br />
-                  Criar argumentos nas issues
+                  <template v-for="(line, i) in row.privileges" :key="i">
+                    <br v-if="i > 0" />{{ line }}
+                  </template>
                 </td>
-              </tr>
-              <tr>
-                <td>8</td>
-                <td>10% mais influente</td>
-                <td>Adepto</td>
-                <td>5</td>
-                <td>
-                  Desmarcar posts como falaciosos<br />
-                  Criar e editar artigos na wiki
-                </td>
-              </tr>
-              <tr>
-                <td>9</td>
-                <td>5% mais influente</td>
-                <td>Perito</td>
-                <td>7</td>
-                <td>Silenciar temporariamente membros do grupo</td>
-              </tr>
-              <tr>
-                <td>10</td>
-                <td>1% mais influente</td>
-                <td>Elite</td>
-                <td>10</td>
-                <td>Criar Issues. Criar eventos</td>
-              </tr>
-              <tr>
-                <td>11</td>
-                <td>Top 25 mais influentes</td>
-                <td>Mestre</td>
-                <td>12</td>
-                <td>
-                  Banir membros com menos de 50 pontos de influência<br />
-                  Excluir postagens
-                </td>
-              </tr>
-              <tr>
-                <td>12</td>
-                <td>Top 5 mais influentes</td>
-                <td>Grande-Mestre</td>
-                <td>15</td>
-                <td>Alterar a bandeira e capa do grupo</td>
-              </tr>
-              <tr>
-                <td>13</td>
-                <td>Top 1</td>
-                <td>Líder</td>
-                <td>20</td>
-                <td>Conceder poderes a outros membros</td>
               </tr>
             </tbody>
           </table>
@@ -228,6 +150,18 @@
         <p class="note">
           <strong>P.E.</strong> = poder de endossamento: quantos pontos de
           influência o endossado recebe quando você o endossa naquele viés.
+          Com P.E. 0 o gesto de endossar pode ser registrado, mas não altera
+          os pontos de influência. Níveis absolutos (NV 1–4) usam faixas de
+          pontos; a partir do NV 5 o nível também considera o percentil de
+          influência no grupo.
+        </p>
+        <p class="note">
+          <strong>Em vigor agora:</strong> títulos, molduras, badges, P.E. nos
+          endossos e acesso a grupos restritos com
+          <strong>20 pontos</strong> ou
+          <strong>top 50%</strong> (NV 5+). <strong>Ainda não ativos:</strong>
+          banir, silenciar, falácias, wiki, capa, debates formais e demais
+          privilégios listados na coluna “Privilégio”.
         </p>
       </section>
 
@@ -324,6 +258,112 @@
 </template>
 
 <script setup lang="ts">
+const influenceLevels = [
+  {
+    level: 1,
+    criterion: '0 a 19 pontos',
+    title: 'Aspirante',
+    pe: 0,
+    privileges: ['Pode endossar e ser endossado por outros usuários'],
+  },
+  {
+    level: 2,
+    criterion: '20 a 29 pontos',
+    title: 'Neófito',
+    pe: 0,
+    privileges: ['Participar de grupos restritos sem rivais'],
+  },
+  {
+    level: 3,
+    criterion: '30 a 49 pontos',
+    title: 'Iniciado',
+    pe: 1,
+    privileges: [
+      'Participar de grupos restritos com rivais',
+      'Pode desendossar outros usuários',
+    ],
+  },
+  {
+    level: 4,
+    criterion: 'Mais de 49 pontos',
+    title: 'Seguidor',
+    pe: 1,
+    privileges: ['Voto conta nos debates'],
+  },
+  {
+    level: 5,
+    criterion: '50% mais influente',
+    title: 'Apologista',
+    pe: 2,
+    privileges: ['Participar de grupos de debates'],
+  },
+  {
+    level: 6,
+    criterion: '30% mais influente',
+    title: 'Entusiasta',
+    pe: 3,
+    privileges: ['Desafiar usuários para debates'],
+  },
+  {
+    level: 7,
+    criterion: '20% mais influente',
+    title: 'Defensor',
+    pe: 4,
+    privileges: [
+      'Marcar posts como falaciosos',
+      'Criar argumentos nas issues',
+    ],
+  },
+  {
+    level: 8,
+    criterion: '10% mais influente',
+    title: 'Adepto',
+    pe: 5,
+    privileges: [
+      'Desmarcar posts como falaciosos',
+      'Criar e editar artigos na wiki',
+    ],
+  },
+  {
+    level: 9,
+    criterion: '5% mais influente',
+    title: 'Perito',
+    pe: 7,
+    privileges: ['Silenciar temporariamente membros do grupo'],
+  },
+  {
+    level: 10,
+    criterion: '1% mais influente',
+    title: 'Elite',
+    pe: 10,
+    privileges: ['Criar Issues. Criar eventos'],
+  },
+  {
+    level: 11,
+    criterion: 'Top 25 mais influentes',
+    title: 'Mestre',
+    pe: 12,
+    privileges: [
+      'Banir membros com menos de 50 pontos de influência',
+      'Excluir postagens',
+    ],
+  },
+  {
+    level: 12,
+    criterion: 'Top 5 mais influentes',
+    title: 'Grande-Mestre',
+    pe: 15,
+    privileges: ['Alterar a bandeira e capa do grupo'],
+  },
+  {
+    level: 13,
+    criterion: 'Top 1',
+    title: 'Líder',
+    pe: 20,
+    privileges: ['Conceder poderes a outros membros'],
+  },
+] as const;
+
 useHead({
   title: 'Como Funciona - TruthSeek Network',
   meta: [
@@ -458,6 +498,10 @@ useHead({
   background-color: #fafafa;
 }
 
+.title-badge {
+  white-space: nowrap;
+}
+
 .note {
   font-size: 0.95rem;
   color: #555;
@@ -466,12 +510,14 @@ useHead({
 .cta-section {
   margin-top: 2.5rem;
   padding-top: 0.5rem;
+  text-align: center;
 }
 
 .cta-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: 0.75rem;
   margin-top: 1.25rem;
 }

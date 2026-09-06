@@ -89,7 +89,7 @@
 import type { Database } from '~/types/supabase';
 import type { PostWithAuthor, CommentWithAuthor} from '~/types/app';
 import { useToast } from 'vue-toastification';
-import { MIN_INFLUENCE_TO_ENTER_GROUP } from '~/utils/formatters';
+import { canEnterClosedGroup } from '~/utils/formatters';
 import { buildPostOgMeta } from '~/utils/postOg';
 
 const route = useRoute();
@@ -104,6 +104,28 @@ const requestURL = useRequestURL();
 const postId = computed(() => String(route.params.id || ''));
 const post = ref<PostWithAuthor | null>(null);
 const comments = ref<CommentWithAuthor[]>([]);
+
+const { loadForAuthors, rankFor, ranks } = useGroupAuthorRanks(
+  () => post.value?.owner_id ?? null
+);
+provide('groupAuthorRanks', { rankFor, ranks });
+
+watch(
+  () =>
+    [
+      post.value?.owner_id,
+      post.value?.author_id,
+      comments.value.map((c) => c.author_id).join(','),
+    ] as const,
+  () => {
+    if (!post.value?.owner_id) return;
+    void loadForAuthors([
+      post.value.author_id,
+      ...comments.value.map((c) => c.author_id),
+    ]);
+  },
+  { immediate: true }
+);
 
 const isLoadingPost = ref(true);
 const postError = ref<string | null>(null);
@@ -155,17 +177,17 @@ async function canViewPost(postData: PostWithAuthor): Promise<boolean> {
   if (error || !group) return false;
   if (group.is_open) return true;
 
-  // Closed group: require influence threshold
+  // Closed group: 20+ points or top 50% (level ≥ 5)
   if (!authUserId.value) return false;
 
   const { data: bias } = await supabase
     .from('biases')
-    .select('influence_points')
+    .select('influence_points, level')
     .eq('user_id', authUserId.value)
     .eq('group_id', group.id)
     .maybeSingle();
 
-  return (bias?.influence_points ?? 0) >= MIN_INFLUENCE_TO_ENTER_GROUP;
+  return canEnterClosedGroup(bias);
 }
 
 type PostLoadResult = {

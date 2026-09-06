@@ -25,6 +25,24 @@ export function formatGender(genderCode: string | null | undefined): string {
 export const MIN_INFLUENCE_TO_ENTER_GROUP = 20;
 
 /**
+ * Minimum bias level (Apologista / NV 5+) for closed-group access via percentile.
+ * NV 5 = top 50% most influential in the group.
+ */
+export const MIN_LEVEL_TO_ENTER_GROUP = 5;
+
+/** Closed group access: 20+ points OR top 50% (level ≥ 5). */
+export function canEnterClosedGroup(bias: {
+  influence_points?: number | null;
+  level?: number | null;
+} | null | undefined): boolean {
+  if (!bias) return false;
+  return (
+    (bias.influence_points ?? 0) >= MIN_INFLUENCE_TO_ENTER_GROUP
+    || (bias.level ?? 0) >= MIN_LEVEL_TO_ENTER_GROUP
+  );
+}
+
+/**
  * Parse date strings without UTC shift for date-only values (YYYY-MM-DD),
  * which otherwise become the previous day in timezones west of UTC (e.g. Brazil).
  */
