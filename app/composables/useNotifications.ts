@@ -29,28 +29,36 @@ export function useNotifications() {
   const hasLoaded = useState<boolean>('notifications-loaded', () => false);
   const realtimeStarted = useState<boolean>('notifications-realtime-started', () => false);
 
-  function notificationMessage(n: AppNotification): string {
-    const actor = n.actor_username || 'Alguém';
+  function notificationActionText(n: AppNotification): string {
     switch (n.type) {
       case 'like':
         return n.target_type === 'comment'
-          ? `${actor} curtiu seu comentário`
-          : `${actor} curtiu sua postagem`;
+          ? 'curtiu seu comentário'
+          : 'curtiu sua postagem';
       case 'comment':
-        return `${actor} comentou na sua postagem`;
+        return 'comentou na sua postagem';
       case 'post_activity':
-        return `${actor} comentou em uma postagem que você acompanha`;
+        return 'comentou em uma postagem que você acompanha';
       case 'reply':
-        return `${actor} respondeu ao seu comentário`;
+        return 'respondeu ao seu comentário';
       case 'endorse':
-        return `${actor} endossou seu viés`;
+        return 'endossou seu viés';
       case 'follow_request':
-        return `${actor} pediu para te seguir`;
+        return 'pediu para te seguir';
       case 'follow_accepted':
-        return `${actor} aceitou sua solicitação de seguir`;
+        return 'aceitou sua solicitação de seguir';
       default:
-        return `${actor} interagiu com você`;
+        return 'interagiu com você';
     }
+  }
+
+  function notificationMessage(n: AppNotification): string {
+    const actor = n.actor_username || 'Alguém';
+    return `${actor} ${notificationActionText(n)}`;
+  }
+
+  function actorProfileLink(n: AppNotification): string | null {
+    return n.actor_username ? `/user/${n.actor_username}` : null;
   }
 
   function notificationLink(n: AppNotification): string | null {
@@ -308,6 +316,8 @@ export function useNotifications() {
     isLoading,
     hasLoaded,
     notificationMessage,
+    notificationActionText,
+    actorProfileLink,
     notificationLink,
     removeNotification,
     refreshUnreadCount,

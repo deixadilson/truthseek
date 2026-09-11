@@ -90,6 +90,17 @@
       </section>
 
       <section class="settings-section">
+        <h2>Senha</h2>
+        <NuxtLink to="/user/change-password" class="settings-link-row">
+          <span>
+            <strong>Alterar senha</strong>
+            <small>Defina uma nova senha para a sua conta.</small>
+          </span>
+          <Icon name="lucide:chevron-right" :size="18" class="settings-link-chevron" />
+        </NuxtLink>
+      </section>
+
+      <section class="settings-section">
         <h2>Usuários bloqueados</h2>
         <div v-if="isLoadingBlocked" class="loading-spinner">
           <LoadingMessage message="Carregando bloqueios..." />
@@ -311,6 +322,52 @@ onMounted(async () => {
   margin: 0 0 0.85rem;
   color: #666;
   font-size: 0.9rem;
+}
+
+.settings-link-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.15rem;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 4px;
+}
+
+.settings-link-row:hover {
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+.settings-link-row span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.settings-link-row strong {
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.settings-link-row:hover strong {
+  color: var(--primary-color);
+}
+
+.settings-link-row small {
+  color: #666;
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.settings-link-chevron {
+  flex-shrink: 0;
+  color: #999;
+}
+
+.settings-link-row:hover .settings-link-chevron {
+  color: var(--primary-color);
 }
 
 .setting-row {

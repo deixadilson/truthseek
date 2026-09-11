@@ -26,7 +26,13 @@
         :class="{ unread: !item.read_at }"
       >
         <div class="notification-row">
-          <button type="button" class="notification-main" @click="openItem(item)">
+          <div
+            class="notification-main"
+            role="button"
+            tabindex="0"
+            @click="openItem(item)"
+            @keydown.enter.prevent="openItem(item)"
+          >
             <img
               :src="actorAvatar(item)"
               alt=""
@@ -34,11 +40,22 @@
               @error="onAvatarError"
             />
             <div class="body">
-              <p class="text">{{ notificationMessage(item) }}</p>
+              <p class="text">
+                <NuxtLink
+                  v-if="actorProfileLink(item)"
+                  :to="actorProfileLink(item)!"
+                  class="actor-link"
+                  @click.stop="onActorClick(item)"
+                >
+                  {{ item.actor_username }}
+                </NuxtLink>
+                <span v-else class="actor-fallback">Alguém</span>
+                {{ ' ' + notificationActionText(item) }}
+              </p>
               <span class="time">{{ timeAgo(item.created_at) }}</span>
             </div>
             <span v-if="!item.read_at" class="unread-dot" aria-hidden="true" />
-          </button>
+          </div>
 
           <div
             v-if="item.type === 'follow_request' && item.actor_id"
@@ -103,7 +120,8 @@ const {
   unreadCount,
   isLoading,
   hasLoaded,
-  notificationMessage,
+  notificationActionText,
+  actorProfileLink,
   notificationLink,
   removeNotification,
   fetchNotifications,
@@ -147,6 +165,10 @@ async function openItem(item: AppNotification) {
   await markOneRead(item.id);
   const link = notificationLink(item);
   if (link) await navigateTo(link);
+}
+
+async function onActorClick(item: AppNotification) {
+  await markOneRead(item.id);
 }
 
 async function onAcceptRequest(item: AppNotification) {
@@ -279,6 +301,19 @@ onMounted(() => {
 
 .notification-main:hover .text {
   color: var(--primary-color);
+}
+
+.actor-link {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: none;
+}
+.actor-link:hover {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+.actor-fallback {
+  font-weight: 600;
 }
 
 .follow-request-actions {

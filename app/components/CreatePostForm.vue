@@ -31,41 +31,48 @@
       </div>
 
       <div class="form-actions-block">
-        <div class="form-actions-toolbar">
-          <label for="hidden-file-input" class="toolbar-action-btn button-secondary add-image-btn" title="Adicionar Imagem">
-            <Icon name="lucide:image" :size="16" />
-            <span class="btn-text">Imagem</span>
-          </label>
-          <input
-            type="file" id="hidden-file-input" @change="handleImageFileSelected"
-            accept="image/*" style="display: none" ref="fileInputRef"
-          />
+        <div
+          ref="toolbarRef"
+          class="form-actions-toolbar"
+          :class="{
+            'is-stacked': isToolbarStacked,
+            'has-issues': hasIssueToolbar,
+          }"
+        >
+          <div class="toolbar-primary-tools">
+            <label for="hidden-file-input" class="toolbar-action-btn button-secondary add-image-btn" title="Adicionar Imagem">
+              <Icon name="lucide:image" :size="16" />
+              <span class="btn-text">Imagem</span>
+            </label>
+            <input
+              type="file" id="hidden-file-input" @change="handleImageFileSelected"
+              accept="image/*" style="display: none" ref="fileInputRef"
+            />
 
-          <span class="toolbar-separator" aria-hidden="true" />
+            <span class="toolbar-separator" aria-hidden="true" />
 
-          <OptionToggle
-            v-model="isAnonymous"
-            label="Anônimo"
-            icon="lucide:hat-glasses"
-            title="Postar anonimamente"
-          />
-          <OptionToggle
-            v-model="isModeratedContent"
-            label="Moderado"
-            icon="lucide:shield-check"
-            title="Conteúdo requer moderação / Respostas moderadas"
-          />
+            <OptionToggle
+              v-model="isAnonymous"
+              label="Anônimo"
+              icon="lucide:hat-glasses"
+              title="Postar anonimamente"
+            />
+            <OptionToggle
+              v-model="isModeratedContent"
+              label="Moderado"
+              icon="lucide:shield-check"
+              title="Conteúdo requer moderação / Respostas moderadas"
+            />
+          </div>
 
-            <div
-              v-if="(ownerType === 'group' || ownerType === 'vs_group') && availableIssues.length > 0"
-              class="toolbar-group"
-            >
-              <span class="toolbar-separator" aria-hidden="true" />
-              <IssueSelector
-                v-model="selectedIssueIds"
-                :issues="availableIssues"
-              />
-            </div>
+          <template v-if="hasIssueToolbar">
+            <span class="toolbar-separator toolbar-issues-separator" aria-hidden="true" />
+            <IssueSelector
+              v-model="selectedIssueIds"
+              :issues="availableIssues"
+              class="toolbar-issues"
+            />
+          </template>
 
           <button type="submit" class="button-primary submit-post-btn" :disabled="isLoading || !canSubmit">
             <LoadingMessage v-if="isLoading" message="Postando..." :icon-size="16" />
@@ -152,6 +159,68 @@ const canSubmit = computed(
   () => canSubmitWith() && textContent.value.length <= 5000
 );
 
+const toolbarRef = ref<HTMLElement | null>(null);
+const isToolbarStacked = ref(false);
+let toolbarObserver: ResizeObserver | null = null;
+
+const hasIssueToolbar = computed(
+  () => (props.ownerType === 'group' || props.ownerType === 'vs_group')
+    && availableIssues.value.length > 0
+);
+
+function measureToolbarStack() {
+  const toolbar = toolbarRef.value;
+  if (!toolbar) return;
+
+  const primary = toolbar.querySelector('.toolbar-primary-tools') as HTMLElement | null;
+  const issues = toolbar.querySelector('.toolbar-issues') as HTMLElement | null;
+  const issuesSep = toolbar.querySelector('.toolbar-issues-separator') as HTMLElement | null;
+  const submit = toolbar.querySelector('.submit-post-btn') as HTMLElement | null;
+  if (!primary || !submit) return;
+
+  const gap = parseFloat(getComputedStyle(toolbar).columnGap || getComputedStyle(toolbar).gap || '0') || 0;
+
+  // Force natural widths for one synchronous reflow so stacked flex/grid growth
+  // does not inflate measured widths and lock the stacked state.
+  toolbar.classList.add('is-measuring');
+  const primaryWidth = primary.scrollWidth;
+  const issuesWidth = issues ? issues.scrollWidth : 0;
+  const issuesSepWidth = issuesSep ? issuesSep.offsetWidth : 0;
+  const submitWidth = submit.offsetWidth;
+  const available = toolbar.clientWidth;
+  toolbar.classList.remove('is-measuring');
+
+  const extras = issues
+    ? gap + issuesSepWidth + gap + issuesWidth
+    : 0;
+  const needsStack = primaryWidth + extras + gap + submitWidth > available + 1;
+  if (needsStack !== isToolbarStacked.value) {
+    isToolbarStacked.value = needsStack;
+  }
+}
+
+onMounted(() => {
+  measureToolbarStack();
+  if (typeof ResizeObserver === 'undefined' || !toolbarRef.value) return;
+  toolbarObserver = new ResizeObserver(() => {
+    measureToolbarStack();
+  });
+  toolbarObserver.observe(toolbarRef.value);
+});
+
+onBeforeUnmount(() => {
+  toolbarObserver?.disconnect();
+  toolbarObserver = null;
+});
+
+watch(
+  () => [hasIssueToolbar.value, isLoading.value] as const,
+  async () => {
+    await nextTick();
+    measureToolbarStack();
+  }
+);
+
 async function loadGroupIssues() {
   availableIssues.value = [];
   selectedIssueIds.value = [];
@@ -171,6 +240,9 @@ async function loadGroupIssues() {
   } catch (e: any) {
     console.error('Erro ao carregar issues do grupo:', e);
     availableIssues.value = [];
+  } finally {
+    await nextTick();
+    measureToolbarStack();
   }
 }
 
@@ -327,14 +399,15 @@ async function submitPost() {
 }
 .form-actions-toolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.45rem;
   padding-top: 0.15rem;
   min-width: 0;
 }
-.toolbar-group {
-  display: inline-flex;
+.toolbar-primary-tools {
+  display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.45rem;
   min-width: 0;
@@ -347,6 +420,103 @@ async function submitPost() {
   background: var(--border-color);
   flex-shrink: 0;
   align-self: center;
+}
+.toolbar-issues {
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+/* Stacked without issues: 3 tools full width, Postar below right */
+.form-actions-toolbar.is-stacked:not(.has-issues) {
+  flex-wrap: wrap;
+}
+.form-actions-toolbar.is-stacked:not(.has-issues) .toolbar-primary-tools {
+  flex: 1 1 100%;
+  width: 100%;
+}
+.form-actions-toolbar.is-stacked:not(.has-issues) .toolbar-primary-tools > :not(.toolbar-separator) {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.form-actions-toolbar.is-stacked:not(.has-issues) .toolbar-separator {
+  display: none;
+}
+.form-actions-toolbar.is-stacked:not(.has-issues) .toolbar-action-btn.add-image-btn,
+.form-actions-toolbar.is-stacked:not(.has-issues) :deep(.option-toggle) {
+  width: 100%;
+}
+.form-actions-toolbar.is-stacked:not(.has-issues) .submit-post-btn {
+  margin-left: auto;
+}
+
+/* Stacked with issues: 3 tools on row 1; Issues left + Postar right on row 2 */
+.form-actions-toolbar.is-stacked.has-issues {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "primary primary"
+    "issues postar";
+  align-items: center;
+  column-gap: 0.45rem;
+  row-gap: 0.45rem;
+}
+.form-actions-toolbar.is-stacked.has-issues .toolbar-primary-tools {
+  grid-area: primary;
+  width: 100%;
+}
+.form-actions-toolbar.is-stacked.has-issues .toolbar-primary-tools > :not(.toolbar-separator) {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.form-actions-toolbar.is-stacked.has-issues .toolbar-separator {
+  display: none;
+}
+.form-actions-toolbar.is-stacked.has-issues .toolbar-action-btn.add-image-btn,
+.form-actions-toolbar.is-stacked.has-issues .toolbar-primary-tools :deep(.option-toggle) {
+  width: 100%;
+}
+.form-actions-toolbar.is-stacked.has-issues .toolbar-issues {
+  grid-area: issues;
+  justify-self: start;
+}
+.form-actions-toolbar.is-stacked.has-issues .submit-post-btn {
+  grid-area: postar;
+  margin-left: 0;
+  justify-self: end;
+}
+
+/* Natural widths while measuring fit (avoids stacked layout locking). */
+.form-actions-toolbar.is-measuring {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  grid-template-columns: none !important;
+  grid-template-areas: none !important;
+}
+.form-actions-toolbar.is-measuring .toolbar-primary-tools {
+  flex: 0 0 auto !important;
+  width: auto !important;
+}
+.form-actions-toolbar.is-measuring .toolbar-primary-tools > :not(.toolbar-separator) {
+  flex: 0 0 auto !important;
+  min-width: auto !important;
+}
+.form-actions-toolbar.is-measuring .toolbar-separator {
+  display: inline-block !important;
+}
+.form-actions-toolbar.is-measuring .toolbar-action-btn.add-image-btn,
+.form-actions-toolbar.is-measuring :deep(.option-toggle),
+.form-actions-toolbar.is-measuring :deep(.issue-selector),
+.form-actions-toolbar.is-measuring :deep(.issue-selector .option-toggle) {
+  width: auto !important;
+}
+.form-actions-toolbar.is-measuring .toolbar-issues {
+  justify-self: auto !important;
+}
+.form-actions-toolbar.is-measuring .submit-post-btn {
+  margin-left: auto !important;
+  justify-self: auto !important;
 }
 .issue-chips {
   display: flex;

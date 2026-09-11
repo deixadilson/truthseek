@@ -119,6 +119,17 @@ a.button-primary:active {
   color: var(--primary-color);
   border: 1px solid var(--primary-color-light);
   border-radius: 4px;
+  display: inline-block;
+  padding: 0.7em 1.2em;
+  line-height: 1.4;
+  text-align: center;
+  text-decoration: none;
+  box-sizing: border-box;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+a.button-secondary {
+  text-decoration: none;
 }
 
 .button-secondary:hover,

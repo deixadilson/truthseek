@@ -41,7 +41,13 @@
           :class="{ unread: !item.read_at }"
         >
           <div class="bell-item-wrap">
-            <button type="button" class="bell-item" @click="openNotification(item)">
+            <div
+              class="bell-item"
+              role="button"
+              tabindex="0"
+              @click="openNotification(item)"
+              @keydown.enter.prevent="openNotification(item)"
+            >
               <img
                 :src="actorAvatar(item)"
                 alt=""
@@ -49,10 +55,21 @@
                 @error="onAvatarError"
               />
               <span class="bell-body">
-                <span class="bell-text">{{ notificationMessage(item) }}</span>
+                <span class="bell-text">
+                  <NuxtLink
+                    v-if="actorProfileLink(item)"
+                    :to="actorProfileLink(item)!"
+                    class="actor-link"
+                    @click.stop="onActorClick(item)"
+                  >
+                    {{ item.actor_username }}
+                  </NuxtLink>
+                  <span v-else class="actor-fallback">Alguém</span>
+                  {{ ' ' + notificationActionText(item) }}
+                </span>
                 <span class="bell-time">{{ timeAgo(item.created_at) }}</span>
               </span>
-            </button>
+            </div>
             <div
               v-if="item.type === 'follow_request' && item.actor_id"
               class="bell-follow-actions"
@@ -96,7 +113,8 @@ const {
   unreadCount,
   isLoading,
   hasLoaded,
-  notificationMessage,
+  notificationActionText,
+  actorProfileLink,
   notificationLink,
   removeNotification,
   fetchNotifications,
@@ -138,6 +156,11 @@ async function openNotification(item: AppNotification) {
   isOpen.value = false;
   const link = notificationLink(item);
   if (link) await navigateTo(link);
+}
+
+async function onActorClick(item: AppNotification) {
+  await markOneRead(item.id);
+  isOpen.value = false;
 }
 
 async function onAcceptRequest(item: AppNotification) {
@@ -379,6 +402,19 @@ onBeforeUnmount(() => {
 .bell-text {
   font-size: 0.86rem;
   line-height: 1.35;
+}
+
+.actor-link {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: none;
+}
+.actor-link:hover {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+.actor-fallback {
+  font-weight: 600;
 }
 
 .bell-time {

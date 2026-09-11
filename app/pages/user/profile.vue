@@ -651,9 +651,10 @@ watch(userProfile, (newProfileData) => {
   flex-shrink: 0;
   min-width: 120px;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.2rem;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.45rem;
   text-align: right;
   font-size: 0.9rem;
 }

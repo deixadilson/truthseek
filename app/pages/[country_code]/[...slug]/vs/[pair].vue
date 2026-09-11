@@ -254,11 +254,11 @@ const rightHeaderBgStyle = computed(() =>
   sideHeaderBgStyle(rightGroup.value?.cover_image_path, rightFlagFallback.value)
 );
 
-async function buildBreadcrumbsToOpenGroup(
-  start: Pick<Group, 'id' | 'name' | 'slug' | 'country_code' | 'parent_group_id' | 'is_open'>,
+async function buildBreadcrumbsToParent(
+  start: Pick<Group, 'id' | 'name' | 'slug' | 'country_code' | 'parent_group_id'>,
   vsTitle: string
 ) {
-  const chain: Array<Pick<Group, 'id' | 'name' | 'slug' | 'country_code' | 'parent_group_id' | 'is_open'>> = [start];
+  const chain: Array<Pick<Group, 'id' | 'name' | 'slug' | 'country_code' | 'parent_group_id'>> = [start];
   let parentId = start.parent_group_id;
   let guard = 0;
 
@@ -266,7 +266,7 @@ async function buildBreadcrumbsToOpenGroup(
     guard += 1;
     const { data, error } = await supabase
       .from('groups')
-      .select('id, name, slug, country_code, parent_group_id, is_open')
+      .select('id, name, slug, country_code, parent_group_id')
       .eq('id', parentId)
       .maybeSingle();
     if (error || !data) break;
@@ -274,22 +274,15 @@ async function buildBreadcrumbsToOpenGroup(
     parentId = data.parent_group_id;
   }
 
-  const openIdx = chain.findIndex((g) => g.is_open);
-  const openGroup = openIdx >= 0 ? chain[openIdx]! : chain[chain.length - 1]!;
-
-  const aboveOpen = chain.slice(openIdx + 1).reverse();
+  // chain is leaf-parent → root; reverse for Categorias → … → parent → VS
+  const ancestorsRootToParent = [...chain].reverse();
   breadcrumbs.value = [
     { key: 'categories-root', name: 'Categorias', to: '/categories' },
-    ...aboveOpen.map((g) => ({
+    ...ancestorsRootToParent.map((g) => ({
       key: g.id,
       name: g.name,
       to: `/${g.country_code}/${g.slug}`,
     })),
-    {
-      key: openGroup.id,
-      name: openGroup.name,
-      to: `/${openGroup.country_code}/${openGroup.slug}`,
-    },
     {
       key: 'vs-current',
       name: vsTitle,
@@ -517,13 +510,13 @@ async function loadVsPage() {
 
     const { data: parent, error: parentError } = await supabase
       .from('groups')
-      .select('id, name, slug, country_code, parent_group_id, is_open')
+      .select('id, name, slug, country_code, parent_group_id')
       .eq('id', gA.parent_group_id)
       .maybeSingle();
 
     if (parentError) throw parentError;
     if (parent) {
-      await buildBreadcrumbsToOpenGroup(parent, title);
+      await buildBreadcrumbsToParent(parent, title);
     } else {
       breadcrumbs.value = [
         { key: 'categories-root', name: 'Categorias', to: '/categories' },
