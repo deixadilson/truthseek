@@ -52,7 +52,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   (e: 'post-deleted', postId: string): void;
-  (e: 'post-updated', payload: { id: string; text_content: string | null; image_path: string | null; video_url: string | null; is_edited: boolean; updated_at: string }): void;
+  (e: 'post-updated', payload: { id: string; text_content: string | null; image_path: string | null; video_url: string | null; link_preview: import('~/types/linkPreview').LinkPreview | null; is_edited: boolean; updated_at: string }): void;
   (e: 'load-more'): void;
 }>();
 

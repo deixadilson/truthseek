@@ -5,7 +5,7 @@
       <div class="form-group">
         <MarkdownEditor
           v-model="textContent"
-          placeholder="O que você tem em mente? Cole ou arraste uma imagem ou cole um link de vídeo do YouTube/Vimeo aqui."
+          placeholder="O que você tem em mente? Cole uma imagem, um link de YouTube/Vimeo ou outro link HTTP(S) para prévia."
           :max-length="5000"
           :media-paste="handlePaste"
           :media-drop="handleDrop"
@@ -14,7 +14,7 @@
         />
       </div>
 
-      <div v-if="imagePreviewUrl || embedVideoUrl" class="media-preview-container form-group">
+      <div v-if="imagePreviewUrl || embedVideoUrl || linkPreview || isLinkPreviewLoading" class="media-preview-container form-group">
         <div v-if="imagePreviewUrl" class="image-preview">
           <img :src="imagePreviewUrl" alt="Pré-visualização da imagem" />
           <button type="button" @click="removeImage" class="remove-media-btn">×</button>
@@ -28,6 +28,15 @@
           ></iframe>
           <button type="button" @click="removeVideo" class="remove-media-btn">×</button>
         </div>
+        <div v-if="isLinkPreviewLoading" class="link-preview-loading">
+          <LoadingMessage message="Buscando prévia do link..." :icon-size="16" />
+        </div>
+        <LinkPreviewCard
+          v-else-if="linkPreview"
+          :preview="linkPreview"
+          removable
+          @remove="removeLinkPreview"
+        />
       </div>
 
       <div class="form-actions-block">
@@ -143,9 +152,12 @@ const {
   imagePreviewUrl,
   videoUrlToSave,
   embedVideoUrl,
+  linkPreview,
+  isLinkPreviewLoading,
   fileInputRef,
   removeImage,
   removeVideo,
+  removeLinkPreview,
   resetMedia,
   handlePaste,
   handleImageFileSelected,
@@ -156,7 +168,7 @@ const {
 } = useMediaAttachment(textContent);
 
 const canSubmit = computed(
-  () => canSubmitWith() && textContent.value.length <= 5000
+  () => canSubmitWith() && textContent.value.length <= 5000 && !isLinkPreviewLoading.value
 );
 
 const toolbarRef = ref<HTMLElement | null>(null);
@@ -278,7 +290,7 @@ async function submitPost() {
     return;
   }
 
-  if (!textContent.value.trim() && !imageFile.value && !videoUrlToSave.value) return;
+  if (!textContent.value.trim() && !imageFile.value && !videoUrlToSave.value && !linkPreview.value) return;
 
   isLoading.value = true;
   let imagePathToSave: string | null = null;
@@ -305,8 +317,9 @@ async function submitPost() {
         owner_id: props.ownerId,
         owner_type: props.ownerType,
         text_content: textContent.value.trim() || null,
-        image_path: imagePathToSave,
-        video_url: videoUrlToSave.value,
+        image_path: linkPreview.value || videoUrlToSave.value ? null : imagePathToSave,
+        video_url: linkPreview.value ? null : videoUrlToSave.value,
+        link_preview: linkPreview.value,
         is_anonymous: isAnonymous.value,
         is_moderated: isModeratedContent.value,
       })
@@ -391,6 +404,12 @@ async function submitPost() {
   transition: background-color 0.2s;
 }
 .remove-media-btn:hover { background-color: rgba(0,0,0,0.8); }
+.link-preview-loading {
+  padding: 1rem;
+  text-align: center;
+  color: #666;
+  font-size: 0.9rem;
+}
 .form-actions-block {
   display: flex;
   flex-direction: column;

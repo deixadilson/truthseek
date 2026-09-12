@@ -85,7 +85,7 @@
             rows="3"
             class="edit-textarea"
             maxlength="5000"
-            placeholder="Edite o texto. Cole um link de YouTube/Vimeo ou uma imagem para substituir a mídia."
+            placeholder="Edite o texto. Cole YouTube/Vimeo, outro link HTTP(S) ou uma imagem para substituir a mídia."
             @paste="handlePaste"
             @dragover.prevent="handleDragOver"
             @dragleave.prevent="handleDragLeave"
@@ -93,7 +93,7 @@
             :class="{ 'drag-over': isDraggingOver }"
           ></textarea>
 
-          <div v-if="imagePreviewUrl || editEmbedVideoUrl" class="media-preview-container">
+          <div v-if="imagePreviewUrl || editEmbedVideoUrl || linkPreview || isLinkPreviewLoading" class="media-preview-container">
             <div v-if="imagePreviewUrl" class="image-preview">
               <img :src="imagePreviewUrl" alt="Pré-visualização da imagem" />
               <button type="button" class="remove-media-btn" @click="removeImage">×</button>
@@ -102,6 +102,15 @@
               <iframe :src="editEmbedVideoUrl" frameborder="0" allowfullscreen></iframe>
               <button type="button" class="remove-media-btn" @click="removeVideo">×</button>
             </div>
+            <div v-if="isLinkPreviewLoading" class="link-preview-loading">
+              <LoadingMessage message="Buscando prévia..." :icon-size="14" />
+            </div>
+            <LinkPreviewCard
+              v-else-if="linkPreview"
+              :preview="linkPreview"
+              removable
+              @remove="removeLinkPreview"
+            />
           </div>
 
           <div class="edit-actions">
@@ -134,6 +143,9 @@
           </div>
           <div v-if="localVideoUrl && commentEmbedVideoUrl" class="comment-media">
             <iframe :src="commentEmbedVideoUrl || undefined" frameborder="0" allowfullscreen></iframe>
+          </div>
+          <div v-if="localLinkPreview" class="comment-media">
+            <LinkPreviewCard :preview="localLinkPreview" />
           </div>
         </template>
 
@@ -180,6 +192,7 @@ import type { CommentWithAuthor } from '~/types/app';
 import type { AuthorGroupRank } from '~/composables/useGroupAuthorRanks';
 import { useToast } from 'vue-toastification';
 import { formatTextToHtml, getEmbedVideoUrl, timeAgo } from '~/utils/formatters';
+import { normalizeLinkPreview, type LinkPreview } from '~/types/linkPreview';
 
 const props = defineProps<{
   comment: CommentWithAuthor;
@@ -194,6 +207,7 @@ export type CommentUpdatedPayload = {
   text_content: string | null;
   image_path: string | null;
   video_url: string | null;
+  link_preview: LinkPreview | null;
   is_edited: boolean;
   updated_at: string;
 };
@@ -231,6 +245,7 @@ const localDislikesCount = ref(props.comment.dislikes_count || 0);
 const localTextContent = ref(props.comment.text_content);
 const localImagePath = ref(props.comment.image_path);
 const localVideoUrl = ref(props.comment.video_url);
+const localLinkPreview = ref<LinkPreview | null>(normalizeLinkPreview(props.comment.link_preview));
 const localIsEdited = ref(!!props.comment.is_edited);
 
 const isEditing = ref(false);
@@ -244,10 +259,13 @@ const {
   imagePreviewUrl,
   videoUrlToSave,
   embedVideoUrl: editEmbedVideoUrl,
+  linkPreview,
+  isLinkPreviewLoading,
   isDraggingOver,
   fileInputRef,
   removeImage,
   removeVideo,
+  removeLinkPreview,
   resetMedia,
   initMedia,
   handlePaste,
@@ -259,7 +277,7 @@ const {
   canSubmitWith,
 } = useMediaAttachment(editText);
 
-const canSaveEdit = computed(() => canSubmitWith());
+const canSaveEdit = computed(() => canSubmitWith() && !isLinkPreviewLoading.value);
 
 const isAuthor = computed(() => {
   return !!authUserId.value && !!props.comment.author_id && authUserId.value === props.comment.author_id;
@@ -311,6 +329,7 @@ watchEffect(() => {
   localTextContent.value = props.comment.text_content;
   localImagePath.value = props.comment.image_path;
   localVideoUrl.value = props.comment.video_url;
+  localLinkPreview.value = normalizeLinkPreview(props.comment.link_preview);
   localIsEdited.value = !!props.comment.is_edited;
 });
 
@@ -374,6 +393,7 @@ function startEdit() {
       ? `https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/comment-media/${localImagePath.value}`
       : null,
     videoUrl: localVideoUrl.value,
+    linkPreview: localLinkPreview.value,
   });
   isEditing.value = true;
 }
@@ -402,19 +422,22 @@ async function saveEdit() {
     }
 
     const nextImagePath = resolveImagePath(uploadedPath);
-    const nextVideoUrl = videoUrlToSave.value;
+    const nextVideoUrl = linkPreview.value ? null : videoUrlToSave.value;
+    const nextLinkPreview = linkPreview.value;
 
     const { data, error } = await supabase.rpc('edit_comment', {
       p_comment_id: props.comment.id,
       p_text_content: editText.value.trim(),
       p_image_path: nextImagePath,
       p_video_url: nextVideoUrl,
+      p_link_preview: nextLinkPreview,
     });
     if (error) throw error;
     const updated = data as Database['public']['Tables']['comments']['Row'] | null;
     localTextContent.value = updated?.text_content ?? (editText.value.trim() || null);
     localImagePath.value = updated?.image_path ?? nextImagePath;
     localVideoUrl.value = updated?.video_url ?? nextVideoUrl;
+    localLinkPreview.value = normalizeLinkPreview(updated?.link_preview ?? nextLinkPreview);
     localIsEdited.value = true;
     isEditing.value = false;
     resetMedia();
@@ -424,6 +447,7 @@ async function saveEdit() {
       text_content: localTextContent.value,
       image_path: localImagePath.value,
       video_url: localVideoUrl.value,
+      link_preview: localLinkPreview.value,
       is_edited: true,
       updated_at: updated?.updated_at || new Date().toISOString(),
     });
@@ -625,6 +649,12 @@ function emitScrollToReply(commentId: string) {
   text-align: center;
   cursor: pointer;
   padding: 0;
+}
+.link-preview-loading {
+  padding: 0.5rem;
+  text-align: center;
+  color: #666;
+  font-size: 0.85rem;
 }
 .edit-textarea.drag-over {
   border-color: var(--primary-color);

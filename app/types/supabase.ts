@@ -113,6 +113,7 @@ export type Database = {
           text_content: string | null
           updated_at: string
           video_url: string | null
+          link_preview: Json | null
         }
         Insert: {
           author_id?: string | null
@@ -131,6 +132,7 @@ export type Database = {
           text_content?: string | null
           updated_at?: string
           video_url?: string | null
+          link_preview?: Json | null
         }
         Update: {
           author_id?: string | null
@@ -149,6 +151,7 @@ export type Database = {
           text_content?: string | null
           updated_at?: string
           video_url?: string | null
+          link_preview?: Json | null
         }
         Relationships: [
           {
@@ -178,6 +181,7 @@ export type Database = {
           target_type: string
           text_content: string | null
           video_url: string | null
+          link_preview: Json | null
         }
         Insert: {
           created_at?: string
@@ -189,6 +193,7 @@ export type Database = {
           target_type: string
           text_content?: string | null
           video_url?: string | null
+          link_preview?: Json | null
         }
         Update: {
           created_at?: string
@@ -200,6 +205,7 @@ export type Database = {
           target_type?: string
           text_content?: string | null
           video_url?: string | null
+          link_preview?: Json | null
         }
         Relationships: []
       }
@@ -701,6 +707,7 @@ export type Database = {
           text_content: string | null
           updated_at: string
           video_url: string | null
+          link_preview: Json | null
         }
         Insert: {
           author_id?: string | null
@@ -720,6 +727,7 @@ export type Database = {
           text_content?: string | null
           updated_at?: string
           video_url?: string | null
+          link_preview?: Json | null
         }
         Update: {
           author_id?: string | null
@@ -739,6 +747,7 @@ export type Database = {
           text_content?: string | null
           updated_at?: string
           video_url?: string | null
+          link_preview?: Json | null
         }
         Relationships: []
       }
@@ -1308,6 +1317,7 @@ export type Database = {
           text_content: string | null
           updated_at: string | null
           video_url: string | null
+          link_preview: Json | null
         }
         Relationships: [
           {
@@ -1365,6 +1375,7 @@ export type Database = {
           text_content: string | null
           updated_at: string | null
           video_url: string | null
+          link_preview: Json | null
         }
         Relationships: [
           {
@@ -1439,6 +1450,7 @@ export type Database = {
           p_image_path?: string
           p_text_content: string
           p_video_url?: string
+          p_link_preview?: Json
         }
         Returns: {
           author_id: string | null
@@ -1457,6 +1469,7 @@ export type Database = {
           text_content: string | null
           updated_at: string
           video_url: string | null
+          link_preview: Json | null
         }
         SetofOptions: {
           from: "*"
@@ -1471,6 +1484,7 @@ export type Database = {
           p_post_id: string
           p_text_content: string
           p_video_url?: string
+          p_link_preview?: Json
         }
         Returns: {
           author_id: string | null
@@ -1490,6 +1504,7 @@ export type Database = {
           text_content: string | null
           updated_at: string
           video_url: string | null
+          link_preview: Json | null
         }
         SetofOptions: {
           from: "*"
@@ -1581,6 +1596,7 @@ export type Database = {
           text_content: string | null
           updated_at: string | null
           video_url: string | null
+          link_preview: Json | null
         }[]
         SetofOptions: {
           from: "*"

@@ -119,7 +119,15 @@
           <h2>Subgrupos</h2>
           <ul>
             <li v-for="sub in subgroups" :key="sub.id">
-              <NuxtLink :to="`/${sub.country_code}/${sub.slug}`">{{ sub.name }}</NuxtLink>
+              <NuxtLink :to="`/${sub.country_code}/${sub.slug}`">
+                <img
+                  v-if="sub.flag_path"
+                  :src="`https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/flags/${sub.flag_path}`"
+                  :alt="`Bandeira de ${sub.name}`"
+                  class="subgroup-flag"
+                />
+                <span>{{ sub.name }}</span>
+              </NuxtLink>
             </li>
           </ul>
         </section>
@@ -283,7 +291,7 @@ const rankingByTitle = computed((): RankTitleGroup[] => {
 const isLoading = ref(true);
 const loadError = ref('');
 const group = ref<Group | null>(null);
-const subgroups = ref<Pick<Group, 'id' | 'name' | 'slug' | 'country_code'>[]>([]);
+const subgroups = ref<Pick<Group, 'id' | 'name' | 'slug' | 'country_code' | 'flag_path'>[]>([]);
 const memberCount = ref(0);
 const ranking = ref<RankEntry[]>([]);
 const isLoadingRank = ref(false);
@@ -496,7 +504,7 @@ async function loadDetails() {
       tasks.push(
         supabase
           .from('groups')
-          .select('id, name, slug, country_code')
+          .select('id, name, slug, country_code, flag_path')
           .eq('parent_group_id', group.value.id)
           .eq('country_code', country.value)
           .order('name', { ascending: true })
@@ -882,7 +890,9 @@ useSeoMeta({
 }
 
 .subgroups li a {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   padding: 0.55rem 0;
   border-bottom: 1px dotted var(--border-color);
   color: var(--link-color);
@@ -895,6 +905,14 @@ useSeoMeta({
 
 .subgroups li a:hover {
   color: var(--primary-color-dark);
+}
+
+.subgroup-flag {
+  width: 22px;
+  height: 22px;
+  object-fit: cover;
+  border-radius: 3px;
+  flex-shrink: 0;
 }
 
 .rank-groups {

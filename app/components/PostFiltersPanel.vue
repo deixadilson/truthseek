@@ -53,6 +53,7 @@
                   <OptionToggle v-model="showText" label="Texto" icon="lucide:type" title="Mostrar posts com texto" />
                   <OptionToggle v-model="showImage" label="Imagem" icon="lucide:image" title="Mostrar posts com imagem" />
                   <OptionToggle v-model="showVideo" label="Vídeo" icon="lucide:video" title="Mostrar posts com vídeo" />
+                  <OptionToggle v-model="showLink" label="Link" icon="lucide:link" title="Mostrar posts com prévia de link" />
                 </div>
               </div>
 
@@ -137,6 +138,7 @@ const isOpen = ref(false);
 const showText = ref(true);
 const showImage = ref(true);
 const showVideo = ref(true);
+const showLink = ref(true);
 const showModerated = ref(true);
 const showUnmoderated = ref(true);
 const selectedIssueIds = ref<string[]>([]);
@@ -181,7 +183,7 @@ watch([showModerated, showUnmoderated], ([moderated, unmoderated]) => {
 });
 
 const hasActiveFilters = computed(() => {
-  const mediaRestricted = !showText.value || !showImage.value || !showVideo.value;
+  const mediaRestricted = !showText.value || !showImage.value || !showVideo.value || !showLink.value;
   const modRestricted = !showModerated.value || !showUnmoderated.value;
   const issueRestricted = selectedIssueIds.value.length > 0;
   return mediaRestricted || modRestricted || issueRestricted || !!searchQuery.value.trim();
@@ -195,15 +197,17 @@ const filteredPosts = computed(() => {
     const hasText = !!(post.text_content && post.text_content.trim());
     const hasImage = !!post.image_path;
     const hasVideo = !!post.video_url;
+    const hasLink = !!(post.link_preview && typeof post.link_preview === 'object' && (post.link_preview as { url?: string }).url);
 
-    const mediaFilterActive = !showText.value || !showImage.value || !showVideo.value;
+    const mediaFilterActive = !showText.value || !showImage.value || !showVideo.value || !showLink.value;
     if (mediaFilterActive) {
-      const anyMedia = showText.value || showImage.value || showVideo.value;
+      const anyMedia = showText.value || showImage.value || showVideo.value || showLink.value;
       if (!anyMedia) return false;
       const matchesMedia =
         (showText.value && hasText) ||
         (showImage.value && hasImage) ||
-        (showVideo.value && hasVideo);
+        (showVideo.value && hasVideo) ||
+        (showLink.value && hasLink);
       if (!matchesMedia) return false;
     }
 
@@ -253,6 +257,7 @@ function resetFilters() {
   showText.value = true;
   showImage.value = true;
   showVideo.value = true;
+  showLink.value = true;
   showModerated.value = true;
   showUnmoderated.value = true;
   selectedIssueIds.value = [];

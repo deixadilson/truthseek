@@ -211,6 +211,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { Markdown } from 'tiptap-markdown';
 import { Dialog, DialogPanel, DialogTitle, TransitionRoot, TransitionChild } from '@headlessui/vue';
 import { getEmbedVideoUrl } from '~/utils/formatters';
+import { isStandaloneHttpUrl } from '~/types/linkPreview';
 
 const props = withDefaults(
   defineProps<{
@@ -245,7 +246,7 @@ function getMarkdownFromEditor(ed: NonNullable<typeof editor.value>): string {
 
 function clipboardHasMedia(event: ClipboardEvent): boolean {
   const text = event.clipboardData?.getData('text')?.trim();
-  if (text && getEmbedVideoUrl(text)) return true;
+  if (text && (getEmbedVideoUrl(text) || isStandaloneHttpUrl(text))) return true;
   const items = event.clipboardData?.items;
   if (!items) return false;
   for (let i = 0; i < items.length; i++) {
@@ -256,7 +257,7 @@ function clipboardHasMedia(event: ClipboardEvent): boolean {
 
 function dropHasMedia(event: DragEvent): boolean {
   const text = event.dataTransfer?.getData('text')?.trim();
-  if (text && getEmbedVideoUrl(text)) return true;
+  if (text && (getEmbedVideoUrl(text) || isStandaloneHttpUrl(text))) return true;
   const files = event.dataTransfer?.files;
   if (files) {
     for (let i = 0; i < files.length; i++) {

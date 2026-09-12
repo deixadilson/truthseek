@@ -718,6 +718,7 @@ function handlePostUpdated(payload: {
   text_content: string | null;
   image_path: string | null;
   video_url: string | null;
+  link_preview: import('~/types/linkPreview').LinkPreview | null;
   is_edited: boolean;
   updated_at: string;
 }) {

@@ -78,6 +78,9 @@
               <div v-if="revisionEmbedUrl" class="history-media">
                 <iframe :src="revisionEmbedUrl" frameborder="0" allowfullscreen></iframe>
               </div>
+              <div v-if="revisionLinkPreview" class="history-media">
+                <LinkPreviewCard :preview="revisionLinkPreview" />
+              </div>
             </div>
 
             <div v-if="revisions.length > 1" class="history-nav">
@@ -114,6 +117,7 @@ import { Dialog, DialogPanel, DialogTitle, TransitionRoot, TransitionChild } fro
 import type { Database } from '~/types/supabase';
 import { formatDate, formatTextToHtml, getEmbedVideoUrl } from '~/utils/formatters';
 import { renderPostMarkdown } from '~/utils/renderMarkdown';
+import { normalizeLinkPreview } from '~/types/linkPreview';
 
 type ContentRevision = Database['public']['Tables']['content_revisions']['Row'];
 
@@ -154,6 +158,7 @@ const revisionImageUrl = computed(() => {
 });
 
 const revisionEmbedUrl = computed(() => getEmbedVideoUrl(currentRevision.value?.video_url ?? null));
+const revisionLinkPreview = computed(() => normalizeLinkPreview(currentRevision.value?.link_preview));
 
 async function loadRevisions() {
   if (loaded.value || isLoading.value) return;

@@ -159,7 +159,15 @@
             <h4>Subgrupos</h4>
             <ul>
               <li v-for="subgroup in subgroups" :key="subgroup.id">
-                <NuxtLink :to="`/${subgroup.country_code}/${subgroup.slug}`">{{ subgroup.name }}</NuxtLink>
+                <NuxtLink :to="`/${subgroup.country_code}/${subgroup.slug}`">
+                  <img
+                    v-if="subgroup.flag_path"
+                    :src="`https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/flags/${subgroup.flag_path}`"
+                    :alt="`Bandeira de ${subgroup.name}`"
+                    class="sidebar-group-flag"
+                  />
+                  <span>{{ subgroup.name }}</span>
+                </NuxtLink>
               </li>
             </ul>
           </section>
@@ -183,7 +191,7 @@
                     v-if="opposite.flag_path"
                     :src="`https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/flags/${opposite.flag_path}`"
                     :alt="`Bandeira de ${opposite.name}`"
-                    class="opposite-flag"
+                    class="sidebar-group-flag"
                   />
                   <span>{{ opposite.name }}</span>
                 </NuxtLink>
@@ -634,7 +642,7 @@ async function fetchGroupData(country: string, slug: string): Promise<void> {
       if (groupData.value.has_subgroups) {
         const { data: subData, error: subError } = await supabase
           .from('groups')
-          .select('id, name, slug, country_code')
+          .select('id, name, slug, country_code, flag_path')
           .eq('parent_group_id', groupData.value.id)
           .eq('country_code', country)
           .order('name', { ascending: true });
@@ -668,7 +676,7 @@ function handlePostDeleted(postId: string) {
   posts.value = posts.value.filter((p) => p.id !== postId);
 }
 
-function handlePostUpdated(payload: { id: string; text_content: string | null; image_path: string | null; video_url: string | null; is_edited: boolean; updated_at: string }) {
+function handlePostUpdated(payload: { id: string; text_content: string | null; image_path: string | null; video_url: string | null; link_preview: import('~/types/linkPreview').LinkPreview | null; is_edited: boolean; updated_at: string }) {
   const index = posts.value.findIndex((p) => p.id === payload.id);
   if (index === -1) return;
   posts.value[index] = {
@@ -676,6 +684,7 @@ function handlePostUpdated(payload: { id: string; text_content: string | null; i
     text_content: payload.text_content,
     image_path: payload.image_path,
     video_url: payload.video_url,
+    link_preview: payload.link_preview,
     is_edited: payload.is_edited,
     updated_at: payload.updated_at,
   };
@@ -1037,7 +1046,7 @@ watch(authUserId, () => {
 .opposites-sidebar li a:hover {
   color: var(--primary-color-dark);
 }
-.opposite-flag {
+.sidebar-group-flag {
   width: 22px;
   height: 22px;
   object-fit: cover;

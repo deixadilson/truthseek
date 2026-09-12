@@ -7,7 +7,7 @@
     <form @submit.prevent="submitComment">
       <textarea
         v-model="commentText"
-        :placeholder="replyToCommentId ? 'Escreva sua resposta...' : 'Escreva um comentário... Cole um link de vídeo ou uma imagem aqui.'"
+        :placeholder="replyToCommentId ? 'Escreva sua resposta...' : 'Escreva um comentário... Cole uma imagem, YouTube/Vimeo ou outro link HTTP(S).'"
         rows="3"
         ref="commentTextareaRef"
         @paste="handlePaste"
@@ -16,7 +16,7 @@
         @drop.prevent="handleDrop"
         :class="{ 'drag-over': isDraggingOver }"
       ></textarea>
-      <div v-if="imagePreviewUrl || embedVideoUrl" class="media-preview-container form-group">
+      <div v-if="imagePreviewUrl || embedVideoUrl || linkPreview || isLinkPreviewLoading" class="media-preview-container form-group">
         <div v-if="imagePreviewUrl" class="image-preview">
           <img :src="imagePreviewUrl" alt="Pré-visualização da imagem" />
           <button type="button" @click="removeImage" class="remove-media-btn">×</button>
@@ -25,6 +25,15 @@
           <iframe :src="embedVideoUrl || undefined" frameborder="0" allowfullscreen></iframe>
           <button type="button" @click="removeVideo" class="remove-media-btn">×</button>
         </div>
+        <div v-if="isLinkPreviewLoading" class="link-preview-loading">
+          <LoadingMessage message="Buscando prévia..." :icon-size="14" />
+        </div>
+        <LinkPreviewCard
+          v-else-if="linkPreview"
+          :preview="linkPreview"
+          removable
+          @remove="removeLinkPreview"
+        />
       </div>
       <div class="comment-actions-toolbar">
         <div class="left-actions">
@@ -86,10 +95,13 @@ const {
   imagePreviewUrl,
   videoUrlToSave,
   embedVideoUrl,
+  linkPreview,
+  isLinkPreviewLoading,
   isDraggingOver,
   fileInputRef,
   removeImage,
   removeVideo,
+  removeLinkPreview,
   resetMedia,
   handlePaste,
   handleImageFileSelected,
@@ -99,7 +111,7 @@ const {
   canSubmitWith,
 } = useMediaAttachment(commentText);
 
-const canSubmit = computed(() => canSubmitWith());
+const canSubmit = computed(() => canSubmitWith() && !isLinkPreviewLoading.value);
 
 function resetForm() {
   commentText.value = '';
@@ -115,7 +127,7 @@ function cancelReply() {
 async function submitComment() {
   if (!canSubmit.value) return;
   if (!authUserId.value || !userProfile.value) return;
-  if (!commentText.value.trim() && !imageFile.value && !videoUrlToSave.value) return;
+  if (!commentText.value.trim() && !imageFile.value && !videoUrlToSave.value && !linkPreview.value) return;
 
   isSubmitting.value = true;
   let imagePathToSave: string | null = null;
@@ -141,8 +153,9 @@ async function submitComment() {
         post_id: props.postId,
         author_id: authUserId.value,
         text_content: commentText.value.trim() || null,
-        image_path: imagePathToSave,
-        video_url: videoUrlToSave.value,
+        image_path: linkPreview.value || videoUrlToSave.value ? null : imagePathToSave,
+        video_url: linkPreview.value ? null : videoUrlToSave.value,
+        link_preview: linkPreview.value,
         is_anonymous: isAnonymous.value,
         is_moderated: !!props.postIsModerated,
         reply_to: props.replyToCommentId || null,
@@ -255,6 +268,12 @@ textarea:focus {
   line-height: 18px; cursor: pointer; padding: 0;
 }
 .remove-media-btn:hover { background-color: rgba(0,0,0,0.7); }
+.link-preview-loading {
+  padding: 0.75rem;
+  text-align: center;
+  color: #666;
+  font-size: 0.85rem;
+}
 
 @media (max-width: 400px) {
   .add-image-btn .btn-text-optional { display: none; }

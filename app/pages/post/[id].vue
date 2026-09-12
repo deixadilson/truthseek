@@ -541,7 +541,7 @@ function handleCommentDeleted(commentId: string) {
   }
 }
 
-function handleCommentUpdated(payload: { id: string; text_content: string | null; image_path: string | null; video_url: string | null; is_edited: boolean; updated_at: string }) {
+function handleCommentUpdated(payload: { id: string; text_content: string | null; image_path: string | null; video_url: string | null; link_preview: import('~/types/linkPreview').LinkPreview | null; is_edited: boolean; updated_at: string }) {
   const index = comments.value.findIndex((c) => c.id === payload.id);
   if (index === -1) return;
   comments.value[index] = {
@@ -549,6 +549,7 @@ function handleCommentUpdated(payload: { id: string; text_content: string | null
     text_content: payload.text_content,
     image_path: payload.image_path,
     video_url: payload.video_url,
+    link_preview: payload.link_preview,
     is_edited: payload.is_edited,
     updated_at: payload.updated_at,
   };
@@ -558,13 +559,14 @@ async function handlePostDeleted() {
   await navigateTo(goBackLink.value);
 }
 
-function handlePostUpdated(payload: { id: string; text_content: string | null; image_path: string | null; video_url: string | null; is_edited: boolean; updated_at: string }) {
+function handlePostUpdated(payload: { id: string; text_content: string | null; image_path: string | null; video_url: string | null; link_preview: import('~/types/linkPreview').LinkPreview | null; is_edited: boolean; updated_at: string }) {
   if (!post.value || post.value.id !== payload.id) return;
   post.value = {
     ...post.value,
     text_content: payload.text_content,
     image_path: payload.image_path,
     video_url: payload.video_url,
+    link_preview: payload.link_preview,
     is_edited: payload.is_edited,
     updated_at: payload.updated_at,
   };
