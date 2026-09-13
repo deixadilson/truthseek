@@ -17,6 +17,20 @@ export default defineNuxtConfig({
     '@nuxtjs/supabase',
     '@nuxt/icon',
   ],
+  // Bundle Lucide locally (@iconify-json/lucide) so SSR does not fetch Iconify API.
+  icon: {
+    clientBundle: {
+      // Embed used icons at build time (avoids SSR failures on /api/_nuxt_icon).
+      scan: {
+        // Default scan skips plain .ts; composables build icon names dynamically.
+        globInclude: ['**/*.{vue,jsx,tsx,md,mdc,mdx,ts}'],
+      },
+      icons: ['lucide:loader-circle'],
+    },
+    serverBundle: {
+      collections: ['lucide'],
+    },
+  },
   // Canonical production origin for OG tags when the request host is unreliable
   // (set NUXT_PUBLIC_SITE_URL on Vercel, e.g. https://truthseek.network).
   runtimeConfig: {

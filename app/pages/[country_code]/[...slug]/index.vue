@@ -11,59 +11,72 @@
     <div v-else-if="groupData" class="group-content">
       <header class="group-header">
         <div class="header-background-image" :style="headerBackgroundStyle"></div>
-        <nav v-if="breadcrumbs.length > 0" aria-label="breadcrumb" class="breadcrumb-nav container">
-          <ol>
-            <li v-for="(crumb, index) in breadcrumbs" :key="crumb.key">
-              <span v-if="index === breadcrumbs.length - 1" class="active">{{ crumb.name }}</span>
-              <NuxtLink v-else-if="crumb.to" :to="crumb.to">{{ crumb.name }}</NuxtLink>
-              <span v-else>{{ crumb.name }}</span>
-            </li>
-          </ol>
-        </nav>
-        <div class="header-content container">
-          <div class="group-flag-container">
-            <img
-              v-if="groupFlagUrl"
-              :src="groupFlagUrl"
-              :alt="`Bandeira de ${groupData.name}`"
-              class="group-flag"
-              :class="{ logo: isMetaGroupPage }"
+        <div class="group-shell container" :class="{ 'has-shortcuts': !!authUserId }">
+          <div class="header-top">
+            <nav v-if="breadcrumbs.length > 0" aria-label="breadcrumb" class="breadcrumb-nav">
+              <ol>
+                <li v-for="(crumb, index) in breadcrumbs" :key="crumb.key">
+                  <span v-if="index === breadcrumbs.length - 1" class="active">{{ crumb.name }}</span>
+                  <NuxtLink v-else-if="crumb.to" :to="crumb.to">{{ crumb.name }}</NuxtLink>
+                  <span v-else>{{ crumb.name }}</span>
+                </li>
+              </ol>
+            </nav>
+            <span v-else class="header-top-spacer" aria-hidden="true" />
+            <FavoriteGroupButton
+              class="header-favorite"
+              target-type="group"
+              :target-id="groupData.id"
             />
-            <div v-else class="group-flag-placeholder">
-              <span>{{ groupData.name.substring(0, 1) }}</span>
-            </div>
           </div>
-          <div class="group-title-info">
-            <h1>{{ groupData.name }}</h1>
-            <p class="group-meta">
-              <span class="country-with-flag">
-                <img
-                  v-if="groupCountryFlag"
-                  :src="groupCountryFlag"
-                  :alt="`Bandeira de ${formatCountryName(groupData.country_code)}`"
-                  class="country-flag"
-                  width="24"
-                  height="18"
-                  loading="lazy"
-                />
-                {{ formatCountryName(groupData.country_code) }}
-              </span>
-              <span v-if="false">| Categoria: {{ groupData?.category_group_id }}</span>
-              <span class="group-access-status" :class="groupData.is_open ? 'open' : 'closed'">
-                |
-                <Icon
-                  :name="groupData.is_open ? 'lucide:unlock' : 'lucide:lock'"
-                  :size="14"
-                  class="group-status-icon"
-                />
-                Grupo {{ groupData.is_open ? 'Aberto' : 'Restrito' }}
-              </span>
-            </p>
+          <div class="header-content">
+            <div class="group-flag-container">
+              <img
+                v-if="groupFlagUrl"
+                :src="groupFlagUrl"
+                :alt="`Bandeira de ${groupData.name}`"
+                class="group-flag"
+                :class="{ logo: isMetaGroupPage }"
+              />
+              <div v-else class="group-flag-placeholder">
+                <span>{{ groupData.name.substring(0, 1) }}</span>
+              </div>
+            </div>
+            <div class="group-title-info">
+              <h1>{{ groupData.name }}</h1>
+              <p class="group-meta">
+                <span class="country-with-flag">
+                  <img
+                    v-if="groupCountryFlag"
+                    :src="groupCountryFlag"
+                    :alt="`Bandeira de ${formatCountryName(groupData.country_code)}`"
+                    class="country-flag"
+                    width="24"
+                    height="18"
+                    loading="lazy"
+                  />
+                  {{ formatCountryName(groupData.country_code) }}
+                </span>
+                <span v-if="false">| Categoria: {{ groupData?.category_group_id }}</span>
+                <span class="group-access-status" :class="groupData.is_open ? 'open' : 'closed'">
+                  |
+                  <Icon
+                    :name="groupData.is_open ? 'lucide:unlock' : 'lucide:lock'"
+                    :size="14"
+                    class="group-status-icon"
+                  />
+                  Grupo {{ groupData.is_open ? 'Aberto' : 'Restrito' }}
+                </span>
+              </p>
+            </div>
           </div>
         </div>
       </header>
 
-      <div class="group-body container">
+      <div class="group-body group-shell container" :class="{ 'has-shortcuts': !!authUserId }">
+        <aside v-if="authUserId" class="shortcuts-column" aria-label="Atalhos">
+          <GroupShortcutsNav variant="sidebar" />
+        </aside>
         <div class="main-column">
           <p v-if="groupData.description && !isMetaGroupPage" class="group-description">
             {{ groupData.description }}
@@ -445,6 +458,7 @@ async function confirmDeclareBias() {
     if (data) {
       // Re-fetch so level reflects percentile ranks after insert trigger.
       await resolveGroupAccess(groupData.value.id, !!groupData.value.is_open);
+      await useGroupShortcuts().refresh(true);
       toast.success('Viés declarado com sucesso!');
       declareBiasDialogOpen.value = false;
     }
@@ -737,12 +751,14 @@ watch(authUserId, () => {
 .breadcrumb-nav {
   position: relative;
   z-index: 2;
-  margin: 0 auto;
-  padding: 0.85rem 15px 0;
+  margin: 0;
+  padding: 0;
   font-size: 0.9rem;
   background: none;
   box-shadow: none;
   border-radius: 0;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 .breadcrumb-nav ol {
   list-style: none;
@@ -776,10 +792,46 @@ watch(authUserId, () => {
   opacity: 0.95;
 }
 
+.header-top {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.85rem;
+  padding-bottom: 0;
+}
+.header-top-spacer {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.header-favorite {
+  margin-top: 0.05rem;
+}
+
 .group-header {
   color: var(--header-text); /* Assumindo texto claro no header do grupo */
   position: relative;
   margin-bottom: 2rem;
+}
+
+.group-page {
+  --group-main-max: 800px;
+  --group-side-left: 14rem;
+  --group-side-right: 18rem;
+  --group-gap: 1.5rem;
+}
+
+.group-shell {
+  position: relative;
+  z-index: 2;
+}
+
+.group-header > .group-shell {
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
 }
 
 .header-background-image {
@@ -808,7 +860,8 @@ watch(authUserId, () => {
   display: flex;
   align-items: flex-end; /* Alinha flag e título na base */
   gap: 1.5rem;
-  min-height: calc(250px - 2.5rem);
+  flex: 1 1 auto;
+  min-height: 0;
   min-width: 0;
 }
 
@@ -892,9 +945,34 @@ watch(authUserId, () => {
   min-width: 0;
 }
 
+.shortcuts-column {
+  display: none;
+}
+
 @media (min-width: 992px) {
+  .group-shell.container {
+    max-width: calc(
+      var(--group-main-max) + var(--group-side-right) + var(--group-gap) + 30px
+    );
+  }
+  .group-shell.container.has-shortcuts {
+    max-width: calc(
+      var(--group-side-left) + var(--group-main-max) + var(--group-side-right)
+      + (var(--group-gap) * 2) + 30px
+    );
+  }
   .group-body {
-    grid-template-columns: 2.5fr 1fr; /* Desktop: conteúdo principal e sidebar */
+    grid-template-columns: minmax(0, var(--group-main-max)) minmax(14rem, var(--group-side-right));
+    justify-content: center;
+  }
+  .group-body.has-shortcuts {
+    grid-template-columns:
+      minmax(11rem, var(--group-side-left))
+      minmax(0, var(--group-main-max))
+      minmax(14rem, var(--group-side-right));
+  }
+  .shortcuts-column {
+    display: block;
   }
 }
 

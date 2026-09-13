@@ -17,84 +17,99 @@
           <div class="header-bg-side right" :style="rightHeaderBgStyle" />
         </div>
 
-        <nav v-if="breadcrumbs.length > 0" aria-label="breadcrumb" class="breadcrumb-nav container">
-          <ol>
-            <li v-for="(crumb, index) in breadcrumbs" :key="crumb.key">
-              <span v-if="index === breadcrumbs.length - 1" class="active">{{ crumb.name }}</span>
-              <NuxtLink v-else-if="crumb.to" :to="crumb.to">{{ crumb.name }}</NuxtLink>
-              <span v-else>{{ crumb.name }}</span>
-            </li>
-          </ol>
-        </nav>
+        <div class="group-shell container" :class="{ 'has-shortcuts': !!authUserId }">
+          <div class="header-top">
+            <nav v-if="breadcrumbs.length > 0" aria-label="breadcrumb" class="breadcrumb-nav">
+              <ol>
+                <li v-for="(crumb, index) in breadcrumbs" :key="crumb.key">
+                  <span v-if="index === breadcrumbs.length - 1" class="active">{{ crumb.name }}</span>
+                  <NuxtLink v-else-if="crumb.to" :to="crumb.to">{{ crumb.name }}</NuxtLink>
+                  <span v-else>{{ crumb.name }}</span>
+                </li>
+              </ol>
+            </nav>
+            <span v-else class="header-top-spacer" aria-hidden="true" />
+            <FavoriteGroupButton
+              v-if="vsGroupId"
+              class="header-favorite"
+              target-type="vs_group"
+              :target-id="vsGroupId"
+            />
+          </div>
 
-        <div class="header-content container">
-          <div class="vs-side left">
-            <div class="group-flag-container">
-              <img
-                v-if="leftFlagUrl"
-                :src="leftFlagUrl"
-                :alt="`Bandeira de ${leftGroup!.name}`"
-                class="group-flag"
-              >
-              <div v-else class="group-flag-placeholder">
-                <span>{{ leftGroup!.name.substring(0, 1) }}</span>
+          <div class="header-content">
+            <div class="vs-side left">
+              <div class="group-flag-container">
+                <img
+                  v-if="leftFlagUrl"
+                  :src="leftFlagUrl"
+                  :alt="`Bandeira de ${leftGroup!.name}`"
+                  class="group-flag"
+                >
+                <div v-else class="group-flag-placeholder">
+                  <span>{{ leftGroup!.name.substring(0, 1) }}</span>
+                </div>
+              </div>
+              <div class="vs-side-title">
+                <h1>
+                  <NuxtLink
+                    class="vs-side-name"
+                    :to="`/${leftGroup!.country_code}/${leftGroup!.slug}`"
+                  >
+                    {{ leftGroup!.name }}
+                  </NuxtLink>
+                </h1>
+                <NuxtLink
+                  class="vs-side-link"
+                  :to="`/${leftGroup!.country_code}/${leftGroup!.slug}/details`"
+                >
+                  detalhes
+                </NuxtLink>
               </div>
             </div>
-            <div class="vs-side-title">
-              <h1>
-                <NuxtLink
-                  class="vs-side-name"
-                  :to="`/${leftGroup!.country_code}/${leftGroup!.slug}`"
-                >
-                  {{ leftGroup!.name }}
-                </NuxtLink>
-              </h1>
-              <NuxtLink
-                class="vs-side-link"
-                :to="`/${leftGroup!.country_code}/${leftGroup!.slug}/details`"
-              >
-                detalhes
-              </NuxtLink>
-            </div>
-          </div>
 
-          <div class="vs-divider" aria-hidden="true">
-            <span class="vs-label">VS</span>
-          </div>
-
-          <div class="vs-side right">
-            <div class="vs-side-title">
-              <h1>
-                <NuxtLink
-                  class="vs-side-name"
-                  :to="`/${rightGroup!.country_code}/${rightGroup!.slug}`"
-                >
-                  {{ rightGroup!.name }}
-                </NuxtLink>
-              </h1>
-              <NuxtLink
-                class="vs-side-link"
-                :to="`/${rightGroup!.country_code}/${rightGroup!.slug}/details`"
-              >
-                detalhes
-              </NuxtLink>
+            <div class="vs-divider" aria-hidden="true">
+              <span class="vs-label">VS</span>
             </div>
-            <div class="group-flag-container">
-              <img
-                v-if="rightFlagUrl"
-                :src="rightFlagUrl"
-                :alt="`Bandeira de ${rightGroup!.name}`"
-                class="group-flag"
-              >
-              <div v-else class="group-flag-placeholder">
-                <span>{{ rightGroup!.name.substring(0, 1) }}</span>
+
+            <div class="vs-side right">
+              <div class="vs-side-title">
+                <h1>
+                  <NuxtLink
+                    class="vs-side-name"
+                    :to="`/${rightGroup!.country_code}/${rightGroup!.slug}`"
+                  >
+                    {{ rightGroup!.name }}
+                  </NuxtLink>
+                </h1>
+                <NuxtLink
+                  class="vs-side-link"
+                  :to="`/${rightGroup!.country_code}/${rightGroup!.slug}/details`"
+                >
+                  detalhes
+                </NuxtLink>
+              </div>
+              <div class="group-flag-container">
+                <img
+                  v-if="rightFlagUrl"
+                  :src="rightFlagUrl"
+                  :alt="`Bandeira de ${rightGroup!.name}`"
+                  class="group-flag"
+                >
+                <div v-else class="group-flag-placeholder">
+                  <span>{{ rightGroup!.name.substring(0, 1) }}</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </header>
 
-      <div class="vs-body container">
+      <div class="vs-body group-shell container" :class="{ 'has-shortcuts': !!authUserId }">
+        <aside v-if="authUserId" class="shortcuts-column" aria-label="Atalhos">
+          <GroupShortcutsNav variant="sidebar" />
+        </aside>
+        <div class="vs-main">
         <div
           v-if="accessChecked && !canInteractWithPosts"
           class="access-locked card-style"
@@ -161,6 +176,7 @@
             />
           </section>
         </template>
+        </div>
       </div>
     </div>
   </div>
@@ -576,9 +592,11 @@ watch(authUserId, async () => {
 .breadcrumb-nav {
   position: relative;
   z-index: 2;
-  margin: 0 auto;
-  padding: 0.85rem 15px 0;
+  margin: 0;
+  padding: 0;
   font-size: 0.9rem;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 .breadcrumb-nav ol {
   list-style: none;
@@ -609,6 +627,41 @@ watch(authUserId, async () => {
 .breadcrumb-nav li span.active {
   font-weight: 500;
   opacity: 0.95;
+}
+
+.header-top {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.85rem;
+  padding-bottom: 0;
+}
+.header-top-spacer {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.header-favorite {
+  margin-top: 0.05rem;
+}
+
+.vs-page {
+  --group-main-max: 800px;
+  --group-side-left: 14rem;
+  --group-gap: 1.5rem;
+}
+
+.group-shell {
+  position: relative;
+  z-index: 2;
+}
+
+.vs-header > .group-shell {
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
 }
 
 .vs-header {
@@ -657,7 +710,8 @@ watch(authUserId, async () => {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  min-height: 210px;
+  flex: 1 1 auto;
+  min-height: 0;
   min-width: 0;
 }
 
@@ -757,8 +811,43 @@ watch(authUserId, async () => {
 }
 
 .vs-body {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
   margin-bottom: 2rem;
   min-width: 0;
+}
+
+.vs-body > * {
+  min-width: 0;
+}
+
+.shortcuts-column {
+  display: none;
+}
+
+.vs-main {
+  min-width: 0;
+}
+
+@media (min-width: 992px) {
+  .group-shell.container {
+    max-width: calc(var(--group-main-max) + 30px);
+  }
+  .group-shell.container.has-shortcuts {
+    max-width: calc(
+      var(--group-side-left) + var(--group-main-max) + var(--group-gap) + 30px
+    );
+  }
+  .vs-body {
+    justify-content: center;
+  }
+  .vs-body.has-shortcuts {
+    grid-template-columns: minmax(11rem, var(--group-side-left)) minmax(0, var(--group-main-max));
+  }
+  .shortcuts-column {
+    display: block;
+  }
 }
 
 .access-locked {

@@ -13,58 +13,72 @@
     <template v-else-if="group">
       <header class="group-header">
         <div class="header-background-image" :style="headerBackgroundStyle" />
-        <nav v-if="breadcrumbs.length > 0" aria-label="breadcrumb" class="breadcrumb-nav container">
-          <ol>
-            <li v-for="(crumb, index) in breadcrumbs" :key="crumb.key">
-              <span v-if="index === breadcrumbs.length - 1" class="active">{{ crumb.name }}</span>
-              <NuxtLink v-else-if="crumb.to" :to="crumb.to">{{ crumb.name }}</NuxtLink>
-              <span v-else>{{ crumb.name }}</span>
-            </li>
-          </ol>
-        </nav>
-        <div class="header-content container">
-          <div class="group-flag-container">
-            <img
-              v-if="flagUrl"
-              :src="flagUrl"
-              :alt="`Bandeira de ${group.name}`"
-              class="group-flag"
-              :class="{ logo: isMetaGroupPage }"
+        <div class="group-shell container" :class="{ 'has-shortcuts': !!authUserId }">
+          <div class="header-top">
+            <nav v-if="breadcrumbs.length > 0" aria-label="breadcrumb" class="breadcrumb-nav">
+              <ol>
+                <li v-for="(crumb, index) in breadcrumbs" :key="crumb.key">
+                  <span v-if="index === breadcrumbs.length - 1" class="active">{{ crumb.name }}</span>
+                  <NuxtLink v-else-if="crumb.to" :to="crumb.to">{{ crumb.name }}</NuxtLink>
+                  <span v-else>{{ crumb.name }}</span>
+                </li>
+              </ol>
+            </nav>
+            <span v-else class="header-top-spacer" aria-hidden="true" />
+            <FavoriteGroupButton
+              class="header-favorite"
+              target-type="group"
+              :target-id="group.id"
             />
-            <div v-else class="group-flag-placeholder">
-              <span>{{ group.name.substring(0, 1) }}</span>
-            </div>
           </div>
-          <div class="group-title-info">
-            <h1>{{ group.name }}</h1>
-            <p class="group-meta">
-              <span class="country-with-flag">
-                <img
-                  v-if="countryFlag"
-                  :src="countryFlag"
-                  :alt="`Bandeira de ${formatCountryName(group.country_code)}`"
-                  class="country-flag"
-                  width="24"
-                  height="18"
-                  loading="lazy"
-                />
-                {{ formatCountryName(group.country_code) }}
-              </span>
-              <span class="group-access-status" :class="group.is_open ? 'open' : 'closed'">
-                |
-                <Icon
-                  :name="group.is_open ? 'lucide:unlock' : 'lucide:lock'"
-                  :size="14"
-                  class="group-status-icon"
-                />
-                Grupo {{ group.is_open ? 'Aberto' : 'Restrito' }}
-              </span>
-            </p>
+          <div class="header-content">
+            <div class="group-flag-container">
+              <img
+                v-if="flagUrl"
+                :src="flagUrl"
+                :alt="`Bandeira de ${group.name}`"
+                class="group-flag"
+                :class="{ logo: isMetaGroupPage }"
+              />
+              <div v-else class="group-flag-placeholder">
+                <span>{{ group.name.substring(0, 1) }}</span>
+              </div>
+            </div>
+            <div class="group-title-info">
+              <h1>{{ group.name }}</h1>
+              <p class="group-meta">
+                <span class="country-with-flag">
+                  <img
+                    v-if="countryFlag"
+                    :src="countryFlag"
+                    :alt="`Bandeira de ${formatCountryName(group.country_code)}`"
+                    class="country-flag"
+                    width="24"
+                    height="18"
+                    loading="lazy"
+                  />
+                  {{ formatCountryName(group.country_code) }}
+                </span>
+                <span class="group-access-status" :class="group.is_open ? 'open' : 'closed'">
+                  |
+                  <Icon
+                    :name="group.is_open ? 'lucide:unlock' : 'lucide:lock'"
+                    :size="14"
+                    class="group-status-icon"
+                  />
+                  Grupo {{ group.is_open ? 'Aberto' : 'Restrito' }}
+                </span>
+              </p>
+            </div>
           </div>
         </div>
       </header>
 
-      <div class="details-body container">
+      <div class="details-layout group-shell container" :class="{ 'has-shortcuts': !!authUserId }">
+        <aside v-if="authUserId" class="shortcuts-column" aria-label="Atalhos">
+          <GroupShortcutsNav variant="sidebar" />
+        </aside>
+        <div class="details-body">
         <p v-if="group.is_open && !isMetaGroupPage" class="open-notice card-style">
           Esta página de detalhes é pensada para grupos restritos (vieses).
           Grupos abertos concentram discussão geral — use o feed do grupo para participar.
@@ -213,6 +227,7 @@
             </section>
           </div>
         </section>
+        </div>
       </div>
     </template>
   </div>
@@ -248,6 +263,7 @@ type RankTitleGroup = {
 
 const route = useRoute();
 const supabase = useSupabaseClient();
+const authUserId = useAuthUserId();
 
 const defaultAvatar = '/images/default-avatar.png';
 const avatarBucket = 'https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/avatars';
@@ -580,12 +596,14 @@ useSeoMeta({
 .breadcrumb-nav {
   position: relative;
   z-index: 2;
-  margin: 0 auto;
-  padding: 0.85rem 15px 0;
+  margin: 0;
+  padding: 0;
   font-size: 0.9rem;
   background: none;
   box-shadow: none;
   border-radius: 0;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 .breadcrumb-nav ol {
   list-style: none;
@@ -618,6 +636,41 @@ useSeoMeta({
 .breadcrumb-nav li span.active {
   font-weight: 500;
   opacity: 0.95;
+}
+
+.header-top {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.85rem;
+  padding-bottom: 0;
+}
+.header-top-spacer {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.header-favorite {
+  margin-top: 0.05rem;
+}
+
+.group-details-page {
+  --group-main-max: 800px;
+  --group-side-left: 14rem;
+  --group-gap: 1.5rem;
+}
+
+.group-shell {
+  position: relative;
+  z-index: 2;
+}
+
+.group-header > .group-shell {
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
 }
 
 .group-header {
@@ -655,7 +708,8 @@ useSeoMeta({
   display: flex;
   align-items: flex-end;
   gap: 1.5rem;
-  min-height: calc(250px - 2.5rem);
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .group-flag-container {
@@ -691,6 +745,7 @@ useSeoMeta({
 
 .group-title-info {
   flex-grow: 1;
+  min-width: 0;
 }
 .group-title-info h1 {
   font-size: 2.2rem;
@@ -731,11 +786,48 @@ useSeoMeta({
   flex-shrink: 0;
 }
 
+.details-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  min-width: 0;
+  margin-bottom: 2rem;
+}
+
+.details-layout > * {
+  min-width: 0;
+}
+
+.shortcuts-column {
+  display: none;
+}
+
 .details-body {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-  max-width: 720px;
+  max-width: var(--group-main-max, 800px);
+  width: 100%;
+}
+
+@media (min-width: 992px) {
+  .group-shell.container {
+    max-width: calc(var(--group-main-max) + 30px);
+  }
+  .group-shell.container.has-shortcuts {
+    max-width: calc(
+      var(--group-side-left) + var(--group-main-max) + var(--group-gap) + 30px
+    );
+  }
+  .details-layout {
+    justify-content: center;
+  }
+  .details-layout.has-shortcuts {
+    grid-template-columns: minmax(11rem, var(--group-side-left)) minmax(0, var(--group-main-max));
+  }
+  .shortcuts-column {
+    display: block;
+  }
 }
 
 .open-notice {

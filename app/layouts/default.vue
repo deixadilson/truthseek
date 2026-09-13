@@ -57,10 +57,12 @@
             <img :src="userProfile.avatar_path ? `${avatarBucketPath}/${userProfile.avatar_path}` : defaultUserAvatar" alt="Avatar" class="nav-user-avatar-mobile" @error="onNavAvatarError" />
             <span>Meu Perfil</span>
           </NuxtLink>
-          <NuxtLink to="/" @click="closeMobileMenu">Início</NuxtLink>
-          <NuxtLink to="/user/notifications" @click="closeMobileMenu">Notificações</NuxtLink>
-          <NuxtLink to="/categories" @click="closeMobileMenu">Categorias</NuxtLink>
-          <a href="#" @click.prevent="handleLogoutMobile">Sair</a>
+          <NuxtLink to="/" class="mobile-nav-item" @click="closeMobileMenu">Início</NuxtLink>
+          <NuxtLink to="/categories" class="mobile-nav-item" @click="closeMobileMenu">Categorias</NuxtLink>
+          <div class="mobile-nav-divider" aria-hidden="true" />
+          <GroupShortcutsNav variant="mobile" @navigate="closeMobileMenu" />
+          <div class="mobile-nav-divider" aria-hidden="true" />
+          <a href="#" class="mobile-nav-item" @click.prevent="handleLogoutMobile">Sair</a>
         </template>
         <template v-else>
           <NuxtLink to="/" @click="closeMobileMenu">Início</NuxtLink>
@@ -154,9 +156,11 @@ watch(authUserId, (userId) => {
   if (userId) {
     fetchAndSetUserProfile(userId);
     void refreshBlockedIds();
+    void useGroupShortcuts().ensureLoaded();
   } else {
     userProfile.value = null;
     blockedIds.value = [];
+    useGroupShortcuts().clear();
   }
 }, { immediate: true });
 </script>
@@ -272,12 +276,39 @@ watch(authUserId, (userId) => {
   background: none; border-left: none; border-right: none; border-top: none;
   width: 100%; text-align: left; cursor: pointer;
 }
-.mobile-nav-content a:last-of-type, .mobile-nav-content button:last-of-type { border-bottom: none; }
+.mobile-nav-content .mobile-nav-item:last-child {
+  border-bottom: none;
+}
+.mobile-nav-content .mobile-nav-item:has(+ .mobile-nav-divider),
+.mobile-nav-content .user-nav-link-mobile:has(+ .mobile-nav-divider) {
+  border-bottom: none;
+}
 .mobile-nav-content a:hover, .mobile-nav-content button:hover { color: var(--primary-color-light); }
-.mobile-nav-content hr {
+.mobile-nav-divider {
+  height: 0;
+  margin: 0.55rem 0;
   border: none;
-  border-top: 1px solid color-mix(in srgb, var(--header-text) 30%, transparent);
-  margin: 0.75rem 0;
+  border-top: 1px solid color-mix(in srgb, var(--header-text) 28%, transparent);
+}
+.mobile-nav-content :deep(.group-shortcuts-nav) {
+  margin: 0;
+  padding: 0;
+}
+.mobile-nav-content :deep(.group-shortcuts-nav a) {
+  border-bottom: 1px solid color-mix(in srgb, var(--header-text) 10%, transparent);
+  padding: 0.55rem 0;
+  font-size: 0.95rem;
+}
+.mobile-nav-content :deep(.group-shortcuts-nav .shortcuts-section) {
+  border-bottom: none;
+}
+.mobile-nav-content :deep(.group-shortcuts-nav .shortcuts-section + .shortcuts-section) {
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid color-mix(in srgb, var(--header-text) 18%, transparent);
+}
+.mobile-nav-content :deep(.group-shortcuts-nav .shortcuts-list li:last-child a) {
+  border-bottom: none;
 }
 .user-nav-link-mobile {
   display: flex !important; align-items: center; gap: 0.75rem;
