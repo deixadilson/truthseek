@@ -357,6 +357,39 @@
           </div>
         </div>
 
+        <div class="faq-item" :class="{ open: isOpen('bots') }">
+          <button
+            type="button"
+            class="faq-question"
+            :aria-expanded="isOpen('bots')"
+            aria-controls="faq-answer-bots"
+            @click="toggle('bots')"
+          >
+            Como a plataforma lida com bots e usuários falsos?
+          </button>
+          <div
+            id="faq-answer-bots"
+            class="faq-answer-expand"
+            :class="{ open: isOpen('bots') }"
+          >
+            <div class="faq-answer-expand-inner">
+              <div class="faq-answer">
+                <p>
+                  A relevância na TruthSeek não vem do simples cadastro, e sim da
+                  <strong>ascensão da conta</strong>: é preciso ser
+                  <strong>endossado por outros usuários reais</strong> que defendem
+                  o mesmo viés, acumulando influência e desbloqueando participação
+                  efetiva nos espaços da rede. Contas automatizadas ou fictícias
+                  tendem a não obter esses endossos de forma sustentável; sem
+                  progresso na conta, permanecem sem peso nos rankings, nos grupos
+                  restritos e nas dinâmicas de influência — e, portanto, sem
+                  relevância prática na plataforma.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="faq-item" :class="{ open: isOpen('pouco-popular') }">
           <button
             type="button"

@@ -32,10 +32,10 @@
             <NuxtLink to="/" class="nav-link">Início</NuxtLink>
             <span class="nav-separator">|</span>
             <NuxtLink to="/categories" class="nav-link">Categorias</NuxtLink>
-            <span class="nav-separator">|</span>
-            <NuxtLink to="/user/login" class="nav-link">Entrar</NuxtLink>
-            <span class="nav-separator">|</span>
-            <NuxtLink to="/user/register" class="nav-link">Cadastrar</NuxtLink>
+            <span class="nav-auth-group">
+              <NuxtLink to="/user/register" class="nav-cta-primary">Criar meu perfil</NuxtLink>
+              <NuxtLink to="/user/login" class="nav-cta-secondary">Entrar</NuxtLink>
+            </span>
           </template>
         </div>
         <NotificationBell v-if="user && userProfile" class="nav-notification-bell" />
@@ -57,18 +57,47 @@
             <img :src="userProfile.avatar_path ? `${avatarBucketPath}/${userProfile.avatar_path}` : defaultUserAvatar" alt="Avatar" class="nav-user-avatar-mobile" @error="onNavAvatarError" />
             <span>Meu Perfil</span>
           </NuxtLink>
-          <NuxtLink to="/" class="mobile-nav-item" @click="closeMobileMenu">Início</NuxtLink>
-          <NuxtLink to="/categories" class="mobile-nav-item" @click="closeMobileMenu">Categorias</NuxtLink>
+          <NuxtLink to="/" class="mobile-nav-item" @click="closeMobileMenu">
+            <Icon name="lucide:home" :size="18" class="mobile-nav-icon" aria-hidden="true" />
+            <span>Início</span>
+          </NuxtLink>
+          <NuxtLink to="/categories" class="mobile-nav-item" @click="closeMobileMenu">
+            <Icon name="lucide:layout-grid" :size="18" class="mobile-nav-icon" aria-hidden="true" />
+            <span>Categorias</span>
+          </NuxtLink>
           <div class="mobile-nav-divider" aria-hidden="true" />
           <GroupShortcutsNav variant="mobile" @navigate="closeMobileMenu" />
           <div class="mobile-nav-divider" aria-hidden="true" />
-          <a href="#" class="mobile-nav-item" @click.prevent="handleLogoutMobile">Sair</a>
+          <a href="#" class="mobile-nav-item" @click.prevent="handleLogoutMobile">
+            <Icon name="lucide:log-out" :size="18" class="mobile-nav-icon" aria-hidden="true" />
+            <span>Sair</span>
+          </a>
         </template>
         <template v-else>
-          <NuxtLink to="/" @click="closeMobileMenu">Início</NuxtLink>
-          <NuxtLink to="/categories" @click="closeMobileMenu">Categorias</NuxtLink>
-          <NuxtLink to="/user/login" @click="closeMobileMenu">Entrar</NuxtLink>
-          <NuxtLink to="/user/register" @click="closeMobileMenu">Cadastrar</NuxtLink>
+          <NuxtLink to="/" class="mobile-nav-item" @click="closeMobileMenu">
+            <Icon name="lucide:home" :size="18" class="mobile-nav-icon" aria-hidden="true" />
+            <span>Início</span>
+          </NuxtLink>
+          <NuxtLink to="/categories" class="mobile-nav-item" @click="closeMobileMenu">
+            <Icon name="lucide:layout-grid" :size="18" class="mobile-nav-icon" aria-hidden="true" />
+            <span>Categorias</span>
+          </NuxtLink>
+          <div class="mobile-nav-auth">
+            <NuxtLink
+              to="/user/register"
+              class="mobile-cta-primary"
+              @click="closeMobileMenu"
+            >
+              Criar meu perfil
+            </NuxtLink>
+            <NuxtLink
+              to="/user/login"
+              class="mobile-cta-secondary"
+              @click="closeMobileMenu"
+            >
+              Entrar
+            </NuxtLink>
+          </div>
         </template>
       </nav>
     </div>
@@ -125,10 +154,10 @@ async function fetchAndSetUserProfile(userId: string) {
       userProfile.value = data;
     } else {
       userProfile.value = null;
-      console.warn(`Perfil nÃƒÂ£o encontrado para o usuÃƒÂ¡rio ${userId}`);
+      console.warn(`Perfil não encontrado para o usuário ${userId}`);
     }
   } catch (e: any) {
-    console.error('Erro ao buscar perfil do usuÃƒÂ¡rio para o estado:', e);
+    console.error('Erro ao buscar perfil do usuário para o estado:', e);
     userProfile.value = null;
   }
 }
@@ -139,7 +168,7 @@ function closeMobileMenu() { isMobileMenuOpen.value = false; }
 async function handleLogout() {
   const { error } = await supabase.auth.signOut();
   if (error) { toast.error(error.message || 'Falha ao sair.'); }
-  else { toast.success('VocÃƒÂª saiu com sucesso!'); router.push('/'); }
+  else { toast.success('Você saiu com sucesso!'); router.push('/'); }
 }
 
 async function handleLogoutMobile() {
@@ -199,7 +228,7 @@ watch(authUserId, (userId) => {
   text-overflow: ellipsis;
 }
 
-.nav-link, .main-nav .desktop-nav-items a {
+.nav-link, .main-nav .desktop-nav-items a:not(.nav-cta-primary):not(.nav-cta-secondary) {
   color: var(--header-text);
   text-decoration: none;
   padding: 0.4em 0.6em;
@@ -209,7 +238,7 @@ watch(authUserId, (userId) => {
   white-space: nowrap;
   cursor: pointer;
 }
-.nav-link:hover, .main-nav .desktop-nav-items a:hover {
+.nav-link:hover, .main-nav .desktop-nav-items a:not(.nav-cta-primary):not(.nav-cta-secondary):hover {
   color: var(--primary-color-light);
 }
 
@@ -223,6 +252,130 @@ watch(authUserId, (userId) => {
   color: color-mix(in srgb, var(--header-text) 50%, transparent);
   margin: 0 0.5rem;
   font-weight: 300;
+}
+
+.nav-auth-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: 0.5rem;
+}
+
+.nav-cta-primary,
+.nav-cta-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45em 1.1em;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  text-decoration: none;
+  box-sizing: border-box;
+  border-radius: 999px;
+  transition: color 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.2s ease;
+}
+
+/* Higher specificity than `.main-nav .desktop-nav-items a` (white header text + radius 4px). */
+.main-nav .desktop-nav-items a.nav-cta-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45em 1.15em;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.25;
+  background-color: #fff;
+  color: var(--primary-color);
+  border: 1px solid #fff;
+  border-radius: 999px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.main-nav .desktop-nav-items a.nav-cta-primary:hover,
+.main-nav .desktop-nav-items a.nav-cta-primary:focus {
+  color: var(--primary-color);
+  background-color: #fff;
+  border-color: #fff;
+  border-radius: 999px;
+  box-shadow:
+    0 4px 10px rgba(0, 0, 0, 0.06),
+    0 12px 28px rgba(0, 113, 128, 0.18);
+}
+
+.main-nav .desktop-nav-items a.nav-cta-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45em 1.15em;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.25;
+  background-color: transparent;
+  color: var(--header-text);
+  border: 1px solid color-mix(in srgb, var(--header-text) 70%, transparent);
+  border-radius: 999px;
+}
+
+.main-nav .desktop-nav-items a.nav-cta-secondary:hover,
+.main-nav .desktop-nav-items a.nav-cta-secondary:focus {
+  color: var(--primary-color-light);
+  background-color: transparent;
+  border-color: var(--primary-color-light);
+  border-radius: 999px;
+}
+
+.mobile-nav-auth {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 0.5rem;
+}
+
+.mobile-nav-content .mobile-cta-primary,
+.mobile-nav-content .mobile-cta-secondary {
+  display: block;
+  width: 100%;
+  text-align: center;
+  padding: 0.8rem 1.15rem;
+  border-bottom: none;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 600;
+  box-sizing: border-box;
+  text-decoration: none;
+}
+
+.mobile-nav-content a.mobile-cta-primary {
+  color: var(--primary-color) !important;
+  background-color: #fff;
+  border: 1px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  transition: color 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.2s ease;
+}
+
+.mobile-nav-content a.mobile-cta-primary:hover {
+  color: var(--primary-color) !important;
+  background-color: #fff;
+  border-color: #fff;
+  box-shadow:
+    0 4px 10px rgba(0, 0, 0, 0.06),
+    0 12px 28px rgba(0, 113, 128, 0.18);
+}
+
+.mobile-nav-content a.mobile-cta-secondary {
+  color: var(--header-text) !important;
+  background-color: transparent;
+  border: 1px solid color-mix(in srgb, var(--header-text) 65%, transparent);
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.mobile-nav-content a.mobile-cta-secondary:hover {
+  color: var(--primary-color-light) !important;
+  background-color: transparent;
+  border-color: var(--primary-color-light);
 }
 .user-profile-link {
   display: flex;
@@ -275,6 +428,15 @@ watch(authUserId, (userId) => {
   font-size: 1.05rem; font-weight: 500;
   background: none; border-left: none; border-right: none; border-top: none;
   width: 100%; text-align: left; cursor: pointer;
+}
+.mobile-nav-content .mobile-nav-item {
+  display: flex !important;
+  align-items: center;
+  gap: 0.7rem;
+}
+.mobile-nav-icon {
+  flex-shrink: 0;
+  opacity: 0.92;
 }
 .mobile-nav-content .mobile-nav-item:last-child {
   border-bottom: none;

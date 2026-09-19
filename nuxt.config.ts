@@ -25,7 +25,12 @@ export default defineNuxtConfig({
         // Default scan skips plain .ts; composables build icon names dynamically.
         globInclude: ['**/*.{vue,jsx,tsx,md,mdc,mdx,ts}'],
       },
-      icons: ['lucide:loader-circle'],
+      icons: [
+        'lucide:loader-circle',
+        'lucide:home',
+        'lucide:layout-grid',
+        'lucide:log-out',
+      ],
     },
     serverBundle: {
       collections: ['lucide'],
