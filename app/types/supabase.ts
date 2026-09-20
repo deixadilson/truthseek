@@ -862,7 +862,7 @@ export type Database = {
         Row: {
           auto_accept_follow_requests: boolean
           avatar_path: string | null
-          birth_date: string
+          birth_date: string | null
           country_code: string | null
           created_at: string
           default_moderated_posts: boolean
@@ -870,7 +870,7 @@ export type Database = {
           email_notify_endorse: boolean
           email_notify_like: boolean
           email_notify_reply: boolean
-          gender: string
+          gender: string | null
           id: string
           profile_visibility: string
           updated_at: string | null
@@ -879,7 +879,7 @@ export type Database = {
         Insert: {
           auto_accept_follow_requests?: boolean
           avatar_path?: string | null
-          birth_date: string
+          birth_date?: string | null
           country_code?: string | null
           created_at?: string
           default_moderated_posts?: boolean
@@ -887,7 +887,7 @@ export type Database = {
           email_notify_endorse?: boolean
           email_notify_like?: boolean
           email_notify_reply?: boolean
-          gender: string
+          gender?: string | null
           id?: string
           profile_visibility?: string
           updated_at?: string | null
@@ -896,7 +896,7 @@ export type Database = {
         Update: {
           auto_accept_follow_requests?: boolean
           avatar_path?: string | null
-          birth_date?: string
+          birth_date?: string | null
           country_code?: string | null
           created_at?: string
           default_moderated_posts?: boolean
@@ -904,7 +904,7 @@ export type Database = {
           email_notify_endorse?: boolean
           email_notify_like?: boolean
           email_notify_reply?: boolean
-          gender?: string
+          gender?: string | null
           id?: string
           profile_visibility?: string
           updated_at?: string | null

@@ -94,7 +94,7 @@
               e acumular influência.
             </p>
             <div v-if="!authUserId" class="access-actions">
-              <NuxtLink to="/user/register" class="button-primary">Criar conta</NuxtLink>
+              <NuxtLink to="/user/signup" class="button-primary">Criar conta</NuxtLink>
               <NuxtLink to="/user/login" class="button-secondary">Entrar</NuxtLink>
             </div>
             <template v-else-if="!userBiasForGroup">

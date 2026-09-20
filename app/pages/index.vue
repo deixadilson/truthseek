@@ -7,7 +7,7 @@
         <div class="hero-text">
           <h2>Bem-vindo à TruthSeek Network</h2>
           <p>Uma rede social descentralizada para a busca da verdade através do debate estruturado e da troca de ideias.</p>
-          <NuxtLink to="/user/register" class="button-primary hero-cta">
+          <NuxtLink to="/user/signup" class="button-primary hero-cta">
             Criar meu perfil
           </NuxtLink>
         </div>
@@ -42,7 +42,7 @@
         <h3>Já é membro? Faça seu login</h3>
         <LoginForm />
         <div class="user-actions">
-          <NuxtLink to="/user/register">Criar meu perfil</NuxtLink> |
+          <NuxtLink to="/user/signup">Criar meu perfil</NuxtLink> |
           <NuxtLink to="/user/password-recovery">Esqueceu a senha?</NuxtLink>
         </div>
       </aside>
@@ -61,7 +61,8 @@
         <div class="site-links">
           <NuxtLink to="/how-it-works">Como Funciona</NuxtLink> |
           <NuxtLink to="/faq">FAQ</NuxtLink> |
-          <NuxtLink to="/terms-of-service">Termos de Serviço</NuxtLink>
+          <NuxtLink to="/terms-of-service">Termos de Serviço</NuxtLink> |
+          <NuxtLink to="/privacy-policy">Privacidade</NuxtLink>
         </div>
       </section>
     </div>

@@ -273,7 +273,7 @@ function isBiasDeclared(groupId: string): boolean {
 async function openDeclareBiasDialog(group: Group) {
   if (!authUserId.value) {
     toast.info('É necessário criar uma conta para defender um viés. Cadastre-se ou faça login.');
-    await navigateTo('/user/register');
+    await navigateTo('/user/signup');
     return;
   }
 

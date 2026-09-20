@@ -9,3 +9,9 @@ export const useAuthUserId = () => {
   const user = useSupabaseUser();
   return computed(() => user.value?.sub ?? null);
 };
+
+export function isProfileComplete(
+  profile: Pick<Profile, 'gender' | 'birth_date'> | null | undefined,
+): boolean {
+  return Boolean(profile?.gender && profile?.birth_date);
+}

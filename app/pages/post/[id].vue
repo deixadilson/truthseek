@@ -27,7 +27,7 @@
         />
         <div v-else-if="post && !user" class="guest-comment-prompt">
           <p>
-            <NuxtLink to="/user/register">Crie uma conta</NuxtLink>
+            <NuxtLink to="/user/signup">Crie uma conta</NuxtLink>
             ou
             <NuxtLink to="/user/login">faça login</NuxtLink>
             para comentar.

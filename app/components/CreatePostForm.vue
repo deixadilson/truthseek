@@ -286,7 +286,7 @@ async function submitPost() {
 
   if (!authUserId.value) {
     toast.info('É necessário criar uma conta para publicar. Cadastre-se ou faça login.');
-    await navigateTo('/user/register');
+    await navigateTo('/user/signup');
     return;
   }
 

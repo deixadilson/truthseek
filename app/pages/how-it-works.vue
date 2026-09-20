@@ -251,7 +251,7 @@
           participe da busca pela coerência das ideias.
         </p>
         <div class="cta-actions">
-          <NuxtLink to="/user/register" class="cta-btn cta-btn-primary">Criar conta</NuxtLink>
+          <NuxtLink to="/user/signup" class="cta-btn cta-btn-primary">Criar conta</NuxtLink>
           <NuxtLink to="/categories" class="cta-btn cta-btn-secondary">Explorar categorias</NuxtLink>
           <NuxtLink to="/faq" class="cta-btn cta-btn-secondary">Ver FAQ</NuxtLink>
         </div>

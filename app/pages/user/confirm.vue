@@ -19,7 +19,7 @@
         <p>{{ errorMessage }}</p>
         <div class="actions">
           <NuxtLink to="/user/login" class="button-primary">Ir para o login</NuxtLink>
-          <NuxtLink to="/user/register" class="button-secondary">Criar conta</NuxtLink>
+          <NuxtLink to="/user/signup" class="button-secondary">Criar conta</NuxtLink>
         </div>
       </div>
     </div>
@@ -64,11 +64,42 @@ function queryError(): string | null {
 
 function resolveRedirectPath(): string {
   try {
+    if (typeof sessionStorage !== 'undefined') {
+      const stored = sessionStorage.getItem('ts_post_auth_redirect');
+      if (stored && stored.startsWith('/')) {
+        sessionStorage.removeItem('ts_post_auth_redirect');
+        return stored;
+      }
+    }
+  } catch {
+    // ignore storage errors
+  }
+
+  try {
     const redirectInfo = useSupabaseCookieRedirect();
     return redirectInfo.pluck() || '/';
   } catch {
     return '/';
   }
+}
+
+async function resolvePostAuthPath(userId: string): Promise<string> {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('gender, birth_date')
+    .eq('id', userId)
+    .maybeSingle();
+
+  const nextPath = resolveRedirectPath();
+
+  if (!isProfileComplete(profile)) {
+    if (nextPath !== '/' && typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem('ts_post_auth_redirect', nextPath);
+    }
+    return '/user/complete-profile';
+  }
+
+  return nextPath;
 }
 
 async function redirectAfterSuccess(event?: string | null) {
@@ -85,7 +116,8 @@ async function redirectAfterSuccess(event?: string | null) {
   successMessage.value = 'Conta confirmada com sucesso!';
   status.value = 'success';
 
-  const path = resolveRedirectPath();
+  const userId = user.value?.sub;
+  const path = userId ? await resolvePostAuthPath(userId) : resolveRedirectPath();
   await new Promise((resolve) => setTimeout(resolve, 700));
   await navigateTo(path);
 }

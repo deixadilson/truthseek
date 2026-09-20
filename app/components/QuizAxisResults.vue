@@ -66,7 +66,7 @@
               </button>
               <NuxtLink
                 v-else
-                :to="`/user/register?redirect=${encodeURIComponent(defendRedirect)}`"
+                :to="`/user/signup?redirect=${encodeURIComponent(defendRedirect)}`"
                 class="button-primary"
               >
                 Defender este viés
@@ -429,7 +429,7 @@ async function publishToHostGroup() {
 
   if (!authUserId.value) {
     toast.info('É necessário criar uma conta para publicar. Cadastre-se ou faça login.');
-    await navigateTo(`/user/register?redirect=${encodeURIComponent(props.defendRedirect)}`);
+    await navigateTo(`/user/signup?redirect=${encodeURIComponent(props.defendRedirect)}`);
     return;
   }
 

@@ -58,7 +58,9 @@ export default defineNuxtConfig({
         '/faq',
         '/how-it-works',
         '/terms-of-service',
+        '/privacy-policy',
         '/user/register',
+        '/user/signup',
         '/user/password-recovery',
         // Public profiles (/user/:username); protected pages use auth middleware
         '/user/**',

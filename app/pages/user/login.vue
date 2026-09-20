@@ -8,7 +8,7 @@
         <NuxtLink to="/user/password-recovery">Esqueceu a senha?</NuxtLink>
         <p>
           Não tem uma conta?
-          <NuxtLink to="/user/register">Cadastre-se aqui</NuxtLink>.
+          <NuxtLink to="/user/signup">Cadastre-se aqui</NuxtLink>.
         </p>
       </div>
     </div>

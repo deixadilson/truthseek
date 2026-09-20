@@ -111,9 +111,6 @@
           HIPÓTESE A TRUTHSEEK NETWORK SERÁ RESPONSÁVEL POR QUAISQUER DANOS
           INDIRETOS, INCIDENTAIS, ESPECIAIS, CONSEQUENCIAIS OU PUNITIVOS.
         </p>
-        <p>
-          <strong>[ESTA É UMA CLÁUSULA LEGAL MUITO IMPORTANTE. CONSULTE UM ADVOGADO.]</strong>
-        </p>
       </section>
 
       <section>
@@ -131,7 +128,7 @@
         <h2>8. Contato</h2>
         <p>
           Se você tiver alguma dúvida sobre estes Termos, entre em contato
-          conosco em [seu email de contato ou link para página de contato].
+          conosco.
         </p>
       </section>
     </article>

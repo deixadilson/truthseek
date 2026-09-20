@@ -33,7 +33,7 @@
             <span class="nav-separator">|</span>
             <NuxtLink to="/categories" class="nav-link">Categorias</NuxtLink>
             <span class="nav-auth-group">
-              <NuxtLink to="/user/register" class="nav-cta-primary">Criar meu perfil</NuxtLink>
+              <NuxtLink to="/user/signup" class="nav-cta-primary">Criar meu perfil</NuxtLink>
               <NuxtLink to="/user/login" class="nav-cta-secondary">Entrar</NuxtLink>
             </span>
           </template>
@@ -84,7 +84,7 @@
           </NuxtLink>
           <div class="mobile-nav-auth">
             <NuxtLink
-              to="/user/register"
+              to="/user/signup"
               class="mobile-cta-primary"
               @click="closeMobileMenu"
             >
@@ -111,7 +111,8 @@
         <br />
         <NuxtLink to="/how-it-works" class="footer-link">Como Funciona</NuxtLink> |
         <NuxtLink to="/faq" class="footer-link">FAQ</NuxtLink> |
-        <NuxtLink to="/terms-of-service" class="footer-link">Termos de Serviço</NuxtLink>
+        <NuxtLink to="/terms-of-service" class="footer-link">Termos de Serviço</NuxtLink> |
+        <NuxtLink to="/privacy-policy" class="footer-link">Privacidade</NuxtLink>
       </p>
     </footer>
   </div>

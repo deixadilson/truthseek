@@ -84,7 +84,10 @@
         <div class="form-group terms">
           <input type="checkbox" id="terms" v-model="acceptedTerms" required>
           <label for="terms">
-            Li e concordo com os <NuxtLink to="/terms-of-service" target="_blank">Termos de Serviço</NuxtLink>.
+            Li e concordo com os
+            <NuxtLink to="/terms-of-service" target="_blank">Termos de Serviço</NuxtLink>
+            e a
+            <NuxtLink to="/privacy-policy" target="_blank">Política de Privacidade</NuxtLink>.
           </label>
         </div>
 
@@ -119,6 +122,46 @@ const confirmPassword = ref('');
 const acceptedTerms = ref(false);
 const isLoading = ref(false);
 
+function signUpErrorMessage(error: { message?: string; code?: string } | null): string {
+  const message = (error?.message || '').toLowerCase();
+  const code = (error?.code || '').toLowerCase();
+
+  if (
+    code === 'over_email_send_rate_limit'
+    || code === 'email_rate_limit_exceeded'
+    || message.includes('email rate limit exceeded')
+    || message.includes('over_email_send_rate_limit')
+  ) {
+    return 'Muitas tentativas de envio de e-mail. Aguarde alguns minutos e tente novamente.';
+  }
+
+  if (
+    code === 'user_already_exists'
+    || message.includes('user already registered')
+    || message.includes('already been registered')
+  ) {
+    return 'Este e-mail já está cadastrado. Tente fazer login ou recuperar a senha.';
+  }
+
+  if (
+    code === 'weak_password'
+    || message.includes('password should be')
+    || message.includes('weak password')
+  ) {
+    return 'A senha é muito fraca. Use pelo menos 8 caracteres, com letras e números.';
+  }
+
+  if (
+    code === 'validation_failed'
+    || message.includes('unable to validate email')
+    || message.includes('invalid email')
+  ) {
+    return 'E-mail inválido. Verifique o endereço e tente novamente.';
+  }
+
+  return error?.message || 'Ocorreu um erro durante o cadastro.';
+}
+
 // --- Methods ---
 async function handleRegister(): Promise<void> {
   isLoading.value = true;
@@ -142,7 +185,7 @@ async function handleRegister(): Promise<void> {
 
   try {
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-      email: email.value,
+      email: email.value.trim(),
       password: password.value,
       options: {
         emailRedirectTo: `${window.location.origin}/user/confirm`,
@@ -157,8 +200,7 @@ async function handleRegister(): Promise<void> {
 
     if (signUpError) {
       console.error('Erro no SignUp:', signUpError);
-      toast.error(signUpError.message || 'Ocorreu um erro durante o cadastro.');
-      isLoading.value = false;
+      toast.error(signUpErrorMessage(signUpError));
       return;
     }
 
