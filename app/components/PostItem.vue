@@ -1,5 +1,5 @@
 <template>
-  <article class="post-item card-style">
+  <article class="post-item card-style" :class="{ moderated: !!post.is_moderated }">
     <header class="post-header">
       <div class="author-info">
         <AuthorPopover
@@ -17,6 +17,14 @@
             :title="authorRank?.title"
           />
         </AuthorPopover>
+        <span
+          v-else-if="!!post.is_anonymous"
+          class="anonymous-avatar anonymous-avatar--md"
+          title="Anônimo"
+          aria-label="Anônimo"
+        >
+          <Icon name="lucide:hat-glasses" :size="26" />
+        </span>
         <UserAvatar
           v-else
           :src="authorAvatarUrl"
@@ -68,22 +76,32 @@
           <span v-else class="post-timestamp">Data indisponível</span>
         </div>
       </div>
-      <ContentOptionsMenu
-        v-if="post.id && showOptionsMenu"
-        :can-edit="isAuthor"
-        :can-delete="isAuthor"
-        :can-report="canReport"
-        :can-toggle-notifications="canToggleNotifications"
-        :is-subscribed-to-notifications="isSubscribedToNotifications"
-        :notifications-busy="isTogglingNotifications"
-        :share-url="shareUrl"
-        :disabled="isBusy"
-        @edit="startEdit"
-        @delete="confirmDelete"
-        @share="sharePost"
-        @report="openReportDialog"
-        @toggle-notifications="togglePostNotifications"
-      />
+      <div class="header-actions">
+        <span
+          v-if="post.is_moderated"
+          class="moderated-badge"
+          title="Conteúdo moderado — comentários e respostas também são moderados"
+        >
+          <Icon name="lucide:shield-check" :size="13" class="moderated-badge-icon" />
+          Moderado
+        </span>
+        <ContentOptionsMenu
+          v-if="post.id && showOptionsMenu"
+          :can-edit="isAuthor"
+          :can-delete="isAuthor"
+          :can-report="canReport"
+          :can-toggle-notifications="canToggleNotifications"
+          :is-subscribed-to-notifications="isSubscribedToNotifications"
+          :notifications-busy="isTogglingNotifications"
+          :share-url="shareUrl"
+          :disabled="isBusy"
+          @edit="startEdit"
+          @delete="confirmDelete"
+          @share="sharePost"
+          @report="openReportDialog"
+          @toggle-notifications="togglePostNotifications"
+        />
+      </div>
     </header>
 
     <div class="post-content">
@@ -419,6 +437,7 @@ const showOptionsMenu = computed(() => {
 });
 
 const authorAvatarUrl = computed(() => {
+  if (props.post.is_anonymous) return defaultUserAvatar;
   const path = props.post.author_avatar_path;
   if (path) {
     return `https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/avatars/${path}`;
@@ -732,12 +751,27 @@ watch(
   margin-bottom: 1.5rem;
   padding: 1.25rem;
 }
+.post-item.moderated {
+  border-color: color-mix(in srgb, var(--primary-color) 35%, var(--border-color));
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    inset 3px 0 0 var(--primary-color);
+}
 .post-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   margin-bottom: 1rem;
   gap: 0.75rem;
+}
+
+.header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  margin-left: auto;
+  align-self: flex-start;
 }
 
 .author-info {
@@ -746,6 +780,28 @@ watch(
   gap: 0.75rem;
   min-width: 0;
   flex: 1;
+}
+
+.anonymous-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  box-sizing: border-box;
+  background: color-mix(in srgb, var(--primary-color) 12%, #e8eef2);
+  color: var(--primary-color-dark, var(--primary-color));
+  border: 1px solid color-mix(in srgb, var(--primary-color) 22%, var(--border-color));
+}
+
+.anonymous-avatar--md {
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
+.anonymous-avatar--sm {
+  width: 1.75rem;
+  height: 1.75rem;
 }
 .author-avatar {
   /* legacy class kept if referenced elsewhere; avatars use UserAvatar */
@@ -768,10 +824,29 @@ watch(
 .author-line {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.25rem 0.35rem;
+  align-items: center;
+  gap: 0.25rem 0.4rem;
   min-width: 0;
   line-height: 1.3;
+}
+.moderated-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  color: var(--primary-color-dark, var(--primary-color));
+  background: color-mix(in srgb, var(--primary-color) 16%, #fff);
+  border: 1px solid color-mix(in srgb, var(--primary-color) 35%, transparent);
+  white-space: nowrap;
+}
+.moderated-badge-icon {
+  flex-shrink: 0;
 }
 .author-name {
   font-weight: 600;

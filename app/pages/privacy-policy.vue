@@ -34,8 +34,10 @@
           <li>
             <strong>Autenticação com Google:</strong> quando você escolhe
             entrar ou se cadastrar com Google, recebemos informações básicas
-            da sua conta Google, como e-mail e identificador da conta, na
-            medida fornecida pelo Google e autorizada por você.
+            da sua conta Google — como e-mail, identificador da conta e foto
+            de perfil —, na medida fornecida pelo Google e autorizada por você.
+            A foto pode ser copiada para o armazenamento da plataforma para
+            exibição do seu avatar.
           </li>
           <li>
             <strong>Conteúdo gerado por você:</strong> posts, comentários,

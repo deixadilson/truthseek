@@ -1,6 +1,10 @@
 <template>
   <div class="categories-page container">
-    <nav aria-label="breadcrumb" class="breadcrumb-nav" v-if="!isSearching && breadcrumbs.length > 0">
+    <nav
+      v-if="viewMode === 'grid' && !isSearching && breadcrumbs.length > 0"
+      aria-label="breadcrumb"
+      class="breadcrumb-nav"
+    >
       <ol>
         <li><NuxtLink to="#" @click.prevent="navigateToCrumb(null)">Categorias</NuxtLink></li>
         <li v-for="(crumb, index) in breadcrumbs" :key="crumb.groupId || 'root-crumb'">
@@ -12,10 +16,36 @@
 
     <div class="page-header">
       <h1 v-if="isSearching">Resultados da Busca por "{{ searchTerm }}"</h1>
-      <h1 v-else-if="breadcrumbs.length === 0">Explorar Categorias Raiz</h1>
+      <h1 v-else-if="viewMode === 'list' || breadcrumbs.length === 0">Explorar Categorias Raiz</h1>
       <h1 v-else>Subgrupos de {{ breadcrumbs[breadcrumbs.length - 1].name }}</h1>
-      <div class="search-bar">
-        <input type="search" v-model="searchTerm" placeholder="Buscar grupos pelo nome..." />
+      <div class="header-tools">
+        <div class="search-bar">
+          <input type="search" v-model="searchTerm" placeholder="Buscar grupos pelo nome..." />
+        </div>
+        <div class="view-toggle" role="group" aria-label="Formato de visualização">
+          <button
+            type="button"
+            class="view-toggle-btn"
+            :class="{ active: viewMode === 'grid' }"
+            title="Grade de cards"
+            :aria-pressed="viewMode === 'grid'"
+            @click="setViewMode('grid')"
+          >
+            <Icon name="lucide:layout-grid" :size="22" />
+            <span class="view-toggle-label">Grade</span>
+          </button>
+          <button
+            type="button"
+            class="view-toggle-btn"
+            :class="{ active: viewMode === 'list' }"
+            title="Lista em árvore"
+            :aria-pressed="viewMode === 'list'"
+            @click="setViewMode('list')"
+          >
+            <Icon name="lucide:list" :size="22" />
+            <span class="view-toggle-label">Lista</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -41,58 +71,110 @@
         </NuxtLink>
       </div>
 
-      <template v-if="isRootListing && (thematicRootGroups.length > 0 || platformRootGroups.length > 0)">
-        <section v-if="thematicRootGroups.length > 0" class="category-section">
-          <h2 class="section-title">Categorias de discussão</h2>
-          <div class="categories-grid">
-            <CategoryGroupCard
-              v-for="group in thematicRootGroups"
-              :key="group.id"
-              :group="group"
-              :clickable="!!group.has_subgroups"
-              :bias-declared="isBiasDeclared(group.id)"
-              :declaring="isDeclaringBiasFor === group.id"
-              @select="handleCardClick(group)"
-              @declare-bias="openDeclareBiasDialog(group)"
-            />
+      <Transition name="view-swap" mode="out-in">
+        <div :key="viewMode" class="view-pane">
+          <template v-if="isRootListing && (thematicRootGroups.length > 0 || platformRootGroups.length > 0)">
+            <section v-if="thematicRootGroups.length > 0" class="category-section">
+              <h2 class="section-title">Categorias de discussão</h2>
+              <div v-if="viewMode === 'grid'" class="categories-grid">
+                <CategoryGroupCard
+                  v-for="group in thematicRootGroups"
+                  :key="group.id"
+                  :group="group"
+                  :clickable="!!group.has_subgroups"
+                  :bias-declared="isBiasDeclared(group.id)"
+                  :declaring="isDeclaringBiasFor === group.id"
+                  @select="handleCardClick(group)"
+                  @declare-bias="openDeclareBiasDialog(group)"
+                />
+              </div>
+              <div v-else class="categories-list">
+                <CategoryGroupListItem
+                  v-for="(group, index) in thematicRootGroups"
+                  :key="group.id"
+                  :group="group"
+                  :is-last="index === thematicRootGroups.length - 1"
+                  :bias-declared="isBiasDeclared(group.id)"
+                  :declaring="isDeclaring(group.id)"
+                  :load-children="loadListChildren"
+                  :is-bias-declared="isBiasDeclared"
+                  :is-declaring="isDeclaring"
+                  @declare-bias="openDeclareBiasDialog"
+                />
+              </div>
+            </section>
+            <section v-if="platformRootGroups.length > 0" class="category-section">
+              <h2 class="section-title">Metagrupo da própria plataforma</h2>
+              <div v-if="viewMode === 'grid'" class="categories-grid">
+                <CategoryGroupCard
+                  v-for="group in platformRootGroups"
+                  :key="group.id"
+                  :group="group"
+                  :clickable="false"
+                  :bias-declared="isBiasDeclared(group.id)"
+                  :declaring="isDeclaringBiasFor === group.id"
+                  @select="handleCardClick(group)"
+                  @declare-bias="openDeclareBiasDialog(group)"
+                />
+              </div>
+              <div v-else class="categories-list">
+                <CategoryGroupListItem
+                  v-for="(group, index) in platformRootGroups"
+                  :key="group.id"
+                  :group="group"
+                  :is-last="index === platformRootGroups.length - 1"
+                  :bias-declared="isBiasDeclared(group.id)"
+                  :declaring="isDeclaring(group.id)"
+                  :load-children="loadListChildren"
+                  :is-bias-declared="isBiasDeclared"
+                  :is-declaring="isDeclaring"
+                  @declare-bias="openDeclareBiasDialog"
+                />
+              </div>
+            </section>
+          </template>
+          <div v-else-if="groupsToRender.length > 0" :class="viewMode === 'grid' ? 'categories-grid' : 'categories-list'">
+            <template v-if="viewMode === 'grid'">
+              <CategoryGroupCard
+                v-for="group in groupsToRender"
+                :key="group.id"
+                :group="group"
+                :clickable="!isSearching && !!group.has_subgroups"
+                :bias-declared="isBiasDeclared(group.id)"
+                :declaring="isDeclaringBiasFor === group.id"
+                @select="handleCardClick(group)"
+                @declare-bias="openDeclareBiasDialog(group)"
+              />
+            </template>
+            <template v-else>
+              <CategoryGroupListItem
+                v-for="(group, index) in groupsToRender"
+                :key="group.id"
+                :group="group"
+                :is-last="index === groupsToRender.length - 1"
+                :bias-declared="isBiasDeclared(group.id)"
+                :declaring="isDeclaring(group.id)"
+                :load-children="loadListChildren"
+                :is-bias-declared="isBiasDeclared"
+                :is-declaring="isDeclaring"
+                @declare-bias="openDeclareBiasDialog"
+              />
+            </template>
           </div>
-        </section>
-        <section v-if="platformRootGroups.length > 0" class="category-section">
-          <h2 class="section-title">Metagrupo da própria plataforma</h2>
-          <div class="categories-grid">
-            <CategoryGroupCard
-              v-for="group in platformRootGroups"
-              :key="group.id"
-              :group="group"
-              :clickable="false"
-              :bias-declared="isBiasDeclared(group.id)"
-              :declaring="isDeclaringBiasFor === group.id"
-              @select="handleCardClick(group)"
-              @declare-bias="openDeclareBiasDialog(group)"
-            />
+          <div v-else class="no-categories">
+            <p v-if="isSearching && searchTerm">Nenhum grupo encontrado para "{{ searchTerm }}".</p>
+            <p v-else-if="!isSearching && viewMode === 'grid' && breadcrumbs.length > 0">Nenhum subgrupo encontrado nesta categoria.</p>
+            <p v-else-if="!isSearching">Nenhuma categoria raiz encontrada.</p>
+            <button
+              v-if="!isSearching && viewMode === 'grid' && breadcrumbs.length > 0"
+              class="button-secondary"
+              @click="goBackInBreadcrumb"
+            >
+              Voltar
+            </button>
           </div>
-        </section>
-      </template>
-      <div v-else-if="groupsToRender.length > 0" class="categories-grid">
-        <CategoryGroupCard
-          v-for="group in groupsToRender"
-          :key="group.id"
-          :group="group"
-          :clickable="!isSearching && !!group.has_subgroups"
-          :bias-declared="isBiasDeclared(group.id)"
-          :declaring="isDeclaringBiasFor === group.id"
-          @select="handleCardClick(group)"
-          @declare-bias="openDeclareBiasDialog(group)"
-        />
-      </div>
-      <div v-else class="no-categories">
-        <p v-if="isSearching && searchTerm">Nenhum grupo encontrado para "{{ searchTerm }}".</p>
-        <p v-else-if="!isSearching && breadcrumbs.length > 0">Nenhum subgrupo encontrado nesta categoria.</p>
-        <p v-else-if="!isSearching && breadcrumbs.length === 0">Nenhuma categoria raiz encontrada.</p>
-        <button v-if="!isSearching && breadcrumbs.length > 0" @click="goBackInBreadcrumb" class="button-secondary">
-          Voltar
-        </button>
-      </div>
+        </div>
+      </Transition>
     </template>
 
     <DeclareBiasPremisesDialog
@@ -120,6 +202,10 @@ interface BreadcrumbItem {
 const supabase = useSupabaseClient<Database>();
 const authUserId = useAuthUserId();
 const toast = useToast();
+
+const VIEW_MODE_KEY = 'categories-view-mode';
+type ViewMode = 'grid' | 'list';
+const viewMode = ref<ViewMode>('grid');
 
 const allFetchedGroups = ref<Record<string, Group[]>>({});
 const displayedGroups = ref<Group[]>([]);
@@ -268,6 +354,44 @@ async function fetchUserBiases() {
 
 function isBiasDeclared(groupId: string): boolean {
   return userBiases.value.some(bias => bias.group_id === groupId);
+}
+
+function isDeclaring(groupId: string): boolean {
+  return isDeclaringBiasFor.value === groupId;
+}
+
+function setViewMode(mode: ViewMode) {
+  if (viewMode.value === mode) return;
+  viewMode.value = mode;
+  if (import.meta.client) {
+    localStorage.setItem(VIEW_MODE_KEY, mode);
+  }
+  // Lista em árvore parte da raiz; grid pode continuar no breadcrumb atual.
+  if (mode === 'list' && breadcrumbs.value.length > 0 && !isSearching.value) {
+    fetchAndDisplayGroups(null);
+  }
+}
+
+async function loadListChildren(parentId: string): Promise<Group[]> {
+  const cacheKey = parentId;
+  if (allFetchedGroups.value[cacheKey]) {
+    return allFetchedGroups.value[cacheKey];
+  }
+
+  const { data, error } = await supabase
+    .from('groups')
+    .select('id, name, description, slug, flag_path, country_code, level, is_open, parent_group_id, has_subgroups')
+    .eq('country_code', 'br')
+    .eq('hidden', false)
+    .eq('parent_group_id', parentId)
+    .order('name', { ascending: true });
+
+  if (error) throw error;
+
+  const groups = (data as Group[]) || [];
+  allFetchedGroups.value[cacheKey] = groups;
+  void refreshQuizAvailability(groups);
+  return groups;
 }
 
 async function openDeclareBiasDialog(group: Group) {
@@ -456,6 +580,12 @@ const filteredGroups = computed(() => {
 });
 
 onMounted(() => {
+  if (import.meta.client) {
+    const saved = localStorage.getItem(VIEW_MODE_KEY);
+    if (saved === 'grid' || saved === 'list') {
+      viewMode.value = saved;
+    }
+  }
   fetchUserBiases();
   fetchAndDisplayGroups(null);
 });
@@ -519,18 +649,98 @@ watch(breadcrumbs, (newCrumbs) => {
 
 .page-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   margin-bottom: 2rem;
-  flex-wrap: wrap;
   gap: 1rem;
 }
 .page-header h1 {
   color: var(--primary-color);
   margin-bottom: 0;
   text-align: left;
-  flex-grow: 1;
   font-size: 2rem;
+}
+
+.header-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+.view-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--card-bg);
+  flex-shrink: 0;
+}
+
+.view-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-width: 5.5rem;
+  height: 2.75rem;
+  padding: 0 0.85rem;
+  border: none;
+  background: transparent;
+  color: #666;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.view-toggle-btn + .view-toggle-btn {
+  border-left: 1px solid var(--border-color);
+}
+
+.view-toggle-btn:hover {
+  color: var(--primary-color);
+  background: color-mix(in srgb, var(--primary-color) 6%, transparent);
+}
+
+.view-toggle-btn.active {
+  color: var(--primary-color);
+  background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+}
+
+.view-toggle-label {
+  line-height: 1;
+}
+
+.categories-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.view-pane {
+  width: 100%;
+}
+
+.view-swap-enter-active,
+.view-swap-leave-active {
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease,
+    filter 0.15s ease;
+}
+
+.view-swap-enter-from {
+  opacity: 0;
+  transform: translateY(0.6rem) scale(0.985);
+  filter: blur(2px);
+}
+
+.view-swap-leave-to {
+  opacity: 0;
+  transform: translateY(-0.45rem) scale(0.985);
+  filter: blur(2px);
 }
 
 .quiz-cta {
@@ -571,20 +781,41 @@ watch(breadcrumbs, (newCrumbs) => {
 }
 
 .search-bar {
-  flex-basis: 300px;
-  max-width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
 }
 .search-bar input {
   width: 100%;
-  padding: 0.7rem 1rem;
+  height: 2.75rem;
+  padding: 0 1rem;
   border: 1px solid var(--border-color);
-  border-radius: 20px;
+  border-radius: 10px;
   font-size: 0.95rem;
+  box-sizing: border-box;
 }
 .search-bar input:focus {
   outline: none;
   border-color: var(--primary-color);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+
+@media (max-width: 520px) {
+  .header-tools {
+    flex-wrap: wrap;
+  }
+
+  .search-bar {
+    flex: 1 1 100%;
+  }
+
+  .view-toggle {
+    width: 100%;
+  }
+
+  .view-toggle-btn {
+    flex: 1;
+  }
 }
 
 .categories-grid {

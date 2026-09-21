@@ -118,6 +118,15 @@ async function loadProfile() {
     const emailLocal = (authData.user?.email || '').split('@')[0] || '';
     username.value = emailLocal;
   }
+
+  // Import Google photo in background if profile still has no avatar
+  if (!data?.avatar_path) {
+    void importGoogleAvatarIfNeeded(userId).then((path) => {
+      if (path && userProfile.value?.id === userId) {
+        userProfile.value = { ...userProfile.value, avatar_path: path };
+      }
+    });
+  }
 }
 
 async function handleSubmit() {
@@ -163,7 +172,15 @@ async function handleSubmit() {
       return;
     }
 
-    userProfile.value = data;
+    let finalProfile = data;
+    if (!finalProfile.avatar_path) {
+      const avatarPath = await importGoogleAvatarIfNeeded(userId);
+      if (avatarPath) {
+        finalProfile = { ...finalProfile, avatar_path: avatarPath };
+      }
+    }
+
+    userProfile.value = finalProfile;
     toast.success('Perfil completo! Bem-vindo à TruthSeek.');
 
     let nextPath = '/';

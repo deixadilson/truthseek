@@ -1,92 +1,103 @@
 <template>
-  <div class="single-post-page container">
-    <div v-if="isLoadingPost" class="loading-spinner">
-      <LoadingMessage message="Carregando post..." />
-    </div>
-    <div v-else-if="postError" class="error-message">
-      {{ postError }}
-      <p><NuxtLink :to="goBackLink" class="button-secondary">Voltar</NuxtLink></p>
-    </div>
-    <div v-else-if="post" class="post-and-comments">
-      <PostItem
-        :post="post"
-        :show-group-context="true"
-        class="main-post-item"
-        @deleted="handlePostDeleted"
-        @updated="handlePostUpdated"
-      />
+  <div
+    class="single-post-page group-shell container"
+    :class="{ 'has-shortcuts': !!authUserId }"
+  >
+    <div class="post-layout" :class="{ 'has-shortcuts': !!authUserId }">
+      <aside v-if="authUserId" class="shortcuts-column" aria-label="Atalhos">
+        <GroupShortcutsNav variant="sidebar" />
+      </aside>
 
-      <section class="comments-section card-style">
-        <h3>Comentários ({{ commentTotalLabel }})</h3>
-        <CreateCommentForm
-          v-if="user && post && post.id && canComment"
-          :post-id="post.id"
-          :post-is-moderated="!!post.is_moderated"
-          @comment-created="addNewCommentToList"
-          class="main-comment-form"
-        />
-        <div v-else-if="post && !user" class="guest-comment-prompt">
-          <p>
-            <NuxtLink to="/user/signup">Crie uma conta</NuxtLink>
-            ou
-            <NuxtLink to="/user/login">faça login</NuxtLink>
-            para comentar.
-          </p>
+      <div class="post-main">
+        <div v-if="isLoadingPost" class="loading-spinner">
+          <LoadingMessage message="Carregando post..." />
         </div>
-        <div v-else-if="post && user && !canComment" class="guest-comment-prompt">
-          <p>
-            Para comentar neste grupo de debate é necessário estar entre os
-            <strong>50% mais influentes</strong> (Apologista ou superior) em um dos vieses.
-          </p>
+        <div v-else-if="postError" class="error-message">
+          {{ postError }}
+          <p><NuxtLink :to="goBackLink" class="button-secondary">Voltar</NuxtLink></p>
         </div>
-
-        <div v-if="isLoadingComments && comments.length === 0" class="loading-spinner">
-          <LoadingMessage message="Carregando comentários..." />
-        </div>
-        <div v-else-if="commentsError" class="error-message">{{ commentsError }}</div>
-        <div v-else-if="visibleComments.length > 0" class="comments-list">
-          <CommentItem
-            v-for="comment in visibleComments"
-            :key="`${comment.id}`"
-            :comment="comment"
-            :post-owner-group-id="post.owner_type === 'group' ? post.owner_id : null"
-            :post-is-moderated="!!post.is_moderated"
-            :replied-to-username="comment.reply_to ? getRepliedToUsernameForChild(comment.reply_to) : null"
-            :is-highlighted="highlightedCommentId === comment.id"
-            @request-reply="handleRequestReply"
-            @scroll-to-comment="scrollToComment"
-            @vote-updated="handleCommentVoteUpdated"
-            @deleted="handleCommentDeleted"
-            @updated="handleCommentUpdated"
+        <div v-else-if="post" class="post-and-comments">
+          <PostItem
+            :post="post"
+            :show-group-context="true"
+            class="main-post-item"
+            @deleted="handlePostDeleted"
+            @updated="handlePostUpdated"
           />
-          <div v-if="hasMoreComments" class="load-more-wrap">
-            <button
-              type="button"
-              class="button-secondary"
-              :disabled="isLoadingMoreComments"
-              @click="loadMoreComments"
-            >
-              <LoadingMessage v-if="isLoadingMoreComments" message="Carregando..." :icon-size="16" />
-              <template v-else>Carregar mais</template>
-            </button>
-          </div>
+
+          <section class="comments-section card-style">
+            <h3>Comentários ({{ commentTotalLabel }})</h3>
+            <CreateCommentForm
+              v-if="user && post && post.id && canComment"
+              :post-id="post.id"
+              :post-is-moderated="!!post.is_moderated"
+              @comment-created="addNewCommentToList"
+              class="main-comment-form"
+            />
+            <div v-else-if="post && !user" class="guest-comment-prompt">
+              <p>
+                <NuxtLink to="/user/signup">Crie uma conta</NuxtLink>
+                ou
+                <NuxtLink to="/user/login">faça login</NuxtLink>
+                para comentar.
+              </p>
+            </div>
+            <div v-else-if="post && user && !canComment" class="guest-comment-prompt">
+              <p>
+                Para comentar neste grupo de debate é necessário estar entre os
+                <strong>50% mais influentes</strong> (Apologista ou superior) em um dos vieses.
+              </p>
+            </div>
+
+            <div v-if="isLoadingComments && comments.length === 0" class="loading-spinner">
+              <LoadingMessage message="Carregando comentários..." />
+            </div>
+            <div v-else-if="commentsError" class="error-message">{{ commentsError }}</div>
+            <div v-else-if="visibleComments.length > 0" class="comments-list">
+              <CommentItem
+                v-for="comment in visibleComments"
+                :key="`${comment.id}`"
+                :comment="comment"
+                :post-owner-group-id="post.owner_type === 'group' ? post.owner_id : null"
+                :post-is-moderated="!!post.is_moderated"
+                :replied-to-username="comment.reply_to ? getRepliedToUsernameForChild(comment.reply_to) : null"
+                :is-highlighted="highlightedCommentId === comment.id"
+                @request-reply="handleRequestReply"
+                @scroll-to-comment="scrollToComment"
+                @vote-updated="handleCommentVoteUpdated"
+                @deleted="handleCommentDeleted"
+                @updated="handleCommentUpdated"
+              />
+              <div v-if="hasMoreComments" class="load-more-wrap">
+                <button
+                  type="button"
+                  class="button-secondary"
+                  :disabled="isLoadingMoreComments"
+                  @click="loadMoreComments"
+                >
+                  <LoadingMessage v-if="isLoadingMoreComments" message="Carregando..." :icon-size="16" />
+                  <template v-else>Carregar mais</template>
+                </button>
+              </div>
+            </div>
+            <div v-else class="no-comments">
+              <p>Nenhum comentário ainda. Seja o primeiro!</p>
+            </div>
+            <!-- Input para responder a um comentário específico -->
+            <CreateCommentForm
+              v-if="user && post && post.id && canComment && replyingToCommentId"
+              :key="`reply-form-${replyingToCommentId}`"
+              :post-id="post.id"
+              :post-is-moderated="!!post.is_moderated"
+              :reply-to-comment-id="replyingToCommentId"
+              :reply-to-username="replyingToUsername"
+              @comment-created="handleNewComment"
+              @reply-cancelled="cancelReply"
+              class="reply-comment-form"
+            />
+          </section>
         </div>
-        <div v-else class="no-comments">
-          <p>Nenhum comentário ainda. Seja o primeiro!</p>
-        </div>
-        <!-- Input para responder a um comentário específico -->
-        <CreateCommentForm
-          v-if="user && post && post.id && canComment && replyingToCommentId"
-          :key="`reply-form-${replyingToCommentId}`"
-          :post-id="post.id"
-          :post-is-moderated="!!post.is_moderated"
-          :reply-to-comment-id="replyingToCommentId"
-          :reply-to-username="replyingToUsername"
-          @comment-created="handleNewComment"
-          @reply-cancelled="cancelReply"
-          class="reply-comment-form"
-        />
-      </section>
+      </div>
     </div>
   </div>
 </template>
@@ -614,7 +625,58 @@ watch(authUserId, async () => {
 </script>
 
 <style scoped>
-.single-post-page { padding-top: 2rem; padding-bottom: 3rem; }
+.single-post-page {
+  --group-main-max: 800px;
+  --group-side-left: 14rem;
+  --group-gap: 1.5rem;
+  padding-top: 2rem;
+  padding-bottom: 3rem;
+}
+
+.post-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--group-gap);
+  min-width: 0;
+}
+
+.post-layout > * {
+  min-width: 0;
+}
+
+.shortcuts-column {
+  display: none;
+}
+
+.post-main {
+  max-width: var(--group-main-max);
+  width: 100%;
+  margin: 0 auto;
+}
+
+@media (min-width: 992px) {
+  .single-post-page.group-shell.container {
+    max-width: calc(var(--group-main-max) + 30px);
+  }
+  .single-post-page.group-shell.container.has-shortcuts {
+    max-width: calc(
+      var(--group-side-left) + var(--group-main-max) + var(--group-gap) + 30px
+    );
+  }
+  .post-layout {
+    justify-content: center;
+  }
+  .post-layout.has-shortcuts {
+    grid-template-columns: minmax(11rem, var(--group-side-left)) minmax(0, var(--group-main-max));
+  }
+  .post-layout.has-shortcuts .post-main {
+    margin: 0;
+  }
+  .shortcuts-column {
+    display: block;
+  }
+}
+
 .main-post-item { margin-bottom: 2rem; }
 .comments-section h3 { margin-top: 0; margin-bottom: 1.5rem; color: var(--primary-color); }
 
@@ -641,8 +703,8 @@ watch(authUserId, async () => {
   text-align: center;
   padding: 2rem;
   font-size: 1.1rem;
+  color: #dc3545;
 }
-.error-message { color: #dc3545; }
 
 .load-more-wrap {
   display: flex;

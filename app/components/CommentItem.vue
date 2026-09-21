@@ -1,12 +1,21 @@
 <template>
   <div :id="`comment-${comment.id}`" class="comment-item" :class="{ 'is-reply': !!comment.reply_to, 'highlighted': isHighlighted }">
     <div class="comment-main-content">
+      <span
+        v-if="!!comment.is_anonymous"
+        class="anonymous-avatar anonymous-avatar--sm"
+        title="Anônimo"
+        aria-label="Anônimo"
+      >
+        <Icon name="lucide:hat-glasses" :size="16" />
+      </span>
       <UserAvatar
+        v-else
         :src="authorAvatarUrl"
         alt="Avatar"
         size="sm"
-        :level="comment.is_anonymous ? null : commentAuthorRank?.level"
-        :title="comment.is_anonymous ? null : commentAuthorRank?.title"
+        :level="commentAuthorRank?.level"
+        :title="commentAuthorRank?.title"
       />
       <div class="comment-body">
         <div class="comment-top-row">
@@ -288,6 +297,7 @@ const canReport = computed(() => !isAuthor.value);
 const showOptionsMenu = computed(() => isAuthor.value || canReport.value);
 
 const authorAvatarUrl = computed(() => {
+  if (props.comment.is_anonymous) return defaultUserAvatar;
   return props.comment.author_avatar_path
     ? `https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/avatars/${props.comment.author_avatar_path}`
     : defaultUserAvatar;
@@ -520,6 +530,28 @@ function emitScrollToReply(commentId: string) {
   width: 36px; height: 36px;
   border-radius: 50%; object-fit: cover; background-color: #eee;
   flex-shrink: 0;
+}
+
+.anonymous-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  box-sizing: border-box;
+  background: color-mix(in srgb, var(--primary-color) 12%, #e8eef2);
+  color: var(--primary-color-dark, var(--primary-color));
+  border: 1px solid color-mix(in srgb, var(--primary-color) 22%, var(--border-color));
+}
+
+.anonymous-avatar--sm {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.anonymous-avatar--md {
+  width: 2.75rem;
+  height: 2.75rem;
 }
 
 .comment-body {

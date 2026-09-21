@@ -117,6 +117,17 @@ async function redirectAfterSuccess(event?: string | null) {
   status.value = 'success';
 
   const userId = user.value?.sub;
+  if (userId) {
+    // Fire-and-wait briefly so Google photo is usually ready before next page
+    try {
+      await Promise.race([
+        importGoogleAvatarIfNeeded(userId),
+        new Promise((resolve) => setTimeout(resolve, 2500)),
+      ]);
+    } catch (e) {
+      console.warn('Importação de avatar Google ignorada:', e);
+    }
+  }
   const path = userId ? await resolvePostAuthPath(userId) : resolveRedirectPath();
   await new Promise((resolve) => setTimeout(resolve, 700));
   await navigateTo(path);

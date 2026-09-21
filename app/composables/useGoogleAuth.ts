@@ -7,6 +7,12 @@ export function useGoogleAuth() {
       provider: 'google',
       options: {
         redirectTo: redirectTo || `${origin}/user/confirm`,
+        // Ensure profile picture is included in user_metadata (avatar_url / picture)
+        queryParams: {
+          access_type: 'online',
+          prompt: 'select_account',
+        },
+        scopes: 'openid email profile',
       },
     });
   }

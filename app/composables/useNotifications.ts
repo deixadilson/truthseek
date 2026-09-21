@@ -47,6 +47,8 @@ export function useNotifications() {
         return 'pediu para te seguir';
       case 'follow_accepted':
         return 'aceitou sua solicitação de seguir';
+      case 'follow':
+        return 'começou a seguir você';
       default:
         return 'interagiu com você';
     }
@@ -63,7 +65,7 @@ export function useNotifications() {
 
   function notificationLink(n: AppNotification): string | null {
     if (n.type === 'endorse') return '/user/profile';
-    if (n.type === 'follow_request' || n.type === 'follow_accepted') {
+    if (n.type === 'follow_request' || n.type === 'follow_accepted' || n.type === 'follow') {
       return n.actor_username ? `/user/${n.actor_username}` : null;
     }
     if (n.post_id) {
