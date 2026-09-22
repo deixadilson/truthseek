@@ -470,7 +470,9 @@ async function saveEdit() {
 
 function confirmDelete() {
   if (!props.comment.id || !isAuthor.value) return;
-  showDeleteConfirm.value = true;
+  window.setTimeout(() => {
+    showDeleteConfirm.value = true;
+  }, 100);
 }
 
 function openReportDialog() {

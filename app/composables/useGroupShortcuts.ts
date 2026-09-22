@@ -1,6 +1,7 @@
 import type { Database } from '~/types/supabase'
 import type { BiasWithDetails } from '~/types/app'
 import { isMetaGroupBias } from '~/utils/groupFlags'
+import { fetchMemberCountsByGroupIds } from '~/utils/groupMemberCounts'
 import { buildVsPath, orderVsSides, vsDisplayTitle } from '~/utils/vsGroups'
 
 export const SIDEBAR_BIASES_LIMIT = 20
@@ -15,6 +16,10 @@ export type GroupShortcutItem = {
   name: string
   to: string
   flagPath: string | null
+  /** Present for real groups; false = restricted (bias) group. */
+  isOpen?: boolean | null
+  /** Only set for restricted groups (`isOpen === false`). */
+  memberCount?: number | null
 }
 
 function favoriteKey(targetType: FavoriteTargetType, targetId: string) {
@@ -69,7 +74,7 @@ export function useGroupShortcuts() {
 
     const { data, error } = await supabase
       .from('groups')
-      .select('id, name, slug, country_code, flag_path')
+      .select('id, name, slug, country_code, flag_path, is_open')
       .in('id', ids)
 
     if (error) throw error
@@ -82,6 +87,7 @@ export function useGroupShortcuts() {
         name: g.name,
         to: `/${g.country_code}/${g.slug}`,
         flagPath: g.flag_path,
+        isOpen: g.is_open,
       })
     }
     return map
@@ -173,9 +179,6 @@ export function useGroupShortcuts() {
         .map((row) => biasToShortcut(row as BiasWithDetails))
         .filter((item): item is GroupShortcutItem => !!item)
 
-      biasesTotal.value = allBiases.length
-      biases.value = allBiases.slice(0, SIDEBAR_BIASES_LIMIT)
-
       const favRows = favRes.data || []
       const groupIds = favRows
         .filter((r) => r.target_type === 'group')
@@ -189,6 +192,44 @@ export function useGroupShortcuts() {
         resolveVsFavorites(vsIds),
       ])
 
+      const biasGroupIds = allBiases.map((b) => b.targetId)
+      const openLookupIds = Array.from(new Set([...biasGroupIds, ...groupIds]))
+      const isOpenById = new Map<string, boolean>()
+
+      if (openLookupIds.length) {
+        for (const g of groupMap.values()) {
+          if (typeof g.isOpen === 'boolean') isOpenById.set(g.targetId, g.isOpen)
+        }
+        const missingOpenIds = openLookupIds.filter((id) => !isOpenById.has(id))
+        if (missingOpenIds.length) {
+          const { data: openRows, error: openError } = await supabase
+            .from('groups')
+            .select('id, is_open')
+            .in('id', missingOpenIds)
+          if (openError) throw openError
+          for (const row of openRows || []) {
+            isOpenById.set(row.id, row.is_open)
+          }
+        }
+      }
+
+      const closedIds = openLookupIds.filter((id) => isOpenById.get(id) === false)
+      const memberCounts = await fetchMemberCountsByGroupIds(supabase, closedIds)
+
+      function enrichGroupItem(item: GroupShortcutItem): GroupShortcutItem {
+        if (item.targetType !== 'group') return item
+        const isOpen = isOpenById.get(item.targetId) ?? item.isOpen ?? null
+        return {
+          ...item,
+          isOpen,
+          memberCount: isOpen === false ? (memberCounts[item.targetId] ?? 0) : null,
+        }
+      }
+
+      const enrichedBiases = allBiases.map(enrichGroupItem)
+      biasesTotal.value = enrichedBiases.length
+      biases.value = enrichedBiases.slice(0, SIDEBAR_BIASES_LIMIT)
+
       const nextFavorites: GroupShortcutItem[] = []
       const nextKeys = new Set<string>()
 
@@ -198,8 +239,9 @@ export function useGroupShortcuts() {
         const item =
           type === 'group' ? groupMap.get(row.target_id) : vsMap.get(row.target_id)
         if (!item) continue
-        nextFavorites.push(item)
-        nextKeys.add(item.key)
+        const enriched = enrichGroupItem(item)
+        nextFavorites.push(enriched)
+        nextKeys.add(enriched.key)
       }
 
       favorites.value = nextFavorites

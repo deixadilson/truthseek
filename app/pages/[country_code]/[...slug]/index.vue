@@ -172,14 +172,25 @@
             <h4>Subgrupos</h4>
             <ul>
               <li v-for="subgroup in subgroups" :key="subgroup.id">
-                <NuxtLink :to="`/${subgroup.country_code}/${subgroup.slug}`">
-                  <img
-                    v-if="subgroup.flag_path"
-                    :src="`https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/flags/${subgroup.flag_path}`"
-                    :alt="`Bandeira de ${subgroup.name}`"
-                    class="sidebar-group-flag"
-                  />
-                  <span>{{ subgroup.name }}</span>
+                <NuxtLink
+                  :to="`/${subgroup.country_code}/${subgroup.slug}`"
+                  class="sidebar-group-link"
+                  :class="{ 'has-meta': isRestrictedSidebarGroup(subgroup) }"
+                >
+                  <span v-if="subgroup.flag_path" class="sidebar-group-media">
+                    <img
+                      :src="`https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/flags/${subgroup.flag_path}`"
+                      :alt="`Bandeira de ${subgroup.name}`"
+                      class="sidebar-group-flag"
+                    />
+                  </span>
+                  <span v-if="isRestrictedSidebarGroup(subgroup)" class="sidebar-group-meta">
+                    <span class="sidebar-group-name">{{ subgroup.name }}</span>
+                    <span class="sidebar-group-members">
+                      {{ formatMemberCountLabel(subgroup.memberCount ?? 0) }}
+                    </span>
+                  </span>
+                  <span v-else class="sidebar-group-name">{{ subgroup.name }}</span>
                 </NuxtLink>
               </li>
             </ul>
@@ -199,18 +210,38 @@
             <h4>Grupos Opostos</h4>
             <ul>
               <li v-for="opposite in oppositeGroups" :key="opposite.id">
-                <NuxtLink :to="vsPathForOpposite(opposite) || `/${opposite.country_code}/${opposite.slug}`">
-                  <img
-                    v-if="opposite.flag_path"
-                    :src="`https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/flags/${opposite.flag_path}`"
-                    :alt="`Bandeira de ${opposite.name}`"
-                    class="sidebar-group-flag"
-                  />
-                  <span>{{ opposite.name }}</span>
+                <NuxtLink
+                  :to="vsPathForOpposite(opposite) || `/${opposite.country_code}/${opposite.slug}`"
+                  class="sidebar-group-link"
+                  :class="{ 'has-meta': isRestrictedSidebarGroup(opposite) }"
+                >
+                  <span v-if="opposite.flag_path" class="sidebar-group-media">
+                    <img
+                      :src="`https://iayfnbhvsqtszwmwwjmk.supabase.co/storage/v1/object/public/flags/${opposite.flag_path}`"
+                      :alt="`Bandeira de ${opposite.name}`"
+                      class="sidebar-group-flag"
+                    />
+                  </span>
+                  <span v-if="isRestrictedSidebarGroup(opposite)" class="sidebar-group-meta">
+                    <span class="sidebar-group-name">{{ opposite.name }}</span>
+                    <span class="sidebar-group-members">
+                      {{ formatMemberCountLabel(opposite.memberCount ?? 0) }}
+                    </span>
+                  </span>
+                  <span v-else class="sidebar-group-name">{{ opposite.name }}</span>
                 </NuxtLink>
               </li>
             </ul>
           </section>
+
+          <GroupMembersSidebar
+            v-if="showMembersSidebar && groupData"
+            :group-id="groupData.id"
+            :details-path="showGroupDetailsLink
+              ? `/${groupData.country_code}/${groupData.slug}/details`
+              : null"
+          />            
+
           <NuxtLink
             v-if="showGroupDetailsLink"
             :to="`/${groupData.country_code}/${groupData.slug}/details`"
@@ -237,8 +268,19 @@
 import type { Bias, Group, Issue, PostWithAuthor } from '~/types/app';
 import { useToast } from 'vue-toastification';
 import { canEnterClosedGroup, countryFlagUrl, formatCountryName } from '~/utils/formatters';
+import {
+  fetchMemberCountsByGroupIds,
+  formatMemberCountLabel,
+} from '~/utils/groupMemberCounts';
 import { isMetaGroup, resolveGroupFlagUrl } from '~/utils/groupFlags';
 import { buildVsPath } from '~/utils/vsGroups';
+
+type SidebarGroupLink = Pick<
+  Group,
+  'id' | 'name' | 'slug' | 'country_code' | 'flag_path' | 'is_open'
+> & {
+  memberCount?: number | null;
+};
 
 const route = useRoute();
 const supabase = useSupabaseClient();
@@ -246,8 +288,23 @@ const toast = useToast();
 const authUserId = useAuthUserId();
 
 const groupData = ref<Group | null>(null);
-const subgroups = ref<Group[]>([]);
-const oppositeGroups = ref<Pick<Group, 'id' | 'name' | 'slug' | 'country_code' | 'flag_path'>[]>([]);
+const subgroups = ref<SidebarGroupLink[]>([]);
+const oppositeGroups = ref<SidebarGroupLink[]>([]);
+
+function isRestrictedSidebarGroup(group: SidebarGroupLink) {
+  return group.is_open === false;
+}
+
+async function attachMemberCounts(groups: SidebarGroupLink[]): Promise<SidebarGroupLink[]> {
+  const closedIds = groups.filter((g) => g.is_open === false).map((g) => g.id);
+  if (!closedIds.length) return groups;
+  const counts = await fetchMemberCountsByGroupIds(supabase, closedIds);
+  return groups.map((g) =>
+    g.is_open === false
+      ? { ...g, memberCount: counts[g.id] ?? 0 }
+      : { ...g, memberCount: null },
+  );
+}
 const posts = ref<PostWithAuthor[]>([]);
 const filteredPosts = ref<PostWithAuthor[]>([]);
 const groupIssues = ref<Issue[]>([]);
@@ -351,6 +408,8 @@ const isMetaGroupPage = computed(() => isMetaGroup(groupData.value));
 const showGroupDetailsLink = computed(
   () => !!groupData.value && (!groupData.value.is_open || isMetaGroupPage.value)
 );
+/** Grupos de viés (fechados) e MetaGrupo: lista de defensores na coluna direita. */
+const showMembersSidebar = computed(() => showGroupDetailsLink.value);
 
 const groupFlagUrl = computed(() => resolveGroupFlagUrl(groupData.value) || '');
 const { fallbackColor: flagFallbackColor } = useFlagTheme(() =>
@@ -487,12 +546,12 @@ async function fetchOppositeGroups(groupId: string) {
 
     const { data: groups, error: groupsError } = await supabase
       .from('groups')
-      .select('id, name, slug, country_code, flag_path')
+      .select('id, name, slug, country_code, flag_path, is_open')
       .in('id', oppositeIds)
       .order('name', { ascending: true });
 
     if (groupsError) throw groupsError;
-    oppositeGroups.value = groups || [];
+    oppositeGroups.value = await attachMemberCounts((groups || []) as SidebarGroupLink[]);
   } catch (e: any) {
     console.error('Erro ao buscar grupos opostos:', e);
   }
@@ -656,13 +715,15 @@ async function fetchGroupData(country: string, slug: string): Promise<void> {
       if (groupData.value.has_subgroups) {
         const { data: subData, error: subError } = await supabase
           .from('groups')
-          .select('id, name, slug, country_code, flag_path')
+          .select('id, name, slug, country_code, flag_path, is_open')
           .eq('parent_group_id', groupData.value.id)
           .eq('country_code', country)
           .order('name', { ascending: true });
 
         if (subError) throw subError;
-        if (subData) subgroups.value = subData as Group[];
+        if (subData) {
+          subgroups.value = await attachMemberCounts(subData as SidebarGroupLink[]);
+        }
       }
 
       if (canInteractWithPosts.value) {
@@ -947,6 +1008,9 @@ watch(authUserId, () => {
 
 .shortcuts-column {
   display: none;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-width: 0;
 }
 
 @media (min-width: 992px) {
@@ -972,7 +1036,7 @@ watch(authUserId, () => {
       minmax(14rem, var(--group-side-right));
   }
   .shortcuts-column {
-    display: block;
+    display: flex;
   }
 }
 
@@ -1106,30 +1170,66 @@ watch(authUserId, () => {
   padding-left: 0;
   margin: 0;
 }
-.subgroups-sidebar li a,
-.opposites-sidebar li a {
+.sidebar-group-link {
+  --media-size: 40px;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0;
+  gap: 0.55rem;
+  min-width: 0;
+  padding: 0.45rem 0;
   color: var(--link-color);
   text-decoration: none;
   border-bottom: 1px dotted var(--border-color);
+  transition: color 0.15s ease;
 }
-.subgroups-sidebar li:last-child a,
-.opposites-sidebar li:last-child a {
+.subgroups-sidebar li:last-child .sidebar-group-link,
+.opposites-sidebar li:last-child .sidebar-group-link {
   border-bottom: none;
 }
-.subgroups-sidebar li a:hover,
-.opposites-sidebar li a:hover {
+.sidebar-group-link:hover {
   color: var(--primary-color-dark);
+  text-decoration: none;
 }
-.sidebar-group-flag {
-  width: 22px;
-  height: 22px;
-  object-fit: cover;
-  border-radius: 3px;
+.sidebar-group-link:hover .sidebar-group-name {
+  color: var(--primary-color);
+}
+.sidebar-group-media {
   flex-shrink: 0;
+  width: var(--media-size, 40px);
+  height: var(--media-size, 40px);
+}
+.sidebar-group-media .sidebar-group-flag {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+  box-sizing: border-box;
+  border-radius: 3px;
+}
+.sidebar-group-meta {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0;
+  height: var(--media-size, 40px);
+  min-width: 0;
+  flex: 1;
+}
+.sidebar-group-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  line-height: 1.15;
+}
+.sidebar-group-members {
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.15;
+  color: #777;
+  white-space: nowrap;
+}
+.sidebar-group-link:hover .sidebar-group-members {
+  color: #666;
 }
 
 .details-link {

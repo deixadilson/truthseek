@@ -31,14 +31,36 @@
     </div>
     <div class="card-content">
       <h2 class="category-name">{{ group.name }}</h2>
-      <span class="group-status-badge" :class="group.is_open ? 'open' : 'closed'">
-        <Icon
-          :name="group.is_open ? 'lucide:unlock' : 'lucide:lock'"
-          :size="14"
-          class="group-status-icon"
-        />
-        Grupo {{ group.is_open ? 'Aberto' : 'Restrito' }}
-      </span>
+      <div class="status-row">
+        <span class="group-status-badge" :class="group.is_open ? 'open' : 'closed'">
+          <Icon
+            :name="group.is_open ? 'lucide:unlock' : 'lucide:lock'"
+            :size="14"
+            class="group-status-icon"
+          />
+          Grupo {{ group.is_open ? 'Aberto' : 'Restrito' }}
+        </span>
+        <NuxtLink
+          v-if="showMemberPreview"
+          :to="detailsPath"
+          class="member-preview"
+          :aria-label="formatMemberCountLabel(memberCount ?? 0)"
+          @click.stop
+        >
+          <div v-if="memberAvatars.length > 0" class="member-avatar-stack">
+            <img
+              v-for="(avatar, index) in memberAvatars"
+              :key="`${avatar.url}-${index}`"
+              :src="avatar.url"
+              :alt="avatar.username || 'Membro'"
+              class="member-avatar"
+              :style="{ zIndex: memberAvatars.length - index }"
+              loading="lazy"
+            >
+          </div>
+          <span class="member-count">{{ formatMemberCountLabel(memberCount ?? 0) }}</span>
+        </NuxtLink>
+      </div>
       <p class="group-description line-clamp" :title="group.description || ''">{{ group.description }}</p>
       <div class="card-actions">
         <NuxtLink
@@ -77,13 +99,25 @@
 <script setup lang="ts">
 import type { Group } from '~/types/app';
 import { isMetaGroup, resolveGroupFlagUrl } from '~/utils/groupFlags';
+import {
+  formatMemberCountLabel,
+  type GroupMemberAvatarPreview,
+} from '~/utils/groupMemberCounts';
 
-const props = defineProps<{
-  group: Group;
-  clickable?: boolean;
-  biasDeclared?: boolean;
-  declaring?: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    group: Group;
+    clickable?: boolean;
+    biasDeclared?: boolean;
+    declaring?: boolean;
+    memberCount?: number | null;
+    memberAvatars?: GroupMemberAvatarPreview[];
+  }>(),
+  {
+    memberCount: null,
+    memberAvatars: () => [],
+  },
+);
 
 const emit = defineEmits<{
   select: [];
@@ -95,6 +129,16 @@ const flagUrl = computed(() => resolveGroupFlagUrl(props.group));
 const isLogoFlag = computed(() => isMetaGroup(props.group));
 const { fallbackColor: flagFallbackColor } = useFlagTheme(() =>
   props.group.cover_image_path ? null : flagUrl.value
+);
+
+const detailsPath = computed(
+  () => `/${props.group.country_code}/${props.group.slug}/details`,
+);
+
+const showMemberPreview = computed(
+  () =>
+    props.memberCount != null
+    && (props.group.is_open === false || isMetaGroup(props.group)),
 );
 </script>
 
@@ -172,6 +216,14 @@ const { fallbackColor: flagFallbackColor } = useFlagTheme(() =>
   margin-bottom: 0.3rem;
   font-weight: 600;
 }
+.status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+  min-width: 0;
+}
 .group-status-badge {
   font-size: 0.7rem;
   font-weight: 600;
@@ -180,6 +232,7 @@ const { fallbackColor: flagFallbackColor } = useFlagTheme(() =>
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
+  flex-shrink: 0;
 }
 .group-status-icon {
   flex-shrink: 0;
@@ -189,6 +242,52 @@ const { fallbackColor: flagFallbackColor } = useFlagTheme(() =>
 }
 .group-status-badge.closed {
   color: #b81727;
+}
+.member-preview {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  margin: 0;
+  min-width: 0;
+  margin-left: auto;
+  text-decoration: none;
+  color: inherit;
+  transition: color 0.15s ease;
+}
+.member-preview:hover {
+  text-decoration: none;
+  color: var(--primary-color);
+}
+.member-preview:hover .member-count {
+  color: var(--primary-color);
+}
+.member-avatar-stack {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.member-avatar {
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--card-bg);
+  background: #eee;
+  box-sizing: border-box;
+  margin-left: -0.45rem;
+}
+.member-avatar:first-child {
+  margin-left: 0;
+}
+.member-count {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #666;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .group-description {
   font-size: 0.9rem;

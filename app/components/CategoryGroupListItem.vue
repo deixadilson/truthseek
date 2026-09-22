@@ -2,9 +2,12 @@
   <div class="list-node">
     <div class="list-line">
       <div v-if="depth > 0" class="tree-guides" aria-hidden="true">
-        <template v-for="(continues, i) in trail" :key="`rail-${i}`">
-          <span v-if="continues" class="tree-guide rail" />
-        </template>
+        <span
+          v-for="(continues, i) in trail"
+          :key="`rail-${i}`"
+          class="tree-guide"
+          :class="continues ? 'rail' : 'blank'"
+        />
         <span
           class="tree-guide elbow"
           :class="isLast ? 'end' : 'mid'"
@@ -40,13 +43,16 @@
         </div>
 
         <div class="row-main">
-          <NuxtLink
-            :to="`/${group.country_code}/${group.slug}`"
-            class="group-title"
-            @click.stop
-          >
-            {{ group.name }}
-          </NuxtLink>
+          <div class="title-text">
+            <NuxtLink
+              :to="`/${group.country_code}/${group.slug}`"
+              class="group-title"
+              :title="group.name"
+              @click.stop
+            >
+              {{ group.name }}
+            </NuxtLink>
+          </div>
           <span class="status-badge" :class="group.is_open ? 'open' : 'closed'">
             <Icon
               :name="group.is_open ? 'lucide:unlock' : 'lucide:lock'"
@@ -121,7 +127,7 @@ const props = withDefaults(defineProps<{
   group: Group;
   depth?: number;
   isLast?: boolean;
-  /** Em cada ancestral: true = ainda há irmãos abaixo (desenha |). */
+  /** Em cada ancestral: true = ainda há irmãos abaixo (desenha |); false = espaço de alinhamento. */
   trail?: boolean[];
   biasDeclared?: boolean;
   declaring?: boolean;
@@ -147,12 +153,14 @@ const children = ref<Group[]>([]);
 const canExpand = computed(() => !!props.group.has_subgroups);
 const flagUrl = computed(() => resolveGroupFlagUrl(props.group));
 const isLogoFlag = computed(() => isMetaGroup(props.group));
+
 const childTrail = computed(() => {
-  // Raiz → 2º nível: só o cotovelo (├/└), sem coluna | extra.
-  // A partir do 2º nível, propaga | quando o ancestral ainda tem irmãos.
+  // Raiz → 2º nível: só cotovelo, sem coluna extra (evita “grupo em branco”).
   if (props.depth === 0) return [];
-  return props.isLast ? [...props.trail] : [...props.trail, true];
+  // Níveis seguintes: | se ainda há irmãos; espaço em branco se for o último (alinha a árvore).
+  return [...props.trail, !props.isLast];
 });
+
 const childrenIndentStyle = computed(() => ({
   paddingLeft: `calc(${(props.depth + 1) * 1.15 + 1.5}rem)`,
 }));
@@ -184,7 +192,7 @@ async function onRowClick() {
 .list-node {
   --row-gap: 0.4rem;
   --guide-size: 1.15rem;
-  --guide-color: color-mix(in srgb, var(--primary-color) 42%, #9aa0a6);
+  --guide-color: #73c1cb;
   min-width: 0;
   margin-bottom: var(--row-gap);
 }
@@ -207,7 +215,6 @@ async function onRowClick() {
   flex: 0 0 var(--guide-size);
 }
 
-/* | — continuidade nos ancestrais */
 .tree-guide.rail::before {
   content: '';
   position: absolute;
@@ -218,7 +225,6 @@ async function onRowClick() {
   transform: translateX(-50%);
 }
 
-/* ├ / └ */
 .tree-guide.elbow::before {
   content: '';
   position: absolute;
@@ -246,6 +252,7 @@ async function onRowClick() {
 }
 
 .list-row {
+  --flag-size: 40px;
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
@@ -286,8 +293,8 @@ async function onRowClick() {
 }
 
 .flag-wrap {
-  width: 2.1rem;
-  height: 2.1rem;
+  width: var(--flag-size);
+  height: var(--flag-size);
   border-radius: 5px;
   overflow: hidden;
   flex-shrink: 0;
@@ -323,27 +330,37 @@ async function onRowClick() {
 .row-main {
   flex: 1 1 auto;
   min-width: 0;
+  height: var(--flag-size);
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   align-items: flex-start;
-  gap: 0.12rem;
+  gap: 0;
+}
+
+.title-text {
+  max-width: 100%;
+  min-width: 0;
 }
 
 .group-title {
   display: inline-block;
-  width: fit-content;
   max-width: 100%;
+  width: fit-content;
   font-weight: 600;
   color: var(--primary-color);
   text-decoration: none;
-  line-height: 1.25;
+  line-height: 1.15;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  vertical-align: top;
+  transition: color 0.15s ease;
 }
 
 .group-title:hover {
-  text-decoration: underline;
+  text-decoration: none;
+  color: var(--primary-color-hover);
 }
 
 .status-badge {
@@ -355,6 +372,7 @@ async function onRowClick() {
   text-transform: uppercase;
   letter-spacing: 0.4px;
   width: fit-content;
+  line-height: 1.15;
   opacity: 0.55;
 }
 
@@ -374,7 +392,8 @@ async function onRowClick() {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  margin-left: 0.5rem;
+  align-self: center;
+  margin-left: auto;
 }
 
 .declare-btn {
@@ -449,15 +468,13 @@ async function onRowClick() {
 }
 
 @media (max-width: 480px) {
-  .list-row {
-    flex-wrap: wrap;
-    row-gap: 0.4rem;
+  .declare-btn {
+    font-size: 0.72rem;
+    padding: 0.4em 0.7em;
   }
 
-  .row-actions {
-    width: 100%;
-    justify-content: flex-end;
-    margin-left: 0;
+  .bias-declared {
+    font-size: 0.72rem;
   }
 }
 </style>

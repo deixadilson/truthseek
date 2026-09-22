@@ -11,7 +11,7 @@
             type="button"
             class="menu-item"
             :class="{ active }"
-            @click="emit('edit'); close()"
+            @click="close(); emitDeferred('edit')"
           >
             <Icon name="lucide:pencil" :size="14" />
             Editar
@@ -23,7 +23,7 @@
             class="menu-item"
             :class="{ active }"
             :disabled="notificationsBusy"
-            @click="emit('toggle-notifications'); close()"
+            @click="close(); emitDeferred('toggle-notifications')"
           >
             <Icon
               :name="isSubscribedToNotifications ? 'lucide:bell-off' : 'lucide:bell'"
@@ -37,7 +37,7 @@
             type="button"
             class="menu-item"
             :class="{ active }"
-            @click="emit('share'); close()"
+            @click="close(); emitDeferred('share')"
           >
             <Icon name="lucide:share-2" :size="14" />
             Compartilhar
@@ -48,7 +48,7 @@
             type="button"
             class="menu-item"
             :class="{ active }"
-            @click="emit('report'); close()"
+            @click="close(); emitDeferred('report')"
           >
             <Icon name="lucide:flag" :size="14" />
             Denunciar
@@ -59,7 +59,7 @@
             type="button"
             class="menu-item danger"
             :class="{ active }"
-            @click="emit('delete'); close()"
+            @click="close(); emitDeferred('delete')"
           >
             <Icon name="lucide:trash-2" :size="14" />
             Excluir
@@ -91,7 +91,13 @@ const emit = defineEmits<{
   (e: 'report'): void;
   (e: 'toggle-notifications'): void;
 }>();
-</script>
+
+/** Evita que o fechamento do Menu (focus/pointer) interfira no modal aberto no mesmo gesto. */
+function emitDeferred(event: 'edit' | 'delete' | 'share' | 'report' | 'toggle-notifications') {
+  window.setTimeout(() => {
+    emit(event);
+  }, 100);
+}</script>
 
 <style scoped>
 .content-options {

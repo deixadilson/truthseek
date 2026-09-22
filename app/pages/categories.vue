@@ -84,6 +84,8 @@
                   :clickable="!!group.has_subgroups"
                   :bias-declared="isBiasDeclared(group.id)"
                   :declaring="isDeclaringBiasFor === group.id"
+                  :member-count="memberPreviewFor(group)?.memberCount ?? null"
+                  :member-avatars="memberPreviewFor(group)?.avatars ?? []"
                   @select="handleCardClick(group)"
                   @declare-bias="openDeclareBiasDialog(group)"
                 />
@@ -113,6 +115,8 @@
                   :clickable="false"
                   :bias-declared="isBiasDeclared(group.id)"
                   :declaring="isDeclaringBiasFor === group.id"
+                  :member-count="memberPreviewFor(group)?.memberCount ?? null"
+                  :member-avatars="memberPreviewFor(group)?.avatars ?? []"
                   @select="handleCardClick(group)"
                   @declare-bias="openDeclareBiasDialog(group)"
                 />
@@ -142,6 +146,8 @@
                 :clickable="!isSearching && !!group.has_subgroups"
                 :bias-declared="isBiasDeclared(group.id)"
                 :declaring="isDeclaringBiasFor === group.id"
+                :member-count="memberPreviewFor(group)?.memberCount ?? null"
+                :member-avatars="memberPreviewFor(group)?.avatars ?? []"
                 @select="handleCardClick(group)"
                 @declare-bias="openDeclareBiasDialog(group)"
               />
@@ -192,7 +198,12 @@
 import type { Database } from '~/types/supabase';
 import type { Group, Bias } from '~/types/app';
 import { useToast } from 'vue-toastification';
-import { META_GROUP_SLUG } from '~/utils/groupFlags';
+import { META_GROUP_SLUG, isMetaGroup } from '~/utils/groupFlags';
+import {
+  fetchCountryMemberPreview,
+  fetchGroupMemberPreviews,
+  type GroupMemberPreview,
+} from '~/utils/groupMemberCounts';
 
 interface BreadcrumbItem {
   name: string;
@@ -219,6 +230,52 @@ const isSearching = ref(false);
 const breadcrumbs = ref<BreadcrumbItem[]>([]);
 
 const userBiases = ref<Bias[]>([]);
+const memberPreviewsByGroupId = ref<Record<string, GroupMemberPreview>>({});
+
+function memberPreviewFor(group: Group): GroupMemberPreview | null {
+  if (group.is_open !== false && !isMetaGroup(group)) return null;
+  return memberPreviewsByGroupId.value[group.id] ?? null;
+}
+
+async function loadMemberPreviewsForGroups(groups: Group[]) {
+  if (viewMode.value !== 'grid') return;
+
+  const pending = groups.filter(
+    (group) => !memberPreviewsByGroupId.value[group.id]
+      && (group.is_open === false || isMetaGroup(group)),
+  );
+  if (!pending.length) return;
+
+  const restricted = pending.filter((group) => !isMetaGroup(group));
+  const metaGroups = pending.filter((group) => isMetaGroup(group));
+
+  try {
+    const next: Record<string, GroupMemberPreview> = {
+      ...memberPreviewsByGroupId.value,
+    };
+
+    if (restricted.length) {
+      const previews = await fetchGroupMemberPreviews(
+        supabase,
+        restricted.map((group) => group.id),
+      );
+      Object.assign(next, previews);
+    }
+
+    await Promise.all(
+      metaGroups.map(async (group) => {
+        next[group.id] = await fetchCountryMemberPreview(
+          supabase,
+          group.country_code,
+        );
+      }),
+    );
+
+    memberPreviewsByGroupId.value = next;
+  } catch (e) {
+    console.error('Erro ao carregar prévia de membros dos grupos:', e);
+  }
+}
 const isDeclaringBiasFor = ref<string | null>(null);
 const declareBiasDialogOpen = ref(false);
 const pendingDeclareGroupId = ref<string | null>(null);
@@ -578,6 +635,15 @@ const filteredGroups = computed(() => {
     group.name.toLowerCase().includes(lowerSearchTerm)
   );
 });
+
+watch(
+  [groupsToRender, viewMode],
+  ([groups, mode]) => {
+    if (mode !== 'grid') return;
+    void loadMemberPreviewsForGroups(groups);
+  },
+  { immediate: true },
+);
 
 onMounted(() => {
   if (import.meta.client) {

@@ -17,17 +17,39 @@
           <NuxtLink
             :to="item.to"
             class="shortcuts-link"
-            :class="{ active: isActive(item.to) }"
+            :class="{
+              active: isActive(item.to),
+              'has-meta': showMemberMeta(item),
+            }"
             @click="onNavigate"
           >
-            <img
-              v-if="flagUrl(item.flagPath)"
-              :src="flagUrl(item.flagPath)!"
-              alt=""
-              class="shortcuts-flag"
-              loading="lazy"
-            />
-            <span class="shortcuts-name">{{ item.name }}</span>
+            <span
+              v-if="showMemberMeta(item) && flagUrl(item.flagPath)"
+              class="shortcuts-media"
+            >
+              <img
+                :src="flagUrl(item.flagPath)!"
+                alt=""
+                class="shortcuts-flag"
+                loading="lazy"
+              />
+            </span>
+            <template v-else-if="!showMemberMeta(item)">
+              <img
+                v-if="flagUrl(item.flagPath)"
+                :src="flagUrl(item.flagPath)!"
+                alt=""
+                class="shortcuts-flag"
+                loading="lazy"
+              />
+            </template>
+            <span v-if="showMemberMeta(item)" class="shortcuts-meta">
+              <span class="shortcuts-name">{{ item.name }}</span>
+              <span class="shortcuts-members">
+                {{ formatMemberCountLabel(item.memberCount ?? 0) }}
+              </span>
+            </span>
+            <span v-else class="shortcuts-name">{{ item.name }}</span>
           </NuxtLink>
         </li>
       </ul>
@@ -48,23 +70,45 @@
           <NuxtLink
             :to="item.to"
             class="shortcuts-link"
-            :class="{ active: isActive(item.to) }"
+            :class="{
+              active: isActive(item.to),
+              'has-meta': showMemberMeta(item),
+            }"
             @click="onNavigate"
           >
-            <img
-              v-if="flagUrl(item.flagPath)"
-              :src="flagUrl(item.flagPath)!"
-              alt=""
-              class="shortcuts-flag"
-              loading="lazy"
-            />
-            <Icon
-              v-else-if="item.targetType === 'vs_group'"
-              name="lucide:swords"
-              :size="14"
-              class="shortcuts-icon"
-            />
-            <span class="shortcuts-name">{{ item.name }}</span>
+            <span
+              v-if="showMemberMeta(item) && flagUrl(item.flagPath)"
+              class="shortcuts-media"
+            >
+              <img
+                :src="flagUrl(item.flagPath)!"
+                alt=""
+                class="shortcuts-flag"
+                loading="lazy"
+              />
+            </span>
+            <template v-else-if="!showMemberMeta(item)">
+              <img
+                v-if="flagUrl(item.flagPath)"
+                :src="flagUrl(item.flagPath)!"
+                alt=""
+                class="shortcuts-flag"
+                loading="lazy"
+              />
+              <Icon
+                v-else-if="item.targetType === 'vs_group'"
+                name="lucide:swords"
+                :size="14"
+                class="shortcuts-icon"
+              />
+            </template>
+            <span v-if="showMemberMeta(item)" class="shortcuts-meta">
+              <span class="shortcuts-name">{{ item.name }}</span>
+              <span class="shortcuts-members">
+                {{ formatMemberCountLabel(item.memberCount ?? 0) }}
+              </span>
+            </span>
+            <span v-else class="shortcuts-name">{{ item.name }}</span>
           </NuxtLink>
         </li>
       </ul>
@@ -73,7 +117,11 @@
 </template>
 
 <script setup lang="ts">
-import { SIDEBAR_BIASES_LIMIT } from '~/composables/useGroupShortcuts'
+import {
+  SIDEBAR_BIASES_LIMIT,
+  type GroupShortcutItem,
+} from '~/composables/useGroupShortcuts'
+import { formatMemberCountLabel } from '~/utils/groupMemberCounts'
 
 withDefaults(
   defineProps<{
@@ -98,6 +146,10 @@ const FLAG_BASE =
 function flagUrl(path: string | null | undefined) {
   if (!path) return null
   return `${FLAG_BASE}/${path}`
+}
+
+function showMemberMeta(item: GroupShortcutItem) {
+  return item.targetType === 'group' && item.isOpen === false
 }
 
 function isActive(to: string) {
@@ -174,13 +226,25 @@ watch(
   font-size: 0.9rem;
   line-height: 1.25;
   border-bottom: 1px dotted var(--border-color);
-  transition: color 0.15s;
+  transition: color 0.15s ease;
+}
+
+.variant-sidebar .shortcuts-link.has-meta {
+  --media-size: 40px;
+  gap: 0.55rem;
+  padding: 0.45rem 0;
 }
 
 .variant-sidebar .shortcuts-link:hover,
 .variant-sidebar .shortcuts-link.active {
   background: transparent;
   color: var(--primary-color-dark);
+  text-decoration: none;
+}
+
+.variant-sidebar .shortcuts-link:hover .shortcuts-name,
+.variant-sidebar .shortcuts-link.active .shortcuts-name {
+  color: var(--primary-color);
 }
 
 .variant-sidebar .shortcuts-list li:last-child .shortcuts-link {
@@ -206,6 +270,23 @@ watch(
   line-height: 1.3;
 }
 
+.shortcuts-media {
+  flex-shrink: 0;
+  width: var(--media-size, 40px);
+  height: var(--media-size, 40px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shortcuts-media .shortcuts-flag {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+  box-sizing: border-box;
+  border-radius: 3px;
+}
+
 .shortcuts-flag {
   width: 22px;
   height: 22px;
@@ -219,11 +300,35 @@ watch(
   color: var(--primary-color);
 }
 
+.shortcuts-meta {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0;
+  height: var(--media-size, 40px);
+  min-width: 0;
+  flex: 1;
+}
+
 .shortcuts-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
+  line-height: 1.15;
+}
+
+.shortcuts-members {
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.15;
+  color: #777;
+  white-space: nowrap;
+}
+
+.variant-sidebar .shortcuts-link:hover .shortcuts-members,
+.variant-sidebar .shortcuts-link.active .shortcuts-members {
+  color: #666;
 }
 
 .variant-mobile {
@@ -282,6 +387,12 @@ watch(
   text-decoration: none;
   font-size: 0.95rem;
   font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.variant-mobile .shortcuts-link.has-meta {
+  --media-size: 40px;
+  gap: 0.55rem;
 }
 
 .variant-mobile .shortcuts-list li:last-child .shortcuts-link {
@@ -292,9 +403,25 @@ watch(
 .variant-mobile .shortcuts-link.active {
   background: transparent;
   color: var(--primary-color-light);
+  text-decoration: none;
+}
+
+.variant-mobile .shortcuts-link:hover .shortcuts-name,
+.variant-mobile .shortcuts-link.active .shortcuts-name {
+  color: var(--primary-color-light);
 }
 
 .variant-mobile .shortcuts-icon {
   color: var(--header-text);
+}
+
+.variant-mobile .shortcuts-members {
+  color: color-mix(in srgb, var(--header-text) 55%, transparent);
+  font-weight: 400;
+}
+
+.variant-mobile .shortcuts-link:hover .shortcuts-members,
+.variant-mobile .shortcuts-link.active .shortcuts-members {
+  color: color-mix(in srgb, var(--header-text) 70%, transparent);
 }
 </style>

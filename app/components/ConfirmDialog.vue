@@ -1,31 +1,25 @@
 <template>
-  <TransitionRoot appear :show="open" as="template">
-    <Dialog class="confirm-dialog-root" @close="handleDismiss">
-      <TransitionChild
-        as="template"
-        enter="ui-modal-backdrop-enter-active"
-        enter-from="ui-modal-backdrop-enter-from"
-        enter-to="ui-modal-backdrop-enter-to"
-        leave="ui-modal-backdrop-leave-active"
-        leave-from="ui-modal-backdrop-leave-from"
-        leave-to="ui-modal-backdrop-leave-to"
+  <Teleport to="body">
+    <Transition name="confirm-fade">
+      <div
+        v-if="open"
+        class="confirm-dialog-root"
+        role="presentation"
+        @keydown.escape.prevent="handleDismiss"
       >
-        <div class="confirm-backdrop" aria-hidden="true" />
-      </TransitionChild>
-
-      <div class="confirm-dialog-container">
-        <TransitionChild
-          as="template"
-          enter="ui-modal-panel-enter-active"
-          enter-from="ui-modal-panel-enter-from"
-          enter-to="ui-modal-panel-enter-to"
-          leave="ui-modal-panel-leave-active"
-          leave-from="ui-modal-panel-leave-from"
-          leave-to="ui-modal-panel-leave-to"
-        >
-          <DialogPanel class="confirm-panel">
+        <div class="confirm-backdrop" aria-hidden="true" @click="handleDismiss" />
+        <div class="confirm-dialog-container">
+          <div
+            ref="panelRef"
+            class="confirm-panel"
+            role="dialog"
+            aria-modal="true"
+            :aria-labelledby="titleId"
+            tabindex="-1"
+            @click.stop
+          >
             <div class="confirm-header">
-              <DialogTitle class="confirm-title">{{ title }}</DialogTitle>
+              <h2 :id="titleId" class="confirm-title">{{ title }}</h2>
               <button
                 type="button"
                 class="confirm-close-icon"
@@ -49,6 +43,7 @@
                 {{ cancelLabel }}
               </button>
               <button
+                ref="confirmBtnRef"
                 type="button"
                 class="confirm-btn confirm-danger"
                 :disabled="busy"
@@ -58,16 +53,14 @@
                 <template v-else>{{ confirmLabel }}</template>
               </button>
             </div>
-          </DialogPanel>
-        </TransitionChild>
+          </div>
+        </div>
       </div>
-    </Dialog>
-  </TransitionRoot>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
-import { Dialog, DialogPanel, DialogTitle, TransitionRoot, TransitionChild } from '@headlessui/vue';
-
 const props = withDefaults(defineProps<{
   open: boolean;
   title?: string;
@@ -91,8 +84,26 @@ const emit = defineEmits<{
   (e: 'update:open', value: boolean): void;
 }>();
 
+const titleId = useId();
+const panelRef = ref<HTMLElement | null>(null);
+const confirmBtnRef = ref<HTMLElement | null>(null);
+/** Ignora o click residual do MenuItem que abriu o diálogo. */
+const openedAt = ref(0);
+
+watch(
+  () => props.open,
+  async (isOpen) => {
+    if (!isOpen) return;
+    openedAt.value = performance.now();
+    await nextTick();
+    confirmBtnRef.value?.focus();
+  },
+);
+
 function handleDismiss() {
   if (props.busy) return;
+  // Clique que abriu via Menu ainda pode chegar no backdrop no mesmo gesto.
+  if (performance.now() - openedAt.value < 300) return;
   emit('cancel');
   emit('update:open', false);
 }
@@ -100,32 +111,36 @@ function handleDismiss() {
 
 <style scoped>
 .confirm-dialog-root {
-  position: relative;
-  z-index: 1100;
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
 }
 
 .confirm-backdrop {
-  position: fixed;
+  position: absolute;
   inset: 0;
   background: rgba(15, 23, 32, 0.45);
 }
 
 .confirm-dialog-container {
-  position: fixed;
+  position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1rem;
+  pointer-events: none;
 }
 
 .confirm-panel {
+  pointer-events: auto;
   width: min(100%, 24rem);
   padding: 1.25rem 1.35rem;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   background: var(--card-bg);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+  outline: none;
 }
 
 .confirm-header {
@@ -209,5 +224,26 @@ function handleDismiss() {
 .confirm-danger:hover:not(:disabled) {
   background-color: #9a1320;
   border-color: #9a1320;
+}
+
+.confirm-fade-enter-active,
+.confirm-fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+
+.confirm-fade-enter-active .confirm-panel,
+.confirm-fade-leave-active .confirm-panel {
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.confirm-fade-enter-from,
+.confirm-fade-leave-to {
+  opacity: 0;
+}
+
+.confirm-fade-enter-from .confirm-panel,
+.confirm-fade-leave-to .confirm-panel {
+  opacity: 0;
+  transform: scale(0.96) translateY(0.35rem);
 }
 </style>

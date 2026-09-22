@@ -609,7 +609,10 @@ async function saveEdit() {
 
 function confirmDelete() {
   if (!props.post.id || !isAuthor.value) return;
-  showDeleteConfirm.value = true;
+  // Aguarda o Menu do Headless UI terminar de fechar (crítico na timeline do grupo).
+  window.setTimeout(() => {
+    showDeleteConfirm.value = true;
+  }, 100);
 }
 
 function openReportDialog() {

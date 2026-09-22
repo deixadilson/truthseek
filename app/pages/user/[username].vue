@@ -1015,6 +1015,7 @@ watch(authUserId, () => {
 }
 
 .bias-link {
+  --media-size: 40px;
   display: flex;
   align-items: center;
   gap: 0.65rem;
@@ -1023,20 +1024,27 @@ watch(authUserId, () => {
   min-width: 0;
 }
 
+.bias-link:hover {
+  text-decoration: none;
+}
+
 .bias-link:hover .bias-name {
   color: var(--primary-color);
 }
 
 .bias-flag-container {
   flex-shrink: 0;
+  width: var(--media-size);
+  height: var(--media-size);
 }
 
 .bias-flag,
 .bias-flag-placeholder {
-  width: 28px;
-  height: 28px;
+  width: 100%;
+  height: 100%;
   border-radius: 4px;
   object-fit: cover;
+  display: block;
 }
 
 .bias-flag-logo {
@@ -1057,13 +1065,17 @@ watch(authUserId, () => {
 .bias-text {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  justify-content: space-between;
+  gap: 0;
+  height: var(--media-size);
   min-width: 0;
+  flex: 1;
 }
 
 .bias-name {
   font-weight: 500;
   font-size: 0.9rem;
+  line-height: 1.15;
   transition: color 0.2s;
   white-space: nowrap;
   overflow: hidden;
@@ -1072,7 +1084,7 @@ watch(authUserId, () => {
 
 .bias-influence {
   font-size: 0.78rem;
-  line-height: 1.2;
+  line-height: 1.15;
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;

@@ -28,7 +28,7 @@ withDefaults(defineProps<{
 
 .loading-icon {
   flex-shrink: 0;
-  color: inherit;
+  color: var(--primary-color);
   animation: loading-spin 0.8s linear infinite;
 }
 

@@ -575,6 +575,7 @@ async function goToPublicProfile() {
   /* border-bottom: 1px solid var(--primary-color-light); // Opcional, se quiser divisores mais fortes */
 }
 .bias-info-container {
+  --media-size: 40px;
   display: flex;
   align-items: center;
   gap: 0.6rem;
@@ -583,11 +584,13 @@ async function goToPublicProfile() {
 }
 .bias-flag-link {
   flex-shrink: 0;
+  width: var(--media-size);
+  height: var(--media-size);
 }
 
 .bias-flag, .bias-flag-placeholder {
-  width: 32px;
-  height: 32px;
+  width: 100%;
+  height: 100%;
   border-radius: 4px;
   object-fit: cover;
   background-color: var(--primary-color-light);
@@ -602,11 +605,16 @@ async function goToPublicProfile() {
 .bias-text-details {
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
+  gap: 0;
+  height: var(--media-size);
   min-width: 0;
+  flex: 1;
 }
 
 .bias-name {
   font-size: 0.9rem;
+  line-height: 1.15;
   color: var(--primary-color);
   font-weight: 500;
   text-decoration: none;
@@ -616,6 +624,7 @@ async function goToPublicProfile() {
   display: block;
 }
 .bias-name:hover {
+  text-decoration: none;
   color: var(--primary-color-hover);
 }
 
@@ -624,7 +633,8 @@ async function goToPublicProfile() {
   align-items: center;
   flex-wrap: wrap;
   gap: 0.35rem;
-  margin-top: 0.1rem;
+  margin-top: 0;
+  line-height: 1.15;
 }
 .influence-points {
   font-size: 0.75rem;
