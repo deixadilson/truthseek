@@ -258,6 +258,7 @@ import type { FollowStatus } from '~/composables/useFollow';
 import { countryFlagUrl, formatCountryName, formatMembershipDuration } from '~/utils/formatters';
 import { isMetaGroupBias, resolveGroupFlagUrl } from '~/utils/groupFlags';
 import { parseProfileVisibility } from '~/utils/profileVisibility';
+import { attachPostIssues } from '~/utils/attachPostIssues';
 import { useToast } from 'vue-toastification';
 
 const route = useRoute();
@@ -672,16 +673,19 @@ async function fetchPosts(
       }
     }
 
-    const visible = rows
-      .filter((p) => {
-        if (p.owner_type !== 'group' || !p.owner_id) return true;
-        return openGroupIds.has(p.owner_id);
-      })
-      .map((p) => ({
-        ...p,
-        author_username: p.author_username || author.username,
-        author_avatar_path: p.author_avatar_path || author.avatar_path,
-      }));
+    const visible = await attachPostIssues(
+      supabase,
+      rows
+        .filter((p) => {
+          if (p.owner_type !== 'group' || !p.owner_id) return true;
+          return openGroupIds.has(p.owner_id);
+        })
+        .map((p) => ({
+          ...p,
+          author_username: p.author_username || author.username,
+          author_avatar_path: p.author_avatar_path || author.avatar_path,
+        })),
+    );
 
     if (append) {
       const existing = new Set(posts.value.map((p) => p.id));

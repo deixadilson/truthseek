@@ -53,9 +53,11 @@
           <li>Engajar-se em debates profundos sobre diversos temas.</li>
           <li>Aprender a identificar falácias e construir argumentos sólidos.</li>
           <li>Declarar vieses e participar de grupos alinhados às suas ideias.</li>
+          <li>Descobrir novos pontos de vista, argumentos e contra argumentos.</li>
+          <li>Colocar suas convicções à prova contra argumentos contrários.</li>
           <li>Acumular influência e subir nos rankings de usuários e vieses.</li>
           <li>Desbloquear novos recursos com gameficação conforme sua participação.</li>
-          <li>Rsponder a quizzes para testar alinhamento com ideias e vieses.</li>
+          <li>Responder a quizzes para testar alinhamento com ideias e vieses.</li>
           <li>Participar de uma comunidade focada na evolução de ideias.</li>
         </ul>
         <div class="site-links">

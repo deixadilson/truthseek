@@ -354,6 +354,10 @@ async function submitPost() {
         owner_id: props.ownerId,
         owner_type: props.ownerType,
         issue_ids: issueIds,
+        issues: selectedIssueChips.value.map((issue) => ({
+          id: issue.id,
+          name: issue.name,
+        })),
       };
       emit('post-created', emittedPost);
       resetForm();

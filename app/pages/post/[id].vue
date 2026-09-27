@@ -109,6 +109,7 @@ import { useToast } from 'vue-toastification';
 import { canEnterClosedGroup, canEnterVsGroup } from '~/utils/formatters';
 import { buildPostOgMeta } from '~/utils/postOg';
 import { buildVsPath, orderVsSides, vsDisplayTitle } from '~/utils/vsGroups';
+import { attachPostIssues } from '~/utils/attachPostIssues';
 
 const route = useRoute();
 const supabase = useSupabaseClient<Database>();
@@ -362,7 +363,8 @@ async function loadPostById(id: string): Promise<PostLoadResult> {
     };
   }
 
-  return { post: postData, errorMessage: null, visible: true };
+  const [withIssues] = await attachPostIssues(supabase, [postData]);
+  return { post: withIssues || postData, errorMessage: null, visible: true };
 }
 
 const { data: postLoad, pending: postPending, error: postLoadError } = await useAsyncData(

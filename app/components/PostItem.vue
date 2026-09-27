@@ -167,9 +167,18 @@
       <template v-else>
         <div
           v-if="localTextContent"
+          ref="textContentEl"
           class="text-content markdown-content"
+          :class="{ 'is-preview': truncateText, 'is-faded': showTextFade }"
           v-html="formattedTextContent"
         ></div>
+        <NuxtLink
+          v-if="showTextFade && post.id"
+          :to="`/post/${post.id}`"
+          class="read-full-post"
+        >
+          Ver post completo
+        </NuxtLink>
         <div v-if="localImagePath" class="image-content">
           <img :src="postImageUrl" :alt="`Imagem do post de ${post.author_username || 'usuário'}`" />
         </div>
@@ -185,6 +194,11 @@
           <LinkPreviewCard :preview="localLinkPreview" />
         </div>
       </template>
+      <ul v-if="postIssueTags.length > 0" class="post-issue-tags">
+        <li v-for="issue in postIssueTags" :key="issue.id" class="post-issue-tag">
+          {{ issue.name }}
+        </li>
+      </ul>
     </div>
 
     <footer class="post-footer">
@@ -238,13 +252,19 @@ import { getEmbedVideoUrl, timeAgo } from '~/utils/formatters';
 import { renderPostMarkdown } from '~/utils/renderMarkdown';
 import { normalizeLinkPreview, type LinkPreview } from '~/types/linkPreview';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   post: PostWithAuthor;
   /** When true (default), shows "usuário postou em grupo" outside group pages. */
   showGroupContext?: boolean;
-}>();
+  /** Group lists show a short preview plus a link to the full post. */
+  truncateText?: boolean;
+}>(), {
+  truncateText: false,
+});
 
 const showGroupContext = computed(() => props.showGroupContext !== false);
+
+const postIssueTags = computed(() => props.post.issues || []);
 
 export type PostUpdatedPayload = {
   id: string;
@@ -454,6 +474,29 @@ const postImageUrl = computed(() => {
 
 const embedVideoUrl = computed(() => getEmbedVideoUrl(localVideoUrl.value));
 const formattedTextContent = computed(() => renderPostMarkdown(localTextContent.value));
+
+const textContentEl = ref<HTMLElement | null>(null);
+const showTextFade = ref(false);
+const PREVIEW_SOLID_LINES = 8;
+const PREVIEW_FADE_LINES = 4;
+
+function measureTextPreview() {
+  const el = textContentEl.value;
+  if (!props.truncateText || !el) {
+    showTextFade.value = false;
+    return;
+  }
+
+  const style = getComputedStyle(el);
+  const fontSize = parseFloat(style.fontSize) || 16;
+  const parsedLine = parseFloat(style.lineHeight);
+  const line = Number.isFinite(parsedLine) ? parsedLine : fontSize * 1.6;
+  const fade = PREVIEW_FADE_LINES * line;
+  const max = (PREVIEW_SOLID_LINES + PREVIEW_FADE_LINES) * line;
+  el.style.setProperty('--preview-fade', `${fade}px`);
+  el.style.setProperty('--preview-max', `${max}px`);
+  showTextFade.value = el.scrollHeight > max + 1;
+}
 
 async function fetchCurrentUserVote() {
   if (!authUserId.value || !props.post.id) {
@@ -733,6 +776,11 @@ watchEffect(() => {
 onMounted(() => {
   fetchCurrentUserVote();
   void fetchSubscriptionStatus();
+  nextTick(() => measureTextPreview());
+});
+
+watch(localTextContent, () => {
+  nextTick(() => measureTextPreview());
 });
 
 watch(authUserId, () => {
@@ -895,6 +943,35 @@ a.author-name:hover {
 .text-content :deep(a:hover) {
   color: var(--primary-color-hover);
 }
+.text-content.is-faded {
+  max-height: var(--preview-max);
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 calc(100% - var(--preview-fade)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 calc(100% - var(--preview-fade)),
+    transparent 100%
+  );
+}
+.read-full-post {
+  display: inline-block;
+  margin: -0.25rem 0 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+.read-full-post:hover {
+  color: var(--primary-color-hover);
+  text-decoration: none;
+}
 
 .edit-form {
   display: flex;
@@ -1009,6 +1086,29 @@ a.author-name:hover {
 }
 .link-preview-content {
   margin-top: 0.75rem;
+}
+
+.post-issue-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  list-style: none;
+  margin: 0.85rem 0 0;
+  padding: 0;
+}
+
+.post-issue-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 1.6rem;
+  padding: 0 0.55rem;
+  border: 1px solid var(--primary-color-light);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary-color) 8%, white);
+  color: var(--primary-color-dark);
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1;
 }
 
 .post-footer {

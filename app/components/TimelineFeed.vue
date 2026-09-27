@@ -30,6 +30,7 @@
 import type { PostWithAuthor } from '~/types/app';
 import type { Database } from '~/types/supabase';
 import { enrichPostsWithOwnerGroups } from '~/utils/enrichPostsWithOwnerGroups';
+import { attachPostIssues } from '~/utils/attachPostIssues';
 
 const supabase = useSupabaseClient<Database>();
 const PAGE_SIZE = 20;
@@ -46,9 +47,12 @@ async function fetchPage(before?: string | null, append = false) {
   });
   if (error) throw error;
 
-  const rows = await enrichPostsWithOwnerGroups(
+  const rows = await attachPostIssues(
     supabase,
-    (data || []) as PostWithAuthor[]
+    await enrichPostsWithOwnerGroups(
+      supabase,
+      (data || []) as PostWithAuthor[],
+    ),
   );
   if (append) {
     const existing = new Set(posts.value.map((p) => p.id));

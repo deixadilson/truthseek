@@ -8,6 +8,7 @@
       :key="`${post.id}`"
       :post="post"
       :show-group-context="showGroupContext"
+      :truncate-text="truncateText"
       @deleted="(id) => emit('post-deleted', id)"
       @updated="(payload) => emit('post-updated', payload)"
     />
@@ -39,11 +40,13 @@ const props = withDefaults(
     hasMore?: boolean;
     emptyMessage?: string;
     showGroupContext?: boolean;
+    truncateText?: boolean;
     /** When set, loads author influence frames/badges for this group. */
     influenceGroupId?: string | null;
   }>(),
   {
     showGroupContext: true,
+    truncateText: false,
     hasMore: false,
     isLoadingMore: false,
     influenceGroupId: null,

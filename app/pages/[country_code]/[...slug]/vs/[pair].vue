@@ -170,6 +170,7 @@
               :is-loading-more="isLoadingMorePosts"
               :empty-message="postsEmptyMessage"
               :show-group-context="false"
+              truncate-text
               @post-deleted="handlePostDeleted"
               @post-updated="handlePostUpdated"
               @load-more="loadMorePosts"
@@ -186,6 +187,7 @@
 import type { Bias, Group, Issue, PostWithAuthor } from '~/types/app';
 import { useToast } from 'vue-toastification';
 import { canEnterVsGroup } from '~/utils/formatters';
+import { attachPostIssues } from '~/utils/attachPostIssues';
 import { resolveGroupFlagUrl } from '~/utils/groupFlags';
 import {
   buildVsPairKey,
@@ -338,35 +340,6 @@ async function resolveVsAccess(groupIdA: string, groupIdB: string) {
   }
 }
 
-async function attachIssueIdsToPosts(rows: PostWithAuthor[]): Promise<PostWithAuthor[]> {
-  const ids = rows.map((p) => p.id).filter((id): id is string => !!id);
-  if (ids.length === 0) return rows.map((p) => ({ ...p, issue_ids: p.issue_ids || [] }));
-
-  try {
-    const { data, error } = await supabase
-      .from('post_issues')
-      .select('post_id, issue_id')
-      .in('post_id', ids);
-
-    if (error) throw error;
-
-    const byPost = new Map<string, string[]>();
-    for (const row of data || []) {
-      const list = byPost.get(row.post_id) || [];
-      list.push(row.issue_id);
-      byPost.set(row.post_id, list);
-    }
-
-    return rows.map((post) => ({
-      ...post,
-      issue_ids: post.id ? (byPost.get(post.id) || []) : [],
-    }));
-  } catch (e) {
-    console.error('Erro ao carregar issues dos posts:', e);
-    return rows.map((p) => ({ ...p, issue_ids: p.issue_ids || [] }));
-  }
-}
-
 async function loadVsIssues(sourceGroupId: string) {
   try {
     const { data, error } = await supabase.rpc('get_issues_for_group', {
@@ -402,7 +375,7 @@ async function fetchPostsForVs(vsId: string, before?: string | null, append = fa
     const { data, error } = await query;
     if (error) throw error;
 
-    const rows = await attachIssueIdsToPosts((data || []) as PostWithAuthor[]);
+    const rows = await attachPostIssues(supabase, (data || []) as PostWithAuthor[]);
     if (append) {
       const existing = new Set(posts.value.map((p) => p.id));
       posts.value = [...posts.value, ...rows.filter((p) => p.id && !existing.has(p.id))];
