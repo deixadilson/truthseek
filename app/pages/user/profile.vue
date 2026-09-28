@@ -6,12 +6,24 @@
     <div v-else class="profile-card">
       <h2>Seu Perfil</h2>
       <div class="avatar-section">
-        <img
-          :src="currentAvatarDisplay"
-          alt="Avatar do usuário"
-          class="profile-avatar"
-          @error="onAvatarError"
-        />
+        <button
+          type="button"
+          class="avatar-trigger"
+          :disabled="isUploadingAvatar"
+          aria-label="Alterar avatar"
+          @click="triggerFileInput"
+        >
+          <img
+            :src="currentAvatarDisplay"
+            alt="Avatar do usuário"
+            class="profile-avatar"
+            @error="onAvatarError"
+          />
+          <span class="avatar-overlay" aria-hidden="true">
+            <Icon name="lucide:camera" :size="36" />
+            <span>Alterar Avatar</span>
+          </span>
+        </button>
         <input
           type="file"
           ref="avatarFileInputRef"
@@ -30,18 +42,20 @@
             Alterar Avatar
           </template>
         </button>
-        <NuxtLink
-          v-if="userProfile?.username"
-          :to="`/user/${userProfile.username}`"
-          class="public-profile-link"
-        >
-          <Icon name="lucide:user" :size="16" />
-          Ver perfil público
-        </NuxtLink>
-        <NuxtLink to="/user/settings" class="public-profile-link">
-          <Icon name="lucide:settings" :size="16" />
-          Configurações
-        </NuxtLink>
+        <div class="profile-links">
+          <NuxtLink
+            v-if="userProfile?.username"
+            :to="`/user/${userProfile.username}`"
+            class="public-profile-link"
+          >
+            <Icon name="lucide:user" :size="16" />
+            Ver perfil público
+          </NuxtLink>
+          <NuxtLink to="/user/settings" class="public-profile-link">
+            <Icon name="lucide:settings" :size="16" />
+            Configurações
+          </NuxtLink>
+        </div>
       </div>
       <div class="profile-info">
         <div class="info-item">
@@ -462,14 +476,46 @@ watch(userProfile, (newProfileData) => {
   gap: 0.75rem;
 }
 
-.profile-avatar {
+.avatar-trigger {
+  position: relative;
+  display: block;
   width: 120px;
   height: 120px;
+  padding: 0;
+  margin-bottom: 0.5rem;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  cursor: default;
+  pointer-events: none;
+}
+
+.profile-avatar {
+  display: block;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
   object-fit: cover;
   border: 3px solid var(--border-color);
   background-color: #f0f0f0;
-  margin-bottom: 0.5rem;
+  box-sizing: border-box;
+}
+
+.avatar-overlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity 0.15s ease;
 }
 
 .upload-button {
@@ -477,6 +523,43 @@ watch(userProfile, (newProfileData) => {
   align-items: center;
   gap: 0.4rem;
   font-size: 0.9em;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .avatar-trigger {
+    cursor: pointer;
+    pointer-events: auto;
+  }
+
+  .avatar-trigger:disabled {
+    cursor: progress;
+  }
+
+  .avatar-overlay {
+    display: flex;
+  }
+
+  .avatar-trigger:hover .avatar-overlay,
+  .avatar-trigger:focus-visible .avatar-overlay,
+  .avatar-trigger:disabled .avatar-overlay {
+    opacity: 1;
+  }
+
+  .avatar-trigger:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 3px;
+  }
+
+  .upload-button {
+    display: none;
+  }
+}
+
+.profile-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem 1.25rem;
 }
 
 .public-profile-link {
@@ -487,6 +570,8 @@ watch(userProfile, (newProfileData) => {
   color: var(--primary-color);
   text-decoration: none;
   font-weight: 500;
+  white-space: nowrap;
+  transition: color 0.15s ease;
 }
 
 .public-profile-link:hover {

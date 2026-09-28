@@ -30,6 +30,11 @@ scripts/
 # Schema history applied via Supabase MCP/CLI locally — not versioned on GitHub
 supabase/migrations/
 
+# Cursor rules / agent planning files (local only)
+.cursor/
+*.mdc
+*.plan.md
+
 # Local docs / quiz drafts — only README is versioned
 *.md
 !README.md

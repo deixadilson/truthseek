@@ -24,11 +24,18 @@ const TITLES = [
   'Perito',
   'Elite',
   'Mestre',
-  'Grande-Mestre',
+  'Grão-Mestre',
   'Líder',
 ] as const;
 
 const PE = [0, 0, 0, 1, 1, 2, 3, 4, 5, 7, 10, 12, 15, 20] as const;
+
+function resolveInfluenceTitle(level: number, titleOverride?: string | null): string {
+  const fallback = TITLES[level] || 'Aspirante';
+  const raw = titleOverride?.trim();
+  if (!raw || raw === 'Grande-Mestre') return fallback;
+  return raw;
+}
 
 function familyAndGrade(level: number): { family: InfluenceFamily; grade: 1 | 2 | 3 } {
   if (level >= 13) return { family: 'diamond', grade: 1 };
@@ -50,7 +57,7 @@ export function getInfluenceTierMeta(
   const suffix = family === 'diamond' ? 'diamond' : `${family}-${grade}`;
   return {
     level: clamped,
-    title: titleOverride || TITLES[clamped] || 'Aspirante',
+    title: resolveInfluenceTitle(clamped, titleOverride),
     endorsementPower: PE[clamped] ?? 0,
     family,
     grade,

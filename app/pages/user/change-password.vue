@@ -5,11 +5,18 @@
         <Icon name="lucide:arrow-left" :size="16" />
         Voltar às configurações
       </NuxtLink>
-      <h2>Alterar senha</h2>
-      <p>Informe a senha atual e escolha uma nova senha para a sua conta.</p>
+      <h2>{{ hasPassword ? 'Alterar senha' : 'Criar senha' }}</h2>
+      <p v-if="hasPassword">Informe a senha atual e escolha uma nova senha para a sua conta.</p>
+      <p v-else>
+        Você entrou com o Google. Defina uma senha para também poder entrar com email e senha.
+        O login com o Google continuará funcionando.
+      </p>
 
-      <form class="password-form" @submit.prevent="handleChangePassword">
-        <div class="form-group">
+      <div v-if="isLoadingIdentity" class="loading-spinner">
+        <LoadingMessage message="Carregando..." />
+      </div>
+      <form v-else class="password-form" @submit.prevent="handleChangePassword">
+        <div v-if="hasPassword" class="form-group">
           <label for="current-password">Senha atual:</label>
           <input
             id="current-password"
@@ -57,11 +64,11 @@
             message="Alterando..."
             :icon-size="16"
           />
-          <template v-else>Alterar senha</template>
+          <template v-else>{{ hasPassword ? 'Alterar senha' : 'Criar senha' }}</template>
         </button>
       </form>
 
-      <div class="user-actions">
+      <div v-if="hasPassword && !isLoadingIdentity" class="user-actions">
         <NuxtLink to="/user/password-recovery">Esqueceu a senha atual?</NuxtLink>
       </div>
     </div>
@@ -85,6 +92,29 @@ const currentPassword = ref('');
 const newPassword = ref('');
 const confirmPassword = ref('');
 const isChangingPassword = ref(false);
+const isLoadingIdentity = ref(true);
+const hasPassword = ref(true);
+
+function userHasEmailIdentity(user: { identities?: { provider: string }[] | null; app_metadata?: { providers?: string[] } } | null): boolean {
+  if (!user) return true;
+  if (user.identities?.length) {
+    return user.identities.some((identity) => identity.provider === 'email');
+  }
+  const providers = user.app_metadata?.providers;
+  if (Array.isArray(providers) && providers.length) {
+    return providers.includes('email');
+  }
+  return true;
+}
+
+onMounted(async () => {
+  try {
+    const { data } = await supabase.auth.getUser();
+    hasPassword.value = userHasEmailIdentity(data.user);
+  } finally {
+    isLoadingIdentity.value = false;
+  }
+});
 
 async function handleChangePassword() {
   if (newPassword.value !== confirmPassword.value) {
@@ -95,7 +125,7 @@ async function handleChangePassword() {
     toast.error('A nova senha deve ter no mínimo 8 caracteres.');
     return;
   }
-  if (newPassword.value === currentPassword.value) {
+  if (hasPassword.value && newPassword.value === currentPassword.value) {
     toast.error('A nova senha deve ser diferente da senha atual.');
     return;
   }
@@ -110,13 +140,21 @@ async function handleChangePassword() {
       return;
     }
 
-    const { error: verifyError } = await supabase.auth.signInWithPassword({
-      email,
-      password: currentPassword.value,
-    });
-    if (verifyError) {
-      toast.error('Senha atual incorreta.');
-      return;
+    const accountHasPassword = userHasEmailIdentity(userData.user);
+    if (accountHasPassword) {
+      if (!hasPassword.value) {
+        hasPassword.value = true;
+        toast.info('Esta conta já tem senha. Informe a senha atual.');
+        return;
+      }
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email,
+        password: currentPassword.value,
+      });
+      if (verifyError) {
+        toast.error('Senha atual incorreta.');
+        return;
+      }
     }
 
     const { error: updateError } = await supabase.auth.updateUser({
@@ -124,7 +162,11 @@ async function handleChangePassword() {
     });
     if (updateError) throw updateError;
 
-    toast.success('Senha alterada com sucesso.');
+    toast.success(
+      accountHasPassword
+        ? 'Senha alterada com sucesso.'
+        : 'Senha criada. Agora você também pode entrar com email e senha.',
+    );
     await router.push('/user/settings');
   } catch (e: any) {
     toast.error(e.message || 'Não foi possível alterar a senha.');
@@ -172,6 +214,12 @@ async function handleChangePassword() {
   text-align: center;
   margin-bottom: 2rem;
   color: #666;
+}
+
+.loading-spinner {
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem 0;
 }
 
 .password-form .form-group {

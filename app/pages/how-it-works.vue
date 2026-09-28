@@ -354,7 +354,7 @@ const influenceLevels = [
   {
     level: 12,
     criterion: 'Top 5 mais influentes',
-    title: 'Grande-Mestre',
+    title: 'Grão-Mestre',
     pe: 15,
     privileges: ['Alterar a bandeira e capa do grupo'],
   },

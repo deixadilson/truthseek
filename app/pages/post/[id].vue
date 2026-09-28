@@ -28,7 +28,7 @@
           <section class="comments-section card-style">
             <h3>Comentários ({{ commentTotalLabel }})</h3>
             <CreateCommentForm
-              v-if="user && post && post.id && canComment"
+              v-if="user && post && post.id && mayComment"
               :post-id="post.id"
               :post-is-moderated="!!post.is_moderated"
               @comment-created="addNewCommentToList"
@@ -42,7 +42,7 @@
                 para comentar.
               </p>
             </div>
-            <div v-else-if="post && user && !canComment" class="guest-comment-prompt">
+            <div v-else-if="post && user && !mayComment && post.owner_type === 'vs_group'" class="guest-comment-prompt">
               <p>
                 Para comentar neste grupo de debate é necessário estar entre os
                 <strong>50% mais influentes</strong> (Apologista ou superior) em um dos vieses.
@@ -85,7 +85,7 @@
             </div>
             <!-- Input para responder a um comentário específico -->
             <CreateCommentForm
-              v-if="user && post && post.id && canComment && replyingToCommentId"
+              v-if="user && post && post.id && mayComment && replyingToCommentId"
               :key="`reply-form-${replyingToCommentId}`"
               :post-id="post.id"
               :post-is-moderated="!!post.is_moderated"
@@ -173,6 +173,12 @@ const highlightedCommentId = ref<string | null>(null);
 const replyingToUsername = ref<string | null>(null);
 const canComment = ref(false);
 const vsBackPath = ref<string | null>(null);
+
+/** Open/closed group posts the viewer can open are always commentable. */
+const mayComment = computed(() => {
+  if (post.value?.owner_type === 'group') return true;
+  return canComment.value;
+});
 
 const goBackLink = computed(() => {
   if (vsBackPath.value) return vsBackPath.value;
@@ -313,7 +319,6 @@ async function loadPostById(id: string): Promise<PostLoadResult> {
   }
 
   let postData = data as PostWithAuthor;
-  canComment.value = false;
   vsBackPath.value = null;
 
   // Resolve owner display context
@@ -333,12 +338,9 @@ async function loadPostById(id: string): Promise<PostLoadResult> {
         owner_group_country_code: group.country_code,
       };
     }
-    // Viewing a group post already implies comment access for that group.
-    canComment.value = true;
   } else if (postData.owner_type === 'vs_group' && postData.owner_id) {
     const vsCtx = await resolveVsPostContext(postData.owner_id);
     vsBackPath.value = vsCtx.backPath;
-    canComment.value = vsCtx.canComment;
     if (vsCtx.displayName && vsCtx.countryCode && vsCtx.pathSlug) {
       postData = {
         ...postData,
@@ -347,9 +349,6 @@ async function loadPostById(id: string): Promise<PostLoadResult> {
         owner_group_country_code: vsCtx.countryCode,
       };
     }
-  } else {
-    // Timeline / other: logged-in users may comment.
-    canComment.value = !!authUserId.value;
   }
 
   const allowed = await canViewPost(postData);
@@ -500,8 +499,10 @@ function handleNewComment(newComment: CommentWithAuthor) {
 }
 
 function handleRequestReply(payload: { commentId: string; username: string | null }) {
-  if (!canComment.value) {
-    toast.info('Você não tem permissão para comentar neste grupo de debate.');
+  if (!mayComment.value) {
+    if (post.value?.owner_type === 'vs_group') {
+      toast.info('Você não tem permissão para comentar neste grupo de debate.');
+    }
     return;
   }
   replyingToCommentId.value = payload.commentId;
@@ -606,24 +607,40 @@ watch(
   { immediate: true }
 );
 
-watch(authUserId, async () => {
-  if (!post.value) return;
+let commentAccessRequest = 0;
 
-  if (post.value.owner_type === 'vs_group' && post.value.owner_id) {
-    const vsCtx = await resolveVsPostContext(post.value.owner_id);
+async function syncCommentAccess() {
+  const request = ++commentAccessRequest;
+  const current = post.value;
+  if (!current) {
+    canComment.value = false;
+    return;
+  }
+
+  if (current.owner_type === 'group') {
+    canComment.value = true;
+    return;
+  }
+
+  if (current.owner_type === 'vs_group' && current.owner_id) {
+    const vsCtx = await resolveVsPostContext(current.owner_id);
+    if (request !== commentAccessRequest) return;
     canComment.value = vsCtx.canComment;
     vsBackPath.value = vsCtx.backPath;
     if (!canComment.value) cancelReply();
     return;
   }
 
-  if (post.value.owner_type === 'group') {
-    canComment.value = true;
-    return;
-  }
-
   canComment.value = !!authUserId.value;
-});
+}
+
+watch(
+  [authUserId, () => post.value?.id, () => post.value?.owner_type],
+  () => {
+    void syncCommentAccess();
+  },
+  { immediate: true },
+);
 </script>
 
 <style scoped>

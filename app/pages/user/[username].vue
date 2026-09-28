@@ -220,6 +220,7 @@
             :has-more="hasMorePosts"
             :is-loading-more="isLoadingMorePosts"
             empty-message="Nenhuma postagem pública ainda."
+            truncate-text
             @post-deleted="handlePostDeleted"
             @post-updated="handlePostUpdated"
             @load-more="loadMorePosts"
